@@ -1,9 +1,11 @@
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Award, Target, Users, Zap, MapPin, Store, Coffee, Gamepad2, GraduationCap } from 'lucide-react';
 
 export default function AboutUs() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const achievements = [
     { year: '2013', title: '1st Best Exhibitor Retail And Distribution' },
@@ -20,40 +22,54 @@ export default function AboutUs() {
 
   const sections = [
     {
-      title: 'COMPANY PROFILE',
-      content: 'SIMBA SUPERMARKET LTD offers a variety of products, including food, furniture, clothing, stationary, cosmetics, and toys. SIMBA SUPERMARKET LTD is genuinely a testament of Rwanda’s economic resurgence whose main goal is to meet people’s daily needs in Kigali, Rwanda. It was founded by Mr. Teklay Teame and his partners and now serves as the Chairman and CEO of Simba Supermarket LTD.',
+      title: t('company_profile_title'),
+      content: t('company_profile_desc'),
       icon: Users
     },
     {
-      title: 'Origin History',
-      content: 'SIMBA SUPERMARKET LTD, established on December 3, 2007, as a Limited Liability Company, aims to become the region\'s largest retail outlet. Importing products from Europe, Egypt, Dubai, China, Turkey, and other countries, the company ensures a diverse product range. The official launch took place on August 8, 2008, creating over 450 jobs for Rwandese. SIMBA SUPERMARKET LTD offers a variety of products, including food, furniture, clothing, stationary, cosmetics, and toys. With branches across Rwanda, including the latest one in Kigali, the company provides services such as a butchery, bakery, and coffee shop, aiming for a one-stop shopping experience. Known for quality products at affordable prices, SIMBA SUPERMARKET LTD serves international organizations, local NGOs, private companies, and government ministries, earning a reputation as one of Rwanda\'s most admired supermarkets.',
+      title: t('origin_history_title'),
+      content: t('origin_history_desc'),
       icon: GraduationCap
     }
   ];
 
   const values = [
     {
-      title: 'Respect for the Individual',
-      description: 'We’re hardworking, ordinary people who’ve teamed up to accomplish extraordinary things. While our backgrounds and personal beliefs are very different, we never take each other for granted. We encourage those around us to express their thoughts and ideas. We treat each other with dignity. This is the most basic way we show respect.',
+      title: t('respect_title'),
+      description: t('respect_desc'),
       icon: Target
     },
     {
-      title: 'Service to customers',
-      description: 'Our customers are the reason we’re in business, so we should treat them that way. We offer quality merchandise at the lowest prices, and we do it with the best customer service possible. We look for every opportunity where we can exceed our customers’ expectations. That’s when we’re at our very best.',
+      title: t('service_title'),
+      description: t('service_desc'),
       icon: Zap
     },
     {
-      title: 'Striving for Excellence',
-      description: 'We’re proud of our accomplishments but never satisfied. We constantly reach further to bring new ideas and goals to life. We always ask: Is this the best I can do? This demonstrates the passion we have for our business, for our customers, and for our communities.',
+      title: t('excellence_title'),
+      description: t('excellence_desc'),
       icon: Award
     }
   ];
 
   const categories = [
-    'Fruits & Vegetables', 'Meats', 'Frozen', 'Wines & Spirits', 'Furniture',
-    'Electronic', 'Utensils & Ornaments', 'Homecare', 'Baby Products',
-    'Gym & Sports', 'Health & Beauty', 'Bakery'
+    { name: 'Fruits & Vegetables', key: 'Food & Groceries' },
+    { name: 'Meats', key: 'Food & Groceries' },
+    { name: 'Frozen', key: 'Food & Groceries' },
+    { name: 'Wines & Spirits', key: 'Alcohol' },
+    { name: 'Furniture', key: 'Household' },
+    { name: 'Electronic', key: 'Kitchenware' },
+    { name: 'Utensils & Ornaments', key: 'Household' },
+    { name: 'Homecare', key: 'Household' },
+    { name: 'Baby Products', key: 'Baby & Kids' },
+    { name: 'Gym & Sports', key: 'Personal Care' },
+    { name: 'Health & Beauty', key: 'Personal Care' },
+    { name: 'Bakery', key: 'Food & Groceries' }
   ];
+
+  const handleCategoryClick = (key: string) => {
+    navigate(`/?search=${encodeURIComponent(key)}`);
+    window.scrollTo(0, 0);
+  };
 
   return (
     <div className="min-h-screen pt-24 pb-20">
@@ -74,7 +90,7 @@ export default function AboutUs() {
           transition={{ delay: 0.1 }}
           className="massive-header text-[var(--brand-text)]"
         >
-          ABOUT <span className="text-brand-primary">SIMBA</span>
+          {t('about_us').split(' ')[0]} <span className="text-brand-primary">{t('about_us').split(' ').slice(1).join(' ') || 'SIMBA'}</span>
         </motion.h1>
       </section>
 
@@ -106,7 +122,7 @@ export default function AboutUs() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-20">
             <h2 className="text-5xl font-black italic uppercase tracking-tighter text-[var(--brand-text)]">
-              BELIEFS & <span className="text-brand-primary">VALUES</span>
+              {t('beliefs_values').split(' ').slice(0, -1).join(' ')} <span className="text-brand-primary">{t('beliefs_values').split(' ').slice(-1)}</span>
             </h2>
             <div className="h-1.5 w-32 bg-brand-primary mx-auto mt-6" />
           </div>
@@ -141,13 +157,17 @@ export default function AboutUs() {
           {/* Categories */}
           <div>
             <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-10 text-[var(--brand-text)] border-l-4 border-brand-primary pl-6">
-              PRODUCT CATEGORIES
+              {t('shop_by_category')}
             </h2>
             <div className="flex flex-wrap gap-3">
               {categories.map((c, i) => (
-                <span key={i} className="px-4 py-2 bg-black/5 dark:bg-white/5 border border-brand-border rounded-full text-[10px] font-black uppercase tracking-widest text-[var(--brand-text)] opacity-60">
-                  {c}
-                </span>
+                <button 
+                  key={i} 
+                  onClick={() => handleCategoryClick(c.key)}
+                  className="px-4 py-2 bg-black/5 dark:bg-white/5 border border-brand-border rounded-full text-[10px] font-black uppercase tracking-widest text-[var(--brand-text)] opacity-60 hover:opacity-100 hover:border-brand-primary hover:text-brand-primary transition-all active:scale-95"
+                >
+                  {c.name}
+                </button>
               ))}
             </div>
           </div>
@@ -155,7 +175,7 @@ export default function AboutUs() {
           {/* Achievements */}
           <div>
             <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-10 text-[var(--brand-text)] border-l-4 border-brand-primary pl-6">
-              ACHIEVEMENTS
+              {t('achievements')}
             </h2>
             <div className="space-y-6">
               {achievements.map((a, i) => (
@@ -170,7 +190,7 @@ export default function AboutUs() {
           {/* Branches */}
           <div>
             <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-10 text-[var(--brand-text)] border-l-4 border-brand-primary pl-6">
-              BRANCHES
+              {t('branches')}
             </h2>
             <div className="grid grid-cols-2 gap-4">
               {branches.map((b, i) => (
@@ -188,30 +208,30 @@ export default function AboutUs() {
       <section className="max-w-7xl mx-auto px-4 mb-32">
         <div className="text-left mb-16 px-6 border-l-8 border-brand-primary">
           <h2 className="text-6xl sm:text-7xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] leading-none">
-            SERVICES <span className="text-brand-primary">DETAIL</span>
+            {t('services_detail').split(' ')[0]} <span className="text-brand-primary">{t('services_detail').split(' ').slice(1).join(' ')}</span>
           </h2>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ServiceCard 
             icon={Store}
-            title="Supermarket Service"
-            desc="11 Branches already in Operation across Rwanda."
+            title={t('supermarket_service_title')}
+            desc={t('supermarket_service_desc')}
           />
           <ServiceCard 
             icon={Coffee}
-            title="Restaurant & Coffee Shop"
-            desc="Trucillo Cafe services at five major Simba Branches."
+            title={t('restaurant_service_title')}
+            desc={t('restaurant_service_desc')}
           />
           <ServiceCard 
             icon={Gamepad2}
-            title="SIMBA ARCADE"
-            desc="Arcade Games entertainment at our Gacuriro branch."
+            title={t('arcade_service_title')}
+            desc={t('arcade_service_desc')}
           />
           <ServiceCard 
             icon={Zap}
-            title="Online Sales"
-            desc="Extending our services to the door of our customers."
+            title={t('online_sales_title')}
+            desc={t('online_sales_desc')}
           />
         </div>
       </section>
@@ -220,17 +240,20 @@ export default function AboutUs() {
       <section className="max-w-7xl mx-auto px-4">
          <div className="bg-brand-primary p-12 sm:p-20 rounded-[50px] relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-20 opacity-10 group-hover:scale-110 transition-transform duration-700">
-               <Store className="h-64 w-64" />
+               <Store className="h-64 w-64 text-zinc-900 dark:text-black" />
             </div>
             <div className="relative z-10 max-w-2xl">
-               <h2 className="text-5xl sm:text-7xl font-black italic uppercase tracking-tighter text-white mb-8">
-                  SIMBA IS <br/>EVERYWHERE.
+               <h2 className="text-5xl sm:text-7xl font-black italic uppercase tracking-tighter text-zinc-950 dark:text-white mb-8">
+                  {t('simba_is_everywhere').split(' ').slice(0, 2).join(' ')} <br/>{t('simba_is_everywhere').split(' ').slice(2).join(' ')}
                </h2>
-               <p className="text-white/80 font-bold uppercase tracking-widest italic mb-12 text-sm leading-relaxed">
-                  Join the testament of Rwanda's economic resurgence. We are constanty bringing new ideas and goals to life.
+               <p className="text-zinc-950/80 dark:text-white/80 font-bold uppercase tracking-widest italic mb-12 text-sm leading-relaxed">
+                  {t('cta_about_desc')}
                </p>
-               <button className="bg-white text-brand-primary px-12 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all text-xs italic">
-                  CONTACT US
+               <button 
+                onClick={() => navigate('/')}
+                className="bg-zinc-900 dark:bg-white text-white dark:text-brand-primary px-12 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all text-xs italic"
+               >
+                  {t('back_to_shopping')}
                </button>
             </div>
          </div>

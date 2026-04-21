@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCart } from '../hooks/useCart';
 import { formatCurrency, cn } from '../lib/utils';
-import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
@@ -11,27 +11,75 @@ export default function Cart() {
   const { t } = useTranslation();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'phone' | 'pin'>('cart');
+  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'method' | 'momo' | 'card' | 'waiting'>('cart');
+  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card'>('momo');
   const [phoneNumber, setPhoneNumber] = useState('078');
+  const [address, setAddress] = useState('');
+  const [cardType, setCardType] = useState<'visa' | 'mastercard'>('visa');
+  const [cardData, setCardData] = useState({ number: '', expiry: '', cvv: '' });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const validateCard = () => {
+    const errors: Record<string, string> = {};
+    const cleanNumber = cardData.number.replace(/\s+/g, '');
+    
+    if (!/^\d{16}$/.test(cleanNumber)) {
+      errors.number = 'Invalid card number (16 digits required)';
+    }
+    
+    if (!/^\d{2}\/\d{2}$/.test(cardData.expiry)) {
+      errors.expiry = 'Use MM/YY format';
+    } else {
+      const [m, y] = cardData.expiry.split('/').map(Number);
+      if (m < 1 || m > 12) errors.expiry = 'Invalid month';
+    }
+    
+    if (!/^\d{3}$/.test(cardData.cvv)) {
+      errors.cvv = '3 digits';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleCheckout = () => {
-    setCheckoutStep('phone');
+    setCheckoutStep('method');
   };
 
   const startPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    setCheckoutStep('pin');
+    if (!address.trim()) {
+      setFormErrors({ address: t('address_required') });
+      return;
+    }
+    setFormErrors({});
+    if (paymentMethod === 'momo') {
+      setCheckoutStep('momo');
+    } else {
+      setCheckoutStep('card');
+    }
   };
 
-  const confirmPin = (e: React.FormEvent) => {
+  const confirmMomo = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
-    // Simulate MoMo payment flow
+    setCheckoutStep('waiting');
+    // Simulate waiting for MoMo confirmation
     setTimeout(() => {
       setIsProcessing(false);
       setIsSuccess(true);
       clearCart();
-    }, 2500);
+    }, 4500);
+  };
+
+  const confirmCard = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateCard()) return;
+    setIsProcessing(true);
+    setTimeout(() => {
+      setIsProcessing(false);
+      setIsSuccess(true);
+      clearCart();
+    }, 3000);
   };
 
   if (isSuccess) {
@@ -184,24 +232,88 @@ export default function Cart() {
               </>
             )}
 
-            {checkoutStep === 'phone' && (
-              <form onSubmit={startPayment} className="space-y-8">
+            {checkoutStep === 'method' && (
+              <div className="space-y-8">
                  <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-8">
-                   {t('payment_info')}<span className="text-brand-primary">.</span>
+                    {t('shipping_address')}<span className="text-brand-primary">.</span>
                  </h2>
-                 <div className="space-y-4 text-left">
-                    <label className="micro-label uppercase tracking-widest block ml-4">{t('phone_number')}</label>
-                    <input 
+
+                 <div className="space-y-4 text-left mb-8">
+                    <label className="micro-label uppercase tracking-widest block ml-4">{t('shipping_address')}</label>
+                    <textarea 
                       required
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={e => setPhoneNumber(e.target.value)}
-                      className="w-full bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl py-5 px-6 italic font-black text-xl text-[var(--brand-text)] outline-none focus:border-brand-primary transition-colors"
-                      placeholder="078 XXX XXXX"
+                      rows={2}
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      placeholder={t('enter_address')}
+                      className={cn(
+                        "w-full bg-black/5 dark:bg-white/5 border rounded-3xl py-4 px-6 text-sm font-bold text-[var(--brand-text)] outline-none transition-colors resize-none",
+                        formErrors.address ? "border-red-500" : "border-brand-border dark:border-white/10 focus:border-brand-primary"
+                      )}
                     />
+                    {formErrors.address && <p className="text-[10px] text-red-500 font-bold uppercase ml-4">{formErrors.address}</p>}
                  </div>
+
+                 <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-4">
+                    {t('payment_method')}<span className="text-brand-primary">.</span>
+                 </h2>
+                 <div className="grid grid-cols-1 gap-4">
+                    <button 
+                      onClick={() => setPaymentMethod('momo')}
+                      className={cn(
+                        "p-6 rounded-[30px] border-2 text-left transition-all relative overflow-hidden group",
+                        paymentMethod === 'momo' ? "border-brand-primary bg-brand-primary/5" : "border-brand-border hover:border-brand-primary/30"
+                      )}
+                    >
+                      <Smartphone className={cn("h-8 w-8 mb-4", paymentMethod === 'momo' ? "text-brand-primary" : "opacity-40")} />
+                      <p className="font-black italic uppercase tracking-tighter text-xl">MTN MoMo</p>
+                      <p className="text-[10px] uppercase font-bold opacity-40">Fast & Integrated</p>
+                      {paymentMethod === 'momo' && <CheckCircle className="absolute top-4 right-4 h-5 w-5 text-brand-primary" />}
+                    </button>
+                    <button 
+                      onClick={() => setPaymentMethod('card')}
+                      className={cn(
+                        "p-6 rounded-[30px] border-2 text-left transition-all relative overflow-hidden group",
+                        paymentMethod === 'card' ? "border-brand-primary bg-brand-primary/5" : "border-brand-border hover:border-brand-primary/30"
+                      )}
+                    >
+                      <CreditCard className={cn("h-8 w-8 mb-4", paymentMethod === 'card' ? "text-brand-primary" : "opacity-40")} />
+                      <p className="font-black italic uppercase tracking-tighter text-xl">Credit / Debit Card</p>
+                      <p className="text-[10px] uppercase font-bold opacity-40">Visa & Mastercard</p>
+                      {paymentMethod === 'card' && <CheckCircle className="absolute top-4 right-4 h-5 w-5 text-brand-primary" />}
+                    </button>
+                 </div>
+                 
+                 {paymentMethod === 'momo' ? (
+                   <div className="space-y-4">
+                      <label className="micro-label uppercase tracking-widest block ml-4">MoMo Number</label>
+                      <input 
+                        required
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={e => setPhoneNumber(e.target.value)}
+                        className="w-full bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl py-5 px-6 italic font-black text-xl text-[var(--brand-text)] outline-none focus:border-brand-primary"
+                      />
+                   </div>
+                 ) : (
+                   <div className="flex gap-4">
+                     <button 
+                      onClick={() => setCardType('visa')}
+                      className={cn("flex-1 p-4 rounded-2xl border font-black italic uppercase text-xs transition-all", cardType === 'visa' ? "bg-brand-primary text-white border-brand-primary" : "border-brand-border text-[var(--brand-text)] opacity-40")}
+                     >
+                       Visa
+                     </button>
+                     <button 
+                      onClick={() => setCardType('mastercard')}
+                      className={cn("flex-1 p-4 rounded-2xl border font-black italic uppercase text-xs transition-all", cardType === 'mastercard' ? "bg-brand-primary text-white border-brand-primary" : "border-brand-border text-[var(--brand-text)] opacity-40")}
+                     >
+                       Mastercard
+                     </button>
+                   </div>
+                 )}
+
                  <button 
-                   type="submit"
+                   onClick={(e) => startPayment(e as any)}
                    className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all italic"
                  >
                    {t('proceed')}
@@ -209,39 +321,127 @@ export default function Cart() {
                  <button onClick={() => setCheckoutStep('cart')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors">
                    {t('cancel')}
                  </button>
+              </div>
+            )}
+
+            {checkoutStep === 'momo' && (
+              <form onSubmit={confirmMomo} className="space-y-8">
+                 <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-8">
+                    MOMO PAY<span className="text-brand-primary">.</span>
+                 </h2>
+                 <div className="p-8 bg-black/10 dark:bg-zinc-900 rounded-[30px] border border-brand-border dark:border-white/5 text-center mb-10">
+                    <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mb-4">Dial via Phone:</p>
+                    <p className="text-3xl font-black italic text-brand-primary mb-2">*182*8*1*123456#</p>
+                    <p className="text-[10px] opacity-40 italic uppercase">Merchant: SIMBA SUPERMARKET</p>
+                 </div>
+                 <div className="space-y-4 text-left">
+                    <label className="micro-label uppercase tracking-widest block ml-4">Enter PIN on Phone</label>
+                    <p className="text-sm opacity-60 font-bold uppercase tracking-tight ml-4">
+                      A request has been sent to <span className="text-brand-primary">{phoneNumber}</span>. 
+                      Please confirm on your device.
+                    </p>
+                 </div>
+                 <button 
+                   type="submit"
+                   className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 italic"
+                 >
+                   I'VE ENTERED THE PIN
+                 </button>
+                 <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
+                   {t('back')}
+                 </button>
               </form>
             )}
 
-            {checkoutStep === 'pin' && (
-              <form onSubmit={confirmPin} className="space-y-8">
+            {checkoutStep === 'card' && (
+              <form onSubmit={confirmCard} className="space-y-6">
                  <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-8">
-                    {t('pin_required')}<span className="text-brand-primary">.</span>
+                    CARD INFO<span className="text-brand-primary">.</span>
                  </h2>
-                 <div className="p-8 bg-black/10 dark:bg-zinc-900 rounded-[30px] border border-brand-border dark:border-white/5 text-center mb-10">
-                    <p className="text-xs font-bold opacity-40 uppercase tracking-widest mb-6">{t('momo_request_sent')}:</p>
-                    <p className="text-2xl font-black italic text-brand-primary mb-2">{phoneNumber}</p>
-                 </div>
                  <div className="space-y-4 text-left">
-                    <label className="micro-label uppercase tracking-widest block ml-4">{t('enter_momo_pin')}</label>
+                    <label className="micro-label uppercase tracking-widest block ml-4">Card Number</label>
                     <input 
-                      required
-                      type="password"
-                      maxLength={5}
-                      className="w-full bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl py-5 px-6 italic font-black text-xl text-[var(--brand-text)] outline-none focus:border-brand-primary text-center tracking-[1em]"
-                      autoFocus
+                      required 
+                      type="text" 
+                      placeholder="XXXX XXXX XXXX XXXX" 
+                      value={cardData.number}
+                      onChange={e => setCardData({...cardData, number: e.target.value.replace(/[^\d\s]/g, '')})}
+                      className={cn(
+                        "w-full bg-black/5 dark:bg-white/5 border rounded-2xl py-4 px-6 text-[var(--brand-text)] transition-colors",
+                        formErrors.number ? "border-red-500" : "border-brand-border dark:border-white/10"
+                      )} 
                     />
+                    {formErrors.number && <p className="text-[10px] text-red-500 font-bold uppercase ml-4">{formErrors.number}</p>}
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-4 text-left">
+                      <label className="micro-label uppercase tracking-widest block ml-4">Expiry</label>
+                      <input 
+                        required 
+                        type="text" 
+                        placeholder="MM/YY" 
+                        value={cardData.expiry}
+                        onChange={e => setCardData({...cardData, expiry: e.target.value})}
+                        className={cn(
+                          "w-full bg-black/5 dark:bg-white/5 border rounded-2xl py-4 px-6 text-[var(--brand-text)] transition-colors",
+                          formErrors.expiry ? "border-red-500" : "border-brand-border dark:border-white/10"
+                        )} 
+                      />
+                      {formErrors.expiry && <p className="text-[10px] text-red-500 font-bold uppercase ml-4">{formErrors.expiry}</p>}
+                   </div>
+                   <div className="space-y-4 text-left">
+                      <label className="micro-label uppercase tracking-widest block ml-4">CVV</label>
+                      <input 
+                        required 
+                        type="password" 
+                        maxLength={3} 
+                        placeholder="XXX" 
+                        value={cardData.cvv}
+                        onChange={e => setCardData({...cardData, cvv: e.target.value.replace(/[^\d]/g, '')})}
+                        className={cn(
+                          "w-full bg-black/5 dark:bg-white/5 border rounded-2xl py-4 px-6 text-[var(--brand-text)] text-center tracking-widest transition-colors",
+                          formErrors.cvv ? "border-red-500" : "border-brand-border dark:border-white/10"
+                        )} 
+                      />
+                      {formErrors.cvv && <p className="text-[10px] text-red-500 font-bold uppercase ml-4 text-center">{formErrors.cvv}</p>}
+                   </div>
                  </div>
                  <button 
                    type="submit"
                    disabled={isProcessing}
                    className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 italic"
                  >
-                   {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin" /> : t('confirm_payment')}
+                   {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin" /> : `PAY ${formatCurrency(totalPrice + (totalPrice > 50000 ? 0 : 2000))}`}
                  </button>
-                 <button onClick={() => setCheckoutStep('phone')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors">
+                 <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
                    {t('back')}
                  </button>
               </form>
+            )}
+
+            {checkoutStep === 'waiting' && (
+              <div className="py-12 text-center">
+                 <div className="relative w-24 h-24 mx-auto mb-8">
+                    <motion.div 
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 bg-brand-primary rounded-full blur-xl"
+                    />
+                    <div className="relative flex items-center justify-center h-full">
+                       <Wifi className="h-10 w-10 text-brand-primary animate-pulse" />
+                    </div>
+                 </div>
+                 <h3 className="text-xl font-black uppercase italic text-brand-primary mb-2">WAITING FOR PIN</h3>
+                 <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mb-8 text-center px-4">Detecting signals from {phoneNumber}. Please do not close this window.</p>
+                 <div className="w-full h-1 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 4.5 }}
+                      className="h-full bg-brand-primary"
+                    />
+                 </div>
+              </div>
             )}
 
             <div className="mt-8 p-5 bg-brand-accent/10 border border-brand-accent/20 rounded-3xl group">

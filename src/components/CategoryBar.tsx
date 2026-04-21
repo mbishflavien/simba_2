@@ -44,7 +44,7 @@ export default function CategoryBar({ categories, selectedCategory, onSelectCate
         >
           <span className={cn(
             "text-lg font-black uppercase tracking-tight transition-all",
-            selectedCategory === null ? "text-brand-primary italic underline underline-offset-8" : "opacity-60 hover:opacity-100 text-[var(--brand-text)]"
+            selectedCategory === null ? "text-brand-primary italic underline underline-offset-8" : "opacity-80 hover:opacity-100 text-[var(--brand-text)]"
           )}>
             {t('all_categories')}
           </span>
@@ -61,10 +61,10 @@ export default function CategoryBar({ categories, selectedCategory, onSelectCate
               onClick={() => onSelectCategory(category)}
               className="flex items-center gap-2 min-w-fit group transition-all"
             >
-              {Icon && <Icon className={cn("h-4 w-4 transition-colors", isSelected ? "text-brand-primary" : "opacity-20 text-[var(--brand-text)]")} />}
+              {Icon && <Icon className={cn("h-4 w-4 transition-colors", isSelected ? "text-brand-primary" : "opacity-40 text-[var(--brand-text)]")} />}
               <span className={cn(
                 "text-lg font-black uppercase tracking-tight transition-all",
-                isSelected ? "text-brand-primary italic underline underline-offset-8" : "opacity-60 hover:opacity-100 text-[var(--brand-text)]"
+                isSelected ? "text-brand-primary italic underline underline-offset-8" : "opacity-80 hover:opacity-100 text-[var(--brand-text)]"
               )}>
                 {getCategoryLabel(category)}
               </span>

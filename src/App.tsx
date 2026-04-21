@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import AboutUs from './pages/AboutUs';
+import { ContactSupport, DeliveryTC, MoMoGuide } from './pages/SupportInfo';
 import './i18n';
 
 function ScrollToTop() {
@@ -30,6 +31,9 @@ export default function App() {
               <Route path="/cart" element={<Cart />} />
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/about" element={<AboutUs />} />
+              <Route path="/support/contact" element={<ContactSupport />} />
+              <Route path="/support/delivery" element={<DeliveryTC />} />
+              <Route path="/support/momo-guide" element={<MoMoGuide />} />
             </Routes>
           </div>
           <Footer />

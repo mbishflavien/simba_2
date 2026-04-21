@@ -19,11 +19,14 @@ export default function Home() {
     const rawCategories = Array.from(new Set(products.map(p => {
        const name = p.name.toLowerCase();
        // Primary Keyword Overrides for common misclassifications
-       if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board')) return 'Office Supplies';
-       if (name.includes('oil') && !name.includes('shampoo')) return 'Food & Groceries';
-       if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan')) return 'Household';
-       if (name.includes('dog shampoo') || name.includes('pet')) return 'Pet Care';
-       if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice')) return 'Food & Groceries';
+       if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board') || name.includes('staple')) return 'Office Supplies';
+       if (name.includes('oil') && !name.includes('shampoo') && !name.includes('beard')) return 'Food & Groceries';
+       if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan') || name.includes('broom')) return 'Household';
+       if (name.includes('dog') || name.includes('cat') || name.includes('pet')) return 'Pet Care';
+       if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice') || name.includes('noodle') || name.includes('spaghetti') || name.includes('sugar') || name.includes('coffee') || name.includes('tea')) return 'Food & Groceries';
+       if (name.includes('wine') || name.includes('beer') || name.includes('spirit') || name.includes('vodka') || name.includes('whisky') || name.includes('gin') || name.includes('liqueur')) return 'Alcohol';
+       if (name.includes('soap') || name.includes('shampoo') || name.includes('toothpaste') || name.includes('brush') || name.includes('lotion') || name.includes('deodorant') || name.includes('razor') || name.includes('gel')) return 'Personal Care';
+       if (name.includes('diaper') || name.includes('wipe') || name.includes('baby') || name.includes('infant')) return 'Baby & Kids';
 
        // Basic Mapping
        if (p.category === 'Cosmetics & Personal Care') return 'Personal Care';
@@ -47,11 +50,14 @@ export default function Home() {
        let cat = p.category;
 
        // Override logic
-       if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board')) cat = 'Office Supplies';
-       else if (name.includes('oil') && !name.includes('shampoo')) cat = 'Food & Groceries';
-       else if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan')) cat = 'Household';
-       else if (name.includes('dog shampoo') || name.includes('pet')) cat = 'Pet Care';
-       else if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice')) cat = 'Food & Groceries';
+       if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board') || name.includes('staple')) cat = 'Office Supplies';
+       else if (name.includes('oil') && !name.includes('shampoo') && !name.includes('beard')) cat = 'Food & Groceries';
+       else if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan') || name.includes('broom')) cat = 'Household';
+       else if (name.includes('dog') || name.includes('cat') || name.includes('pet')) cat = 'Pet Care';
+       else if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice') || name.includes('noodle') || name.includes('spaghetti') || name.includes('sugar') || name.includes('coffee') || name.includes('tea')) cat = 'Food & Groceries';
+       else if (name.includes('wine') || name.includes('beer') || name.includes('spirit') || name.includes('vodka') || name.includes('whisky') || name.includes('gin') || name.includes('liqueur')) cat = 'Alcohol';
+       else if (name.includes('soap') || name.includes('shampoo') || name.includes('toothpaste') || name.includes('brush') || name.includes('lotion') || name.includes('deodorant') || name.includes('razor') || name.includes('gel')) cat = 'Personal Care';
+       else if (name.includes('diaper') || name.includes('wipe') || name.includes('baby') || name.includes('infant')) cat = 'Baby & Kids';
        else if (p.category === 'Cosmetics & Personal Care') cat = 'Personal Care';
        else if (p.category === 'Alcoholic Drinks') cat = 'Alcohol';
        else if (p.category === 'Food Products') cat = 'Food & Groceries';
@@ -186,8 +192,8 @@ export default function Home() {
               animate={{ opacity: 1 }}
               className="flex flex-col items-center justify-center py-32 text-zinc-400"
             >
-              <Search className="h-16 w-16 mb-4 opacity-10" />
-              <p className="text-lg font-black uppercase italic tracking-widest opacity-20">{t('no_units_found')}</p>
+              <Search className="h-20 w-20 mb-6 opacity-20 text-brand-primary" />
+              <p className="text-xl font-black uppercase italic tracking-widest opacity-30">{t('no_units_found')}</p>
               <button 
                 onClick={() => { setSelectedCategory(null); window.history.pushState({}, '', '/'); }}
                 className="mt-6 text-brand-primary font-black uppercase tracking-widest text-sm hover:underline"
@@ -214,25 +220,25 @@ export default function Home() {
         <section className="mt-32">
            <div className="bg-brand-primary p-12 sm:p-24 rounded-[60px] relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-24 opacity-10 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
-                 <ShoppingBag className="h-64 w-64" />
+                 <ShoppingBag className="h-64 w-64 text-white dark:text-black" />
               </div>
               <div className="relative z-10 max-w-2xl text-left">
-                  <h2 className="text-5xl sm:text-7xl font-black italic uppercase tracking-tighter text-white mb-8">
+                  <h2 className="text-5xl sm:text-7xl font-black italic uppercase tracking-tighter text-zinc-950 dark:text-white mb-8">
                     {t('cta_title')}
                   </h2>
-                  <p className="text-white/80 font-bold uppercase tracking-widest italic mb-12 text-sm sm:text-base leading-relaxed">
+                  <p className="text-zinc-950/80 dark:text-white/90 font-bold uppercase tracking-widest italic mb-12 text-sm sm:text-base leading-relaxed">
                     {t('cta_desc')}
                   </p>
                   <div className="flex flex-wrap gap-6">
                     <button 
                       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                      className="bg-white text-brand-primary px-12 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl hover:bg-zinc-100 transition-all text-xs italic active:scale-95"
+                      className="bg-zinc-900 dark:bg-white text-white dark:text-brand-primary px-12 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl hover:bg-black dark:hover:bg-zinc-100 transition-all text-xs italic active:scale-95"
                     >
                       {t('shop_now')}
                     </button>
                     <Link 
                       to="/about"
-                      className="inline-flex items-center gap-2 text-white font-black uppercase tracking-widest text-xs italic hover:underline"
+                      className="inline-flex items-center gap-2 text-zinc-900 dark:text-white font-black uppercase tracking-widest text-xs italic hover:underline"
                     >
                       {t('about_simba')} →
                     </Link>

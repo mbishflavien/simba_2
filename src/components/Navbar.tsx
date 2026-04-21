@@ -55,24 +55,35 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
-            <img 
-              src="https://isokko.com/m/media/upload/photos/2024/10/Untitleddesign6_6712450111ff0.png" 
-              alt="Simba Logo" 
-              className="h-10 sm:h-12 w-auto object-contain dark:brightness-110"
-              referrerPolicy="no-referrer"
-            />
+          <Link to="/" className="flex items-center gap-4 group">
+            <div className="relative">
+              <img 
+                src="https://isokko.com/m/media/upload/photos/2024/10/Untitleddesign6_6712450111ff0.png" 
+                alt="Simba Logo" 
+                className="h-10 sm:h-14 w-auto object-contain dark:brightness-110 group-hover:scale-105 transition-transform"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-display font-black text-2xl sm:text-3xl tracking-tighter uppercase italic text-[var(--brand-text)] leading-[0.8]">
+                SIMBA
+              </span>
+              <span className="text-brand-primary font-black text-[9px] tracking-[0.4em] uppercase leading-none ml-1">
+                SUPERMARKET
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             <form onSubmit={handleSearch} className="relative group flex items-center">
+              <Search className="absolute left-6 h-5 w-5 text-zinc-500 dark:text-white/30 group-focus-within:text-brand-primary transition-colors" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('search_placeholder')}
-                className="w-64 bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-full py-2.5 px-6 text-sm focus:outline-none focus:border-brand-primary transition-colors placeholder:text-black/30 dark:placeholder:text-white/20 text-[var(--brand-text)]"
+                className="w-80 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-3 pl-14 pr-16 text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-8 focus:ring-brand-primary/5 transition-all placeholder:text-zinc-500 dark:placeholder:text-white/20 text-black dark:text-white shadow-xl group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
               />
               {searchQuery && (
                 <button 
@@ -81,12 +92,12 @@ export default function Navbar() {
                     setSearchQuery('');
                     navigate('/');
                   }}
-                  className="absolute right-12 top-2.5 text-black/30 dark:text-white/30 hover:text-brand-primary transition-colors"
+                  className="absolute right-12 top-1/2 -translate-y-1/2 text-black/50 dark:text-white/30 hover:text-brand-primary transition-colors p-2"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               )}
-              <div className="absolute right-4 top-2.5 text-[10px] font-bold text-black/20 dark:text-white/20 tracking-tighter uppercase border border-brand-border dark:border-white/10 px-2 py-0.5 rounded">⌘K</div>
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-black/40 dark:text-white/20 tracking-tighter uppercase border border-zinc-300 dark:border-white/10 px-2 py-1 rounded pointer-events-none hidden lg:block">⌘K</div>
             </form>
 
             <button 
@@ -143,25 +154,27 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Search Overlay */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute inset-0 bg-[var(--brand-bg)] z-[60] flex items-center px-4"
+            className="absolute inset-0 bg-[var(--brand-card)] z-[60] flex items-center px-4 shadow-2xl"
           >
-            <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-              <input
-                autoFocus
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('search_placeholder')}
-                className="flex-1 bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-xl py-3 px-4 focus:ring-brand-primary outline-none text-[var(--brand-text)]"
-              />
-              <button type="button" onClick={() => setIsSearchOpen(false)} className="p-3 text-[var(--brand-text-muted)]">
+            <form onSubmit={handleSearch} className="flex-1 flex gap-3 items-center">
+              <div className="flex-1 relative flex items-center">
+                <Search className="absolute left-4 h-5 w-5 text-brand-primary" />
+                <input
+                  autoFocus
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('search_placeholder')}
+                  className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-transparent focus:border-brand-primary rounded-2xl py-4 pl-14 pr-4 focus:ring-8 focus:ring-brand-primary/10 outline-none text-black dark:text-white font-black italic uppercase tracking-tight transition-all placeholder:text-zinc-500 dark:placeholder:text-white/20 shadow-xl"
+                />
+              </div>
+              <button type="button" onClick={() => setIsSearchOpen(false)} className="p-2 text-[var(--brand-text)] hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
                 <X className="h-6 w-6" />
               </button>
             </form>
