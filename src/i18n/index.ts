@@ -114,7 +114,12 @@ const resources = {
       "price_range": "Price Range",
       "availability": "Availability",
       "in_stock_only": "In Stock Only",
-      "clear_all_filters": "Clear Filters"
+      "clear_all_filters": "Clear Filters",
+      "suggestions": "Suggestions",
+      "category": "Category",
+      "product": "Product",
+      "cat_short": "CAT",
+      "prod_short": "PROD"
     }
   },
   fr: {
@@ -228,7 +233,12 @@ const resources = {
       "price_range": "Tranche de Prix",
       "availability": "Disponibilité",
       "in_stock_only": "En Stock Uniquement",
-      "clear_all_filters": "Effacer les Filtres"
+      "clear_all_filters": "Effacer les Filtres",
+      "suggestions": "Suggestions",
+      "category": "Catégorie",
+      "product": "Produit",
+      "cat_short": "CAT",
+      "prod_short": "PROD"
     }
   },
   rw: {
@@ -342,7 +352,12 @@ const resources = {
       "price_range": "Ikiguzi (RWF)",
       "availability": "Kuhaba",
       "in_stock_only": "Ibihari Gusa",
-      "clear_all_filters": "Kuraho Ibipimo Byose"
+      "clear_all_filters": "Kuraho Ibipimo Byose",
+      "suggestions": "Ibyifuzo",
+      "category": "Icyiciro",
+      "product": "Igicuruzwa",
+      "cat_short": "ICYI",
+      "prod_short": "IGIC"
     }
   }
 };
