@@ -5,7 +5,8 @@ import { ProductCard } from '../components/ProductCard';
 import CategoryBar from '../components/CategoryBar';
 import { Product } from '../types';
 import { useTranslation } from 'react-i18next';
-import { Search, ShoppingBag } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { Search, ShoppingBag, Sliders, Filter, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
@@ -14,6 +15,12 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   
+  // Advanced Filters State
+  const [minPrice, setMinPrice] = useState<number | ''>('');
+  const [maxPrice, setMaxPrice] = useState<number | ''>('');
+  const [onlyInStock, setOnlyInStock] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
   const products = productsData.products as Product[];
   const categories = useMemo(() => {
     const rawCategories = Array.from(new Set(products.map(p => {
@@ -74,9 +81,15 @@ export default function Home() {
       const matchesSearch = !searchQuery || 
         product.name.toLowerCase().includes(searchQuery) || 
         product.category.toLowerCase().includes(searchQuery);
-      return matchesCategory && matchesSearch;
+      
+      const priceVal = product.price;
+      const matchesMinPrice = minPrice === '' || priceVal >= minPrice;
+      const matchesMaxPrice = maxPrice === '' || priceVal <= maxPrice;
+      const matchesStock = !onlyInStock || product.inStock;
+
+      return matchesCategory && matchesSearch && matchesMinPrice && matchesMaxPrice && matchesStock;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory, searchQuery, minPrice, maxPrice, onlyInStock]);
 
   const displayedProducts = useMemo(() => {
     return filteredProducts.slice(0, visibleCount);
@@ -163,7 +176,7 @@ export default function Home() {
 
       <main className="flex-1 max-w-7xl mx-auto px-4 py-16 sm:py-24 w-full">
         {/* Results Header */}
-        <div className="flex justify-between items-end mb-16 px-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-16 px-4 gap-8">
           <div>
             <h2 className="text-4xl sm:text-6xl font-black tracking-tight italic uppercase leading-none text-[var(--brand-text)]">
               {searchQuery ? `${t('searching')} "${searchQuery}"` : (selectedCategory ? getCategoryLabel(selectedCategory) : t('market_aisles'))}
@@ -173,7 +186,99 @@ export default function Home() {
               {t('products_found', { count: filteredProducts.length })}
             </p>
           </div>
+          
+          <button 
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={cn(
+              "flex items-center gap-3 px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] border-2 transition-all",
+              isFilterOpen ? "bg-brand-primary border-brand-primary text-white dark:text-black" : "border-zinc-200 dark:border-white/10 hover:border-brand-primary/50"
+            )}
+          >
+            <Sliders className="h-4 w-4" />
+            {isFilterOpen ? t('hide_filters') : t('advanced_filters')}
+          </button>
         </div>
+
+        {/* Filter Panel */}
+        <AnimatePresence>
+          {isFilterOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mb-16 mx-4"
+            >
+              <div className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-[40px] p-8 sm:p-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 sm:gap-20">
+                  {/* Price Filter */}
+                  <div className="space-y-6">
+                    <h4 className="micro-label !opacity-100 italic flex items-center gap-2">
+                       <Filter className="h-3 w-3 text-brand-primary" />
+                       {t('price_range')} (RWF)
+                    </h4>
+                    <div className="flex items-center gap-4">
+                      <input 
+                        type="number"
+                        placeholder="Min"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl py-3 px-4 text-xs font-bold font-mono focus:border-brand-primary outline-none"
+                      />
+                      <span className="opacity-30">—</span>
+                      <input 
+                        type="number"
+                        placeholder="Max"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl py-3 px-4 text-xs font-bold font-mono focus:border-brand-primary outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stock Filter */}
+                  <div className="space-y-6">
+                    <h4 className="micro-label !opacity-100 italic flex items-center gap-2">
+                       <CheckCircle2 className="h-3 w-3 text-brand-primary" />
+                       {t('availability')}
+                    </h4>
+                    <button 
+                      onClick={() => setOnlyInStock(!onlyInStock)}
+                      className={cn(
+                        "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all",
+                        onlyInStock ? "bg-brand-primary/10 border-brand-primary text-brand-primary" : "border-brand-border hover:border-brand-primary/30 text-zinc-500"
+                      )}
+                    >
+                      <span className="text-xs font-black uppercase tracking-widest">{t('in_stock_only')}</span>
+                      <div className={cn(
+                        "h-6 w-11 rounded-full relative transition-colors",
+                        onlyInStock ? "bg-brand-primary" : "bg-zinc-300 dark:bg-zinc-700"
+                      )}>
+                        <div className={cn(
+                          "absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform",
+                          onlyInStock ? "translate-x-5" : ""
+                        )} />
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Reset Actions */}
+                  <div className="flex items-end">
+                    <button 
+                      onClick={() => {
+                        setMinPrice('');
+                        setMaxPrice('');
+                        setOnlyInStock(false);
+                      }}
+                      className="w-full py-4 border border-zinc-200 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-white/5 transition-all text-zinc-500"
+                    >
+                      {t('clear_all_filters')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Product Grid */}
         <AnimatePresence mode="popLayout">

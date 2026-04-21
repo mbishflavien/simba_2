@@ -123,9 +123,16 @@ export default function Navbar() {
               ))}
             </div>
 
-            <Link to="/cart" className="bg-brand-primary text-white dark:text-black px-6 py-2.5 rounded-full font-black text-xs flex items-center gap-3 cursor-pointer hover:bg-orange-600 dark:hover:bg-orange-400 transition-all uppercase tracking-widest leading-none shadow-lg shadow-brand-primary/20">
-              {t('cart')} ({totalItems})
-            </Link>
+            <motion.div
+              key={totalItems}
+              initial={{ scale: 1 }}
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 0.3 }}
+            >
+              <Link to="/cart" className="bg-brand-primary text-white dark:text-black px-6 py-2.5 rounded-full font-black text-xs flex items-center gap-3 cursor-pointer hover:bg-orange-600 dark:hover:bg-orange-400 transition-all uppercase tracking-widest leading-none shadow-lg shadow-brand-primary/20">
+                {t('cart')} ({totalItems})
+              </Link>
+            </motion.div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -140,12 +147,23 @@ export default function Navbar() {
               <Search className="h-6 w-6" />
             </button>
             <Link to="/cart" className="relative text-[var(--brand-text)]">
-              <ShoppingCart className="h-6 w-6" />
-              {totalItems > 0 && (
-                <span className="absolute -top-2 -right-2 bg-brand-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
+              <motion.div
+                key={totalItems}
+                initial={{ scale: 1 }}
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.3 }}
+              >
+                <ShoppingCart className="h-6 w-6" />
+                {totalItems > 0 && (
+                  <motion.span 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-2 -right-2 bg-brand-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
+                  >
+                    {totalItems}
+                  </motion.span>
+                )}
+              </motion.div>
             </Link>
             <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-[var(--brand-text)]">
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}

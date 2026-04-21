@@ -108,7 +108,13 @@ const resources = {
       "simba_is_everywhere": "SIMBA IS EVERYWHERE.",
       "cta_about_desc": "Join the testament of Rwanda's economic resurgence. We are constanty bringing new ideas and goals to life.",
       "back_to_shopping": "BACK TO SHOPPING",
-      "footer_desc": "Rwanda's most popular online supermarket. Quality products delivered fast to your doorstep."
+      "footer_desc": "Rwanda's most popular online supermarket. Quality products delivered fast to your doorstep.",
+      "advanced_filters": "Advanced Filters",
+      "hide_filters": "Hide Filters",
+      "price_range": "Price Range",
+      "availability": "Availability",
+      "in_stock_only": "In Stock Only",
+      "clear_all_filters": "Clear Filters"
     }
   },
   fr: {
@@ -216,7 +222,13 @@ const resources = {
       "simba_is_everywhere": "SIMBA EST PARTOUT.",
       "cta_about_desc": "Rejoignez le témoignage de la renaissance économique du Rwanda. Nous donnons constamment vie à de nouvelles idées et objectifs.",
       "back_to_shopping": "RETOUR AUX ACHATS",
-      "footer_desc": "Le supermarché en ligne le plus populaire du Rwanda. Des produits de qualité livrés rapidement à votre porte."
+      "footer_desc": "Le supermarché en ligne le plus populaire du Rwanda. Des produits de qualité livrés rapidement à votre porte.",
+      "advanced_filters": "Filtres Avancés",
+      "hide_filters": "Masquer les Filtres",
+      "price_range": "Tranche de Prix",
+      "availability": "Disponibilité",
+      "in_stock_only": "En Stock Uniquement",
+      "clear_all_filters": "Effacer les Filtres"
     }
   },
   rw: {
@@ -324,7 +336,13 @@ const resources = {
       "simba_is_everywhere": "SIMBA IRI HOSE.",
       "cta_about_desc": "Injira muri uyu muhamya w'iterambere ry'ubukungu bw'u Rwanda. Buri gihe tuzana ibitekerezo n'intego nshya.",
       "back_to_shopping": "SUBIRA GUHAHA",
-      "footer_desc": "Iduka riranguza rya mbere rikunzwe cyane mu Rwanda. Ibicuruzwa byiza bikugezwaho vuba."
+      "footer_desc": "Iduka riranguza rya mbere rikunzwe cyane mu Rwanda. Ibicuruzwa byiza bikugezwaho vuba.",
+      "advanced_filters": "Uburyo bwisumbuye bwo gushaka",
+      "hide_filters": "Hisha ibipimo",
+      "price_range": "Ikiguzi (RWF)",
+      "availability": "Kuhaba",
+      "in_stock_only": "Ibihari Gusa",
+      "clear_all_filters": "Kuraho Ibipimo Byose"
     }
   }
 };
