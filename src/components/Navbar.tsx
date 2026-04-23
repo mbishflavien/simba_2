@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Menu, X, Globe, Moon, Sun } from 'lucide-react';
+import { ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
+import { useAuth } from './AuthProvider';
 import { useTranslation } from 'react-i18next';
+import { auth } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useMemo } from 'react';
@@ -11,6 +13,7 @@ import { Product } from '../types';
 
 export default function Navbar() {
   const { totalItems } = useCart();
+  const { user, profile } = useAuth();
   const { t, i18n } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -18,6 +21,11 @@ export default function Navbar() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   
   const products = productsData.products as Product[];
+
+  const handleSignOut = () => {
+    auth.signOut();
+    navigate('/');
+  };
 
   const suggestions = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) return [];
@@ -187,6 +195,30 @@ export default function Navbar() {
 
             <div className="flex gap-4 micro-label">
               <Link to="/about" className="mr-4 hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black">{t('about_us')}</Link>
+              
+              {user ? (
+                <div className="flex items-center gap-4">
+                  <Link 
+                    to="/profile"
+                    className="text-brand-primary font-black italic uppercase tracking-widest text-[10px] hover:scale-105 transition-transform"
+                  >
+                    {profile?.displayName || user.email?.split('@')[0]}
+                  </Link>
+                  <button 
+                    onClick={handleSignOut}
+                    className="hover:text-brand-primary transition-colors text-zinc-500"
+                    title={t('logout')}
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <Link to="/login" className="flex items-center gap-2 hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black uppercase tracking-widest">
+                  <UserIcon className="h-4 w-4" />
+                  {t('login')}
+                </Link>
+              )}
+
               {languages.map((lang) => (
                 <button
                   key={lang.code}
@@ -204,11 +236,23 @@ export default function Navbar() {
             <motion.div
               key={totalItems}
               initial={{ scale: 1 }}
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 0.3 }}
+              animate={totalItems > 0 ? { scale: [1, 1.25, 0.9, 1] } : { scale: 1 }}
+              transition={{ 
+                duration: 0.4,
+                times: [0, 0.4, 0.7, 1],
+                ease: "easeOut"
+              }}
             >
               <Link to="/cart" className="bg-brand-primary text-white dark:text-black px-6 py-2.5 rounded-full font-black text-xs flex items-center gap-3 cursor-pointer hover:bg-orange-600 dark:hover:bg-orange-400 transition-all uppercase tracking-widest leading-none shadow-lg shadow-brand-primary/20">
-                {t('cart')} ({totalItems})
+                {t('cart')} 
+                <motion.span
+                  key={`count-${totalItems}`}
+                  initial={{ y: 5, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="bg-black/20 dark:bg-black/10 px-2 py-0.5 rounded-md"
+                >
+                  {totalItems}
+                </motion.span>
               </Link>
             </motion.div>
           </div>
@@ -228,15 +272,20 @@ export default function Navbar() {
               <motion.div
                 key={totalItems}
                 initial={{ scale: 1 }}
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.3 }}
+                animate={totalItems > 0 ? { scale: [1, 1.4, 0.8, 1] } : { scale: 1 }}
+                transition={{ 
+                  duration: 0.5,
+                  times: [0, 0.4, 0.8, 1],
+                  ease: "backOut"
+                }}
               >
                 <ShoppingCart className="h-6 w-6" />
                 {totalItems > 0 && (
                   <motion.span 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-2 -right-2 bg-brand-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
+                    key={`badge-${totalItems}`}
+                    initial={{ scale: 0, rotate: -20 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    className="absolute -top-2 -right-2 bg-brand-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-[var(--brand-bg)] shadow-lg"
                   >
                     {totalItems}
                   </motion.span>
@@ -323,7 +372,7 @@ export default function Navbar() {
             className="md:hidden bg-[var(--brand-bg)] border-t border-brand-border overflow-hidden"
           >
             <div className="px-4 py-6 space-y-6">
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-6">
                  <Link 
                    to="/about" 
                    onClick={() => setIsMenuOpen(false)}
@@ -331,6 +380,41 @@ export default function Navbar() {
                  >
                    {t('about_us')}
                  </Link>
+
+                 {user ? (
+                   <div className="space-y-4">
+                     <div className="flex items-center gap-4 py-4 border-b border-white/10">
+                       <div className="w-12 h-12 rounded-full bg-brand-primary/20 flex items-center justify-center text-brand-primary text-xl font-black italic">
+                         {(profile?.displayName || user.email || '?')[0].toUpperCase()}
+                       </div>
+                       <div>
+                         <p className="text-xl font-black italic uppercase tracking-tighter text-[var(--brand-text)]">
+                           {profile?.displayName || user.email?.split('@')[0]}
+                         </p>
+                         <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{user.email}</p>
+                       </div>
+                     </div>
+                     <button 
+                       onClick={() => {
+                        handleSignOut();
+                        setIsMenuOpen(false);
+                       }}
+                       className="w-full py-4 rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-500 font-black italic uppercase tracking-widest text-xs flex items-center justify-center gap-3"
+                     >
+                       <LogOut className="w-4 h-4" />
+                       {t('logout')}
+                     </button>
+                   </div>
+                 ) : (
+                   <Link 
+                     to="/login" 
+                     onClick={() => setIsMenuOpen(false)}
+                     className="text-2xl font-black italic uppercase tracking-tighter text-brand-primary flex items-center gap-4"
+                   >
+                     <UserIcon className="w-8 h-8" />
+                     {t('login_signup')}
+                   </Link>
+                 )}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {languages.map((lang) => (

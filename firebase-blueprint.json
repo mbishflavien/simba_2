@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user information and preferences",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The unique ID of the user" },
+        "displayName": { "type": "string", "description": "The name shown for the user" },
+        "email": { "type": "string", "description": "The user's email address" },
+        "phoneNumber": { "type": "string", "description": "The user's contact number" },
+        "address": { "type": "string", "description": "The user's delivery address in Kigali" },
+        "isAdmin": { "type": "boolean", "description": "Whether the user has administrative privileges" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the profile was created" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the profile was last updated" }
+      },
+      "required": ["userId", "email", "createdAt", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Records a customer's purchase",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "description": "Unique identifier for the order" },
+        "userId": { "type": "string", "description": "ID of the user who placed the order" },
+        "items": { "type": "array", "description": "List of items purchased" },
+        "total": { "type": "number", "description": "Total amount paid" },
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered", "cancelled"], "description": "Current status of the order" },
+        "paymentMethod": { "type": "string", "description": "Method used for payment (e.g., MoMo, card, cash)" },
+        "address": { "type": "string", "description": "Delivery address or pickup instructions" },
+        "pickupBranch": { "type": "string", "description": "The specific branch selected for cash on pickup" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the order was placed" }
+      },
+      "required": ["orderId", "userId", "items", "total", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Individual user profile documents"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Historical records of all customer orders"
+    }
+  }
+}

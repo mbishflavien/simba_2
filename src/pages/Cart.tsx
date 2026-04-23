@@ -1,23 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../hooks/useCart';
+import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi, LogIn, MapPin, Search } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
+import BranchMap, { SIMBA_BRANCHES } from '../components/BranchMap';
+
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, handleFirestoreError } from '../lib/firebase';
+import { OrderItem } from '../types';
+
+const NEIGHBORHOODS: Record<string, { lat: number; lng: number }> = {
+  'nyarutarama': { lat: -1.9197, lng: 30.0927 },
+  'kimironko': { lat: -1.9545, lng: 30.1264 },
+  'remera': { lat: -1.9602, lng: 30.1065 },
+  'kicukiro': { lat: -1.9774, lng: 30.0995 },
+  'kanombe': { lat: -1.9644, lng: 30.1415 },
+  'kiyovu': { lat: -1.9485, lng: 30.0645 },
+  'nyamirambo': { lat: -1.9688, lng: 30.0521 },
+  'gikondo': { lat: -1.9600, lng: 30.0800 },
+  'kacyiru': { lat: -1.9360, lng: 30.0880 },
+  'city center': { lat: -1.9441, lng: 30.0619 },
+};
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart } = useCart();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'method' | 'momo' | 'card' | 'waiting'>('cart');
-  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card'>('momo');
+  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'method' | 'momo' | 'card' | 'cash' | 'waiting'>('cart');
+  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'cash'>('momo');
   const [phoneNumber, setPhoneNumber] = useState('078');
   const [address, setAddress] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [cardType, setCardType] = useState<'visa' | 'mastercard'>('visa');
   const [cardData, setCardData] = useState({ number: '', expiry: '', cvv: '' });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (profile?.address && !address) {
+      setAddress(profile.address);
+    }
+  }, [profile, address]);
 
   const validateCard = () => {
     const errors: Record<string, string> = {};
@@ -43,43 +73,120 @@ export default function Cart() {
   };
 
   const handleCheckout = () => {
+    if (!user) {
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
     setCheckoutStep('method');
   };
 
   const startPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address.trim()) {
+    if (paymentMethod !== 'cash' && !address.trim()) {
       setFormErrors({ address: t('address_required') });
       return;
     }
     setFormErrors({});
     if (paymentMethod === 'momo') {
       setCheckoutStep('momo');
-    } else {
+    } else if (paymentMethod === 'card') {
       setCheckoutStep('card');
+    } else {
+      setCheckoutStep('cash');
     }
   };
 
-  const confirmMomo = (e: React.FormEvent) => {
+  const handleFindNearest = () => {
+    if (!neighborhood.trim()) return;
+    const query = neighborhood.toLowerCase().trim();
+    const match = Object.entries(NEIGHBORHOODS).find(([name]) => name.includes(query) || query.includes(name));
+    if (match) {
+      setUserCoords(match[1]);
+    }
+  };
+
+  const saveOrder = async () => {
+    if (!user) return;
+    
+    const orderId = `SIMBA-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`.toUpperCase();
+    const orderItems: OrderItem[] = cart.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image
+    }));
+
+    try {
+      await setDoc(doc(db, 'orders', orderId), {
+        orderId,
+        userId: user.uid,
+        items: orderItems,
+        total: totalPrice + (paymentMethod === 'cash' ? 0 : (totalPrice > 50000 ? 0 : 2000)),
+        status: 'pending',
+        paymentMethod,
+        address: paymentMethod === 'cash' ? `Pickup at ${SIMBA_BRANCHES.find(b => b.id === selectedBranch)?.name}` : address,
+        pickupBranch: paymentMethod === 'cash' ? selectedBranch : null,
+        createdAt: serverTimestamp()
+      });
+      return orderId;
+    } catch (error) {
+      console.error("Error saving order:", error);
+      handleFirestoreError(error, 'create', `orders/${orderId}`);
+      throw error;
+    }
+  };
+
+  const confirmMomo = async (e: React.FormEvent) => {
     e.preventDefault();
     setCheckoutStep('waiting');
-    // Simulate waiting for MoMo confirmation
-    setTimeout(() => {
+    
+    try {
+      // Simulate waiting for MoMo confirmation
+      await new Promise(resolve => setTimeout(resolve, 4500));
+      await saveOrder();
       setIsProcessing(false);
       setIsSuccess(true);
       clearCart();
-    }, 4500);
+    } catch (error) {
+      setCheckoutStep('momo');
+      alert("Payment failed. Please try again.");
+    }
   };
 
-  const confirmCard = (e: React.FormEvent) => {
+  const confirmCard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateCard()) return;
     setIsProcessing(true);
-    setTimeout(() => {
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await saveOrder();
       setIsProcessing(false);
       setIsSuccess(true);
       clearCart();
-    }, 3000);
+    } catch (error) {
+      setIsProcessing(false);
+      alert("Payment failed. Please try again.");
+    }
+  };
+
+  const confirmCash = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBranch) {
+      setFormErrors({ branch: t('select_pickup_branch') });
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await saveOrder();
+      setIsProcessing(false);
+      setIsSuccess(true);
+      clearCart();
+    } catch (error) {
+      setIsProcessing(false);
+      alert("Order failed. Please try again.");
+    }
   };
 
   if (isSuccess) {
@@ -90,15 +197,23 @@ export default function Cart() {
           animate={{ scale: 1 }}
           className="w-24 h-24 bg-brand-primary rounded-full flex items-center justify-center mx-auto mb-8"
         >
-          <CreditCard className="h-10 w-10 text-white dark:text-black" />
+          {paymentMethod === 'cash' ? (
+            <MapPin className="h-10 w-10 text-white dark:text-black" />
+          ) : (
+            <CreditCard className="h-10 w-10 text-white dark:text-black" />
+          )}
         </motion.div>
-        <h2 className="massive-header mb-8 tracking-widest leading-none text-[var(--brand-text)]">{t('order_received')}!</h2>
-        <p className="opacity-60 mb-10 text-lg font-black uppercase tracking-widest italic text-[var(--brand-text)]">{t('kigali_delivery')}.</p>
+        <h2 className="massive-header mb-8 tracking-widest leading-none text-[var(--brand-text)]">
+          {paymentMethod === 'cash' ? t('pickup_confirmed') : `${t('order_received')}!`}
+        </h2>
+        <p className="opacity-60 mb-10 text-lg font-black uppercase tracking-widest italic text-[var(--brand-text)]">
+          {paymentMethod === 'cash' ? t('pickup_reception_note') : t('kigali_delivery') + '.'}
+        </p>
         <Link 
-          to="/" 
+          to="/profile" 
           className="inline-flex items-center gap-2 bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 transition-colors shadow-2xl shadow-brand-primary/20"
         >
-          {t('track_order')}
+          {t('view_order_details')}
         </Link>
       </div>
     );
@@ -227,7 +342,7 @@ export default function Cart() {
                   className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-2xl shadow-brand-primary/20 active:scale-95 italic"
                 >
                   <CreditCard className="h-5 w-5 font-black" />
-                  {t('pay_with_momo')}
+                  {t('proceed_to_checkout')}
                 </button>
               </>
             )}
@@ -282,6 +397,18 @@ export default function Cart() {
                       <p className="text-[10px] uppercase font-bold opacity-40">Visa & Mastercard</p>
                       {paymentMethod === 'card' && <CheckCircle className="absolute top-4 right-4 h-5 w-5 text-brand-primary" />}
                     </button>
+                    <button 
+                      onClick={() => setPaymentMethod('cash')}
+                      className={cn(
+                        "p-6 rounded-[30px] border-2 text-left transition-all relative overflow-hidden group",
+                        paymentMethod === 'cash' ? "border-brand-primary bg-brand-primary/5" : "border-brand-border hover:border-brand-primary/30"
+                      )}
+                    >
+                      <MapPin className={cn("h-8 w-8 mb-4", paymentMethod === 'cash' ? "text-brand-primary" : "opacity-40")} />
+                      <p className="font-black italic uppercase tracking-tighter text-xl">{t('cash_on_pickup')}</p>
+                      <p className="text-[10px] uppercase font-bold opacity-40">Pay at Store</p>
+                      {paymentMethod === 'cash' && <CheckCircle className="absolute top-4 right-4 h-5 w-5 text-brand-primary" />}
+                    </button>
                  </div>
                  
                  {paymentMethod === 'momo' ? (
@@ -295,7 +422,7 @@ export default function Cart() {
                         className="w-full bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl py-5 px-6 italic font-black text-xl text-[var(--brand-text)] outline-none focus:border-brand-primary"
                       />
                    </div>
-                 ) : (
+                 ) : paymentMethod === 'card' ? (
                    <div className="flex gap-4">
                      <button 
                       onClick={() => setCardType('visa')}
@@ -309,6 +436,14 @@ export default function Cart() {
                      >
                        Mastercard
                      </button>
+                   </div>
+                 ) : (
+                   <div className="space-y-4">
+                     <div className="p-5 bg-brand-primary/5 rounded-3xl border border-brand-primary/10">
+                       <p className="text-xs font-bold leading-relaxed opacity-60 uppercase tracking-tight">
+                         {t('pickup_instructions')}
+                       </p>
+                     </div>
                    </div>
                  )}
 
@@ -417,6 +552,51 @@ export default function Cart() {
                    {t('back')}
                  </button>
               </form>
+            )}
+
+            {checkoutStep === 'cash' && (
+              <div className="space-y-6 lg:min-w-[600px]">
+                <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-4">
+                  {t('select_pickup_branch')}<span className="text-brand-primary">.</span>
+                </h2>
+                
+                <div className="relative mb-6">
+                  <input 
+                    type="text" 
+                    placeholder={t('current_location_placeholder')}
+                    value={neighborhood}
+                    onChange={e => setNeighborhood(e.target.value)}
+                    className="w-full bg-black/5 dark:bg-white/5 border border-brand-border rounded-2xl py-4 pl-6 pr-14 text-sm font-bold italic outline-none focus:border-brand-primary"
+                  />
+                  <button 
+                    onClick={handleFindNearest}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-brand-primary text-white rounded-xl hover:bg-orange-600 transition-colors"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <BranchMap 
+                   onSelectBranch={(b) => {
+                     setSelectedBranch(b.id);
+                     setFormErrors({});
+                   }}
+                   selectedBranch={selectedBranch}
+                   userLocation={userCoords}
+                />
+                
+                {formErrors.branch && <p className="text-[10px] text-red-500 font-bold uppercase text-center mt-2">{formErrors.branch}</p>}
+
+                <button 
+                  onClick={(e) => confirmCash(e as any)}
+                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all italic active:scale-95 shadow-2xl shadow-brand-primary/20"
+                >
+                  {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin mx-auto" /> : t('order_received').toUpperCase()}
+                </button>
+                <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
+                  {t('back')}
+                </button>
+              </div>
             )}
 
             {checkoutStep === 'waiting' && (

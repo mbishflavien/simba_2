@@ -8,10 +8,10 @@ export default function AboutUs() {
   const navigate = useNavigate();
 
   const achievements = [
-    { year: '2013', title: '1st Best Exhibitor Retail And Distribution' },
-    { year: '2014', title: 'Best Exhibitor Retail and Distribution' },
-    { year: '2015', title: 'RRA Compliant Taxpayer' },
-    { year: '2020', title: '1st Merchant Of The Year in Rwanda' },
+    { year: '2013', title: t('ach_2013') },
+    { year: '2014', title: t('ach_2014') },
+    { year: '2015', title: t('ach_2015') },
+    { year: '2020', title: t('ach_2020') },
   ];
 
   const branches = [
@@ -22,7 +22,7 @@ export default function AboutUs() {
 
   const sections = [
     {
-      title: t('company_profile_title'),
+      title: t('about_simba'),
       content: t('company_profile_desc'),
       icon: Users
     },
@@ -52,18 +52,18 @@ export default function AboutUs() {
   ];
 
   const categories = [
-    { name: 'Fruits & Vegetables', key: 'Food & Groceries' },
-    { name: 'Meats', key: 'Food & Groceries' },
-    { name: 'Frozen', key: 'Food & Groceries' },
-    { name: 'Wines & Spirits', key: 'Alcohol' },
-    { name: 'Furniture', key: 'Household' },
-    { name: 'Electronic', key: 'Kitchenware' },
-    { name: 'Utensils & Ornaments', key: 'Household' },
-    { name: 'Homecare', key: 'Household' },
-    { name: 'Baby Products', key: 'Baby & Kids' },
-    { name: 'Gym & Sports', key: 'Personal Care' },
-    { name: 'Health & Beauty', key: 'Personal Care' },
-    { name: 'Bakery', key: 'Food & Groceries' }
+    { name: t('cat_fruits_veg'), key: 'Food & Groceries' },
+    { name: t('cat_meats'), key: 'Food & Groceries' },
+    { name: t('cat_frozen'), key: 'Food & Groceries' },
+    { name: t('cat_wines_spirits'), key: 'Alcohol' },
+    { name: t('cat_furniture'), key: 'Household' },
+    { name: t('cat_electronic'), key: 'Kitchenware' },
+    { name: t('cat_utensils'), key: 'Household' },
+    { name: t('cat_homecare'), key: 'Household' },
+    { name: t('cat_baby_prod'), key: 'Baby & Kids' },
+    { name: t('cat_gym_sports'), key: 'Personal Care' },
+    { name: t('cat_health_beauty'), key: 'Personal Care' },
+    { name: t('cat_bakery'), key: 'Food & Groceries' }
   ];
 
   const handleCategoryClick = (key: string) => {
@@ -81,7 +81,7 @@ export default function AboutUs() {
           className="inline-block mb-6"
         >
           <span className="micro-label bg-brand-primary/10 border border-brand-primary/30 px-4 py-2 rounded-full text-brand-primary italic">
-            SINCE 2007
+            {t('since_2007')}
           </span>
         </motion.div>
         <motion.h1 

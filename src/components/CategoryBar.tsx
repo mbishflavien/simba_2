@@ -1,3 +1,4 @@
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import { 
@@ -9,8 +10,7 @@ import {
   Package, 
   LayoutGrid, 
   Smartphone,
-  Wrench,
-  Stethoscope
+  Wrench
 } from 'lucide-react';
 
 interface CategoryBarProps {
@@ -32,7 +32,7 @@ const categoryIcons: Record<string, any> = {
   "Office Supplies": LayoutGrid
 };
 
-export default function CategoryBar({ categories, selectedCategory, onSelectCategory, getCategoryLabel }: CategoryBarProps) {
+export const CategoryBar = React.memo(({ categories, selectedCategory, onSelectCategory, getCategoryLabel }: CategoryBarProps) => {
   const { t } = useTranslation();
 
   return (
@@ -75,4 +75,7 @@ export default function CategoryBar({ categories, selectedCategory, onSelectCate
       </div>
     </div>
   );
-}
+});
+
+CategoryBar.displayName = 'CategoryBar';
+export default CategoryBar;

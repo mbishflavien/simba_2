@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import productsData from '../data/products.json';
 import { ProductCard } from '../components/ProductCard';
@@ -9,95 +9,73 @@ import { cn } from '../lib/utils';
 import { Search, ShoppingBag, Sliders, Filter, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+// Pre-process products once outside the component to save category override calculation time on every render
+const processedProducts: Product[] = (productsData.products as Product[]).map(p => {
+  const name = p.name.toLowerCase();
+  let cat = p.category;
+
+  // Primary Keyword Overrides for common misclassifications
+  if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board') || name.includes('staple')) cat = 'Office Supplies';
+  else if (name.includes('oil') && !name.includes('shampoo') && !name.includes('beard')) cat = 'Food & Groceries';
+  else if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan') || name.includes('broom')) cat = 'Household';
+  else if (name.includes('dog') || name.includes('cat') || name.includes('pet')) cat = 'Pet Care';
+  else if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice') || name.includes('noodle') || name.includes('spaghetti') || name.includes('sugar') || name.includes('coffee') || name.includes('tea')) cat = 'Food & Groceries';
+  else if (name.includes('wine') || name.includes('beer') || name.includes('spirit') || name.includes('vodka') || name.includes('whisky') || name.includes('gin') || name.includes('liqueur')) cat = 'Alcohol';
+  else if (name.includes('soap') || name.includes('shampoo') || name.includes('toothpaste') || name.includes('brush') || name.includes('lotion') || name.includes('deodorant') || name.includes('razor') || name.includes('gel')) cat = 'Personal Care';
+  else if (name.includes('diaper') || name.includes('wipe') || name.includes('baby') || name.includes('infant')) cat = 'Baby & Kids';
+  else if (p.category === 'Cosmetics & Personal Care') cat = 'Personal Care';
+  else if (p.category === 'Alcoholic Drinks') cat = 'Alcohol';
+  else if (p.category === 'Food Products') cat = 'Food & Groceries';
+  else if (p.category === 'Kitchenware & Electronics') cat = 'Kitchenware';
+  else if (p.category === 'Baby Products') cat = 'Baby & Kids';
+  else if (p.category === 'Sports & Wellness') cat = 'Personal Care';
+  else if (p.category === 'General') cat = 'Other';
+
+  return { ...p, category: cat };
+});
+
+const ALL_CATEGORIES = Array.from(new Set(processedProducts.map(p => p.category)));
+
 export default function Home() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   
-  // Advanced Filters State
   const [minPrice, setMinPrice] = useState<number | ''>('');
   const [maxPrice, setMaxPrice] = useState<number | ''>('');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const products = productsData.products as Product[];
-  const categories = useMemo(() => {
-    const rawCategories = Array.from(new Set(products.map(p => {
-       const name = p.name.toLowerCase();
-       // Primary Keyword Overrides for common misclassifications
-       if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board') || name.includes('staple')) return 'Office Supplies';
-       if (name.includes('oil') && !name.includes('shampoo') && !name.includes('beard')) return 'Food & Groceries';
-       if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan') || name.includes('broom')) return 'Household';
-       if (name.includes('dog') || name.includes('cat') || name.includes('pet')) return 'Pet Care';
-       if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice') || name.includes('noodle') || name.includes('spaghetti') || name.includes('sugar') || name.includes('coffee') || name.includes('tea')) return 'Food & Groceries';
-       if (name.includes('wine') || name.includes('beer') || name.includes('spirit') || name.includes('vodka') || name.includes('whisky') || name.includes('gin') || name.includes('liqueur')) return 'Alcohol';
-       if (name.includes('soap') || name.includes('shampoo') || name.includes('toothpaste') || name.includes('brush') || name.includes('lotion') || name.includes('deodorant') || name.includes('razor') || name.includes('gel')) return 'Personal Care';
-       if (name.includes('diaper') || name.includes('wipe') || name.includes('baby') || name.includes('infant')) return 'Baby & Kids';
-
-       // Basic Mapping
-       if (p.category === 'Cosmetics & Personal Care') return 'Personal Care';
-       if (p.category === 'Alcoholic Drinks') return 'Alcohol';
-       if (p.category === 'Food Products') return 'Food & Groceries';
-       if (p.category === 'Kitchenware & Electronics') return 'Kitchenware';
-       if (p.category === 'Baby Products') return 'Baby & Kids';
-       if (p.category === 'Sports & Wellness') return 'Personal Care';
-       if (p.category === 'General') return 'Other';
-       
-       return p.category;
-    })));
-    return rawCategories;
-  }, [products]);
-
-  const searchQuery = searchParams.get('search')?.toLowerCase() || '';
+  const searchQuery = useMemo(() => 
+    searchParams.get('search')?.toLowerCase() || ''
+  , [searchParams]);
 
   const filteredProducts = useMemo(() => {
-    let result = products.map(p => {
-       const name = p.name.toLowerCase();
-       let cat = p.category;
-
-       // Override logic
-       if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board') || name.includes('staple')) cat = 'Office Supplies';
-       else if (name.includes('oil') && !name.includes('shampoo') && !name.includes('beard')) cat = 'Food & Groceries';
-       else if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan') || name.includes('broom')) cat = 'Household';
-       else if (name.includes('dog') || name.includes('cat') || name.includes('pet')) cat = 'Pet Care';
-       else if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice') || name.includes('noodle') || name.includes('spaghetti') || name.includes('sugar') || name.includes('coffee') || name.includes('tea')) cat = 'Food & Groceries';
-       else if (name.includes('wine') || name.includes('beer') || name.includes('spirit') || name.includes('vodka') || name.includes('whisky') || name.includes('gin') || name.includes('liqueur')) cat = 'Alcohol';
-       else if (name.includes('soap') || name.includes('shampoo') || name.includes('toothpaste') || name.includes('brush') || name.includes('lotion') || name.includes('deodorant') || name.includes('razor') || name.includes('gel')) cat = 'Personal Care';
-       else if (name.includes('diaper') || name.includes('wipe') || name.includes('baby') || name.includes('infant')) cat = 'Baby & Kids';
-       else if (p.category === 'Cosmetics & Personal Care') cat = 'Personal Care';
-       else if (p.category === 'Alcoholic Drinks') cat = 'Alcohol';
-       else if (p.category === 'Food Products') cat = 'Food & Groceries';
-       else if (p.category === 'Kitchenware & Electronics') cat = 'Kitchenware';
-       else if (p.category === 'Baby Products') cat = 'Baby & Kids';
-       else if (p.category === 'Sports & Wellness') cat = 'Personal Care';
-       else if (p.category === 'General') cat = 'Other';
-
-       return { ...p, category: cat };
-    });
-
-    return result.filter(product => {
-      const matchesCategory = !selectedCategory || product.category === selectedCategory;
-      const matchesSearch = !searchQuery || 
-        product.name.toLowerCase().includes(searchQuery) || 
-        product.category.toLowerCase().includes(searchQuery);
+    return processedProducts.filter(product => {
+      if (selectedCategory && product.category !== selectedCategory) return false;
       
-      const priceVal = product.price;
-      const matchesMinPrice = minPrice === '' || priceVal >= minPrice;
-      const matchesMaxPrice = maxPrice === '' || priceVal <= maxPrice;
-      const matchesStock = !onlyInStock || product.inStock;
+      if (searchQuery) {
+        const matches = product.name.toLowerCase().includes(searchQuery) || 
+                       product.category.toLowerCase().includes(searchQuery);
+        if (!matches) return false;
+      }
+      
+      if (minPrice !== '' && product.price < minPrice) return false;
+      if (maxPrice !== '' && product.price > maxPrice) return false;
+      if (onlyInStock && !product.inStock) return false;
 
-      return matchesCategory && matchesSearch && matchesMinPrice && matchesMaxPrice && matchesStock;
+      return true;
     });
-  }, [products, selectedCategory, searchQuery, minPrice, maxPrice, onlyInStock]);
+  }, [selectedCategory, searchQuery, minPrice, maxPrice, onlyInStock]);
 
   const displayedProducts = useMemo(() => {
     return filteredProducts.slice(0, visibleCount);
   }, [filteredProducts, visibleCount]);
 
-  const loadMore = () => {
+  const loadMore = React.useCallback(() => {
     setVisibleCount(prev => prev + 16);
-  };
+  }, []);
 
   const getCategoryLabel = (cat: string) => {
     const map: Record<string, string> = {
@@ -164,7 +142,7 @@ export default function Home() {
 
       <div id="market">
         <CategoryBar 
-          categories={categories} 
+          categories={ALL_CATEGORIES} 
           selectedCategory={selectedCategory} 
           getCategoryLabel={getCategoryLabel}
           onSelectCategory={(cat) => {

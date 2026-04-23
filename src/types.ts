@@ -24,3 +24,34 @@ export interface StoreInfo {
 export interface CartItem extends Product {
   quantity: number;
 }
+
+export interface UserProfile {
+  userId: string;
+  displayName: string | null;
+  email: string;
+  phoneNumber: string | null;
+  address: string | null;
+  isAdmin?: boolean;
+  createdAt: any; // Timestamp
+  updatedAt: any; // Timestamp
+}
+
+export interface OrderItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+}
+
+export interface Order {
+  orderId: string;
+  userId: string;
+  items: OrderItem[];
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  paymentMethod: 'momo' | 'card' | 'cash';
+  address: string;
+  pickupBranch?: string;
+  createdAt: any; // Timestamp
+}

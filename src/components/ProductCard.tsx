@@ -1,21 +1,30 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Product } from '../types';
 import { useCart } from '../hooks/useCart';
 import { formatCurrency, cn } from '../lib/utils';
-import { ShoppingCart, Plus, Minus, Info } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Info, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 
 export interface ProductCardProps {
   product: Product;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) => {
   const { addToCart, cart, updateQuantity } = useCart();
   const { t } = useTranslation();
+  const [isAdded, setIsAdded] = React.useState(false);
 
-  const cartItem = cart.find(item => item.id === product.id);
+  const cartItem = useMemo(() => 
+    cart.find(item => item.id === product.id)
+  , [cart, product.id]);
+
+  const handleAddToCart = useCallback(() => {
+    addToCart(product);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 2000);
+  }, [addToCart, product]);
 
   return (
     <motion.div
@@ -60,7 +69,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           {cartItem ? (
-            <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-full p-1 border border-brand-border">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-full p-1 border border-brand-border"
+            >
               <button
                 onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-primary hover:text-white transition-colors"
@@ -74,23 +87,48 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               >
                 <Plus className="h-3 w-3" />
               </button>
-            </div>
+            </motion.div>
           ) : (
-            <button
-              onClick={() => addToCart(product)}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={handleAddToCart}
               disabled={!product.inStock}
               className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300",
+                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 relative overflow-hidden",
                 product.inStock
-                  ? "bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 active:scale-95 shadow-xl shadow-brand-primary/20"
+                  ? isAdded 
+                    ? "bg-green-500 text-white shadow-xl shadow-green-500/20"
+                    : "bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 shadow-xl shadow-brand-primary/20"
                   : "bg-black/5 dark:bg-white/5 text-black/20 dark:text-white/20 cursor-not-allowed"
               )}
             >
-              <Plus className="h-5 w-5 font-black" />
-            </button>
+              <AnimatePresence mode="wait">
+                {isAdded ? (
+                  <motion.div
+                    key="check"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                  >
+                    <Check className="h-5 w-5 font-black" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="plus"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                  >
+                    <Plus className="h-5 w-5 font-black" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
           )}
         </div>
       </div>
     </motion.div>
   );
-}
+});
+
+ProductCard.displayName = 'ProductCard';
