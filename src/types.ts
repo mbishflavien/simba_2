@@ -12,6 +12,8 @@ export interface Product {
   inStock: boolean;
   image: string;
   unit: string;
+  rating?: number;
+  reviewCount?: number;
 }
 
 export interface StoreInfo {

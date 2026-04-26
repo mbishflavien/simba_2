@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, Timestamp, addDoc, deleteDoc, setDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useAuth } from '../components/AuthProvider';
-import { Order, UserProfile } from '../types';
+import { Order, Product } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { 
   Package, 
@@ -25,11 +25,16 @@ import {
   Database,
   LogOut,
   Home as HomeIcon,
-  ShoppingBasket
+  ShoppingBasket,
+  Plus,
+  Minus,
+  Edit,
+  Trash2,
+  Save,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import productsData from '../data/products.json';
 
 const STATUS_ICONS = {
   pending: <Clock className="h-4 w-4" />,
@@ -51,11 +56,12 @@ export default function AdminDashboard() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState<'orders' | 'inventory'>('orders');
   const [inventorySearch, setInventorySearch] = useState('');
   const [newOrderAlert, setNewOrderAlert] = useState<string | null>(null);
-
-  const products = productsData.products;
+  const [isEditingProduct, setIsEditingProduct] = useState<Partial<Product> | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -65,12 +71,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!profile?.isAdmin) return;
 
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-    
+    // Fetch Orders
+    const ordersQ = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     let isFirstLoad = true;
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeOrders = onSnapshot(ordersQ, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({ ...doc.data() } as Order));
-      
       if (!isFirstLoad) {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
@@ -80,21 +85,83 @@ export default function AdminDashboard() {
           }
         });
       }
-      
       setOrders(ordersData);
       isFirstLoad = false;
     });
 
-    return () => unsubscribe();
+    // Fetch Products
+    const productsQ = query(collection(db, 'products'), orderBy('name', 'asc'));
+    const unsubscribeProducts = onSnapshot(productsQ, (snapshot) => {
+      const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
+      setProducts(prods);
+    });
+
+    return () => {
+      unsubscribeOrders();
+      unsubscribeProducts();
+    };
   }, [profile?.isAdmin]);
 
   const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
     try {
       const orderRef = doc(db, 'orders', orderId);
+      
+      // If marking as delivered, decrement stock
+      if (newStatus === 'delivered') {
+        const order = orders.find(o => o.orderId === orderId);
+        if (order && order.status !== 'delivered') {
+          const promises = order.items.map(item => {
+            const productRef = doc(db, 'products', String(item.id));
+            return updateDoc(productRef, {
+              stockCount: increment(-item.quantity),
+              updatedAt: Timestamp.now()
+            });
+          });
+          await Promise.all(promises);
+        }
+      }
+
       await updateDoc(orderRef, { status: newStatus });
     } catch (error) {
       console.error("Error updating order:", error);
       alert("Failed to update status.");
+    }
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEditingProduct || isSaving) return;
+    setIsSaving(true);
+
+    try {
+      const productData = {
+        ...isEditingProduct,
+        id: isEditingProduct.id || Math.random().toString(36).substr(2, 9),
+        price: Number(isEditingProduct.price),
+        stockCount: Number(isEditingProduct.stockCount),
+        inStock: Number(isEditingProduct.stockCount) > 0,
+        updatedAt: Timestamp.now(),
+        createdAt: isEditingProduct.createdAt || Timestamp.now()
+      };
+
+      const productRef = doc(db, 'products', productData.id);
+      await setDoc(productRef, productData);
+      setIsEditingProduct(null);
+    } catch (error) {
+      console.error("Error saving product:", error);
+      alert("Failed to save product.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string | number) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    try {
+      await deleteDoc(doc(db, 'products', String(id)));
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert("Failed to delete product.");
     }
   };
 
@@ -113,7 +180,7 @@ export default function AdminDashboard() {
     pending: orders.filter(o => o.status === 'pending').length,
     revenue: orders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0),
     inventoryCount: products.length,
-    outOfStock: products.filter(p => !p.inStock).length
+    outOfStock: products.filter(p => (p.stockCount !== undefined && p.stockCount <= 0)).length
   }), [orders, products]);
 
   const filteredProducts = useMemo(() => 
@@ -392,8 +459,8 @@ export default function AdminDashboard() {
             className="space-y-8"
           >
             {/* Inventory Controls */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1 group">
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <div className="relative flex-1 group w-full">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-brand-primary transition-colors" />
                 <input 
                   type="text" 
@@ -403,31 +470,163 @@ export default function AdminDashboard() {
                   className="w-full bg-black/5 dark:bg-white/5 border border-brand-border rounded-2xl py-4 pl-14 pr-6 text-sm font-black uppercase italic tracking-tight focus:outline-none focus:border-brand-primary transition-all"
                 />
               </div>
+              <button 
+                onClick={() => setIsEditingProduct({})}
+                className="w-full sm:w-auto px-8 py-4 bg-brand-primary text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-orange-600 transition-all active:scale-95 italic"
+              >
+                <Plus className="h-5 w-5" />
+                Add Product
+              </button>
             </div>
+
+            <AnimatePresence>
+              {isEditingProduct && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <form onSubmit={handleSaveProduct} className="bg-white dark:bg-zinc-900 border border-brand-primary/30 rounded-[40px] p-8 space-y-8 shadow-2xl shadow-brand-primary/10">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-2xl font-black uppercase italic tracking-tighter">
+                        {isEditingProduct.id ? 'Edit Product' : 'New Product'}
+                      </h3>
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditingProduct(null)}
+                        className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full"
+                      >
+                        <XCircle className="h-6 w-6" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">Product Name</label>
+                        <input 
+                          required
+                          type="text"
+                          value={isEditingProduct.name || ''}
+                          onChange={e => setIsEditingProduct({...isEditingProduct, name: e.target.value})}
+                          placeholder="e.g. Fresh Avocado"
+                          className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 font-bold"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">Category</label>
+                        <select 
+                          required
+                          value={isEditingProduct.category || ''}
+                          onChange={e => setIsEditingProduct({...isEditingProduct, category: e.target.value})}
+                          className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 font-bold appearance-none"
+                        >
+                          <option value="">Select Category</option>
+                          <option value="Food & Groceries">Food & Groceries</option>
+                          <option value="Household">Household</option>
+                          <option value="Alcohol">Alcohol</option>
+                          <option value="Personal Care">Personal Care</option>
+                          <option value="Baby & Kids">Baby & Kids</option>
+                          <option value="Kitchenware">Kitchenware</option>
+                          <option value="Pet Care">Pet Care</option>
+                          <option value="Office Supplies">Office Supplies</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">Image URL</label>
+                        <div className="relative">
+                          <input 
+                            required
+                            type="url"
+                            value={isEditingProduct.image || ''}
+                            onChange={e => setIsEditingProduct({...isEditingProduct, image: e.target.value})}
+                            placeholder="https://..."
+                            className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 pl-12 font-bold"
+                          />
+                          <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-40" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">Price (RWF)</label>
+                        <input 
+                          required
+                          type="number"
+                          value={isEditingProduct.price || ''}
+                          onChange={e => setIsEditingProduct({...isEditingProduct, price: Number(e.target.value)})}
+                          className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 font-bold"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">Unit</label>
+                        <input 
+                          required
+                          type="text"
+                          value={isEditingProduct.unit || ''}
+                          onChange={e => setIsEditingProduct({...isEditingProduct, unit: e.target.value})}
+                          placeholder="e.g. piece, kg, box"
+                          className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 font-bold"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">Stock Count</label>
+                        <input 
+                          required
+                          type="number"
+                          value={isEditingProduct.stockCount || 0}
+                          onChange={e => setIsEditingProduct({...isEditingProduct, stockCount: Number(e.target.value)})}
+                          className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-4">
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditingProduct(null)}
+                        className="px-8 py-4 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={isSaving}
+                        className="px-12 py-4 bg-brand-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 disabled:opacity-50"
+                      >
+                        {isSaving ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Save Product
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="bg-black/5 dark:bg-white/5 rounded-[48px] overflow-hidden border border-brand-border">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
-                    <th className="px-8 py-6">ID</th>
                     <th className="px-8 py-6">Product</th>
                     <th className="px-8 py-6">Category</th>
                     <th className="px-8 py-6 text-right">Price</th>
-                    <th className="px-8 py-6 text-center">Status</th>
+                    <th className="px-8 py-6 text-center">Stock</th>
+                    <th className="px-8 py-6 text-right w-32">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-border">
                   {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-brand-primary/5 transition-colors group">
-                      <td className="px-8 py-6 text-xs font-bold opacity-40">#{product.id}</td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-white rounded-lg p-1 shrink-0">
-                            <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
+                          <div className="w-12 h-12 bg-white rounded-lg p-1 shrink-0 border border-brand-border">
+                            <img src={product.image} alt={product.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                           </div>
-                          <span className="font-black uppercase italic text-sm tracking-tight group-hover:text-brand-primary transition-colors">
-                            {product.name}
-                          </span>
+                          <div>
+                            <span className="font-black uppercase italic text-sm tracking-tight group-hover:text-brand-primary transition-colors block">
+                              {product.name}
+                            </span>
+                            <span className="text-[9px] font-bold opacity-30 tracking-widest">ID: #{product.id}</span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
@@ -439,14 +638,51 @@ export default function AdminDashboard() {
                         {formatCurrency(product.price)}
                       </td>
                       <td className="px-8 py-6 text-center">
-                        <div className={cn(
-                          "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase italic border",
-                          product.inStock 
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" 
-                            : "bg-rose-500/10 text-rose-500 border-rose-500/20"
-                        )}>
-                          {product.inStock ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                          {product.inStock ? 'Available' : 'Out of Stock'}
+                        <div className="flex flex-col items-center gap-1">
+                          <div className={cn(
+                            "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase italic border",
+                            (product.stockCount !== undefined && product.stockCount > 0)
+                              ? (product.stockCount <= 10 ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20")
+                              : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                          )}>
+                            {product.stockCount ?? 0} {product.unit}
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button 
+                                onClick={() => {
+                                  const newStock = Math.max(0, (product.stockCount || 0) - 1);
+                                  updateDoc(doc(db, 'products', String(product.id)), { stockCount: newStock, inStock: newStock > 0 });
+                                }}
+                                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded"
+                             >
+                               <Minus className="h-3 w-3" />
+                             </button>
+                             <button 
+                                onClick={() => {
+                                  const newStock = (product.stockCount || 0) + 1;
+                                  updateDoc(doc(db, 'products', String(product.id)), { stockCount: newStock, inStock: true });
+                                }}
+                                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded"
+                             >
+                               <Plus className="h-3 w-3" />
+                             </button>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => setIsEditingProduct(product)}
+                            className="p-3 bg-indigo-500/10 text-indigo-500 rounded-xl hover:bg-indigo-500 hover:text-white transition-all scale-90"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all scale-90"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>

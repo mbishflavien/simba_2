@@ -2,7 +2,7 @@ import React, { useMemo, useCallback } from 'react';
 import { Product } from '../types';
 import { useCart } from '../hooks/useCart';
 import { formatCurrency, cn } from '../lib/utils';
-import { ShoppingCart, Plus, Minus, Info, Check } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Info, Check, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
@@ -50,10 +50,17 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
       </Link>
 
       <div className="flex flex-col gap-1 px-1">
-        <div className="mb-0.5">
+        <div className="flex justify-between items-start mb-0.5">
           <span className="micro-label">
             {product.category}
           </span>
+          {product.rating && (
+            <div className="flex items-center gap-1" aria-label={`Rating: ${product.rating} stars, ${product.reviewCount} reviews`}>
+              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+              <span className="text-[10px] font-black italic text-[var(--brand-text)] opacity-80">{product.rating}</span>
+              <span className="text-[9px] font-bold opacity-40 text-[var(--brand-text)]">({product.reviewCount})</span>
+            </div>
+          )}
         </div>
         <Link to={`/product/${product.id}`} className="block mb-2">
           <h3 className="font-bold tracking-tight group-hover:text-brand-primary transition-colors line-clamp-1 uppercase italic text-[var(--brand-text)]">
@@ -61,11 +68,19 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           </h3>
         </Link>
 
-        <div className="flex justify-between items-center mt-2">
+        <div className="flex justify-between items-center mt-2 h-10">
           <div>
             <p className="text-2xl font-black italic tracking-tighter text-[var(--brand-text)]">
               {product.price.toLocaleString()} <span className="text-[10px] not-italic font-bold opacity-30 tracking-widest uppercase text-[var(--brand-text)]">RWF</span>
             </p>
+            {product.stockCount !== undefined && (
+               <p className={cn(
+                 "text-[9px] font-black uppercase tracking-tight italic",
+                 product.stockCount <= 10 ? "text-amber-500" : "opacity-30"
+               )}>
+                 {product.stockCount} {product.unit} left
+               </p>
+            )}
           </div>
 
           {cartItem ? (

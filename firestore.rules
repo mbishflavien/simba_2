@@ -33,6 +33,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
+        request.auth.token.email == 'flavmbish@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
       );
     }
@@ -56,12 +58,13 @@ service cloud.firestore {
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
       
-      allow update: if isOwner(userId)
+      allow update: if (isOwner(userId)
         && isValidUserProfile(incoming())
         && incoming().userId == existing().userId
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phoneNumber', 'address', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phoneNumber', 'address', 'updatedAt']))
+        || (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['isAdmin']));
     }
 
     // 2. Order Rules
@@ -93,6 +96,50 @@ service cloud.firestore {
         && incoming().userId == existing().userId
         && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
         || (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status']));
+    }
+
+    // 3. Product Rules
+    match /products/{productId} {
+      function isValidProduct(data) {
+        return data.id is string
+          && data.name is string && data.name.size() > 0
+          && data.price is number
+          && data.category is string;
+      }
+
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidProduct(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // 4. Branch Review Rules
+    match /branchReviews/{reviewId} {
+      function isValidBranchReview(data) {
+        return data.userId == request.auth.uid
+          && data.branchId is string && data.branchId.size() > 0
+          && data.rating is number && data.rating >= 1 && data.rating <= 5
+          && data.comment is string && (data.comment.size() == 0 || data.comment.size() <= 2000)
+          && data.createdAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isSignedIn() && isValidBranchReview(incoming()) && incoming().createdAt == request.time;
+      allow update, delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+    }
+
+    // 5. Product Review Rules
+    match /productReviews/{reviewId} {
+      function isValidProductReview(data) {
+        return data.userId == request.auth.uid
+          && data.productId is string && data.productId.size() > 0
+          && data.rating is number && data.rating >= 1 && data.rating <= 5
+          && data.comment is string && (data.comment.size() == 0 || data.comment.size() <= 2000)
+          && data.createdAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isSignedIn() && isValidProductReview(incoming()) && incoming().createdAt == request.time;
+      allow update, delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
     }
   }
 }

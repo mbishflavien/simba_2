@@ -1,44 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import productsData from '../data/products.json';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { ProductCard } from '../components/ProductCard';
 import CategoryBar from '../components/CategoryBar';
 import { Product } from '../types';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
-import { Search, ShoppingBag, Sliders, Filter, CheckCircle2 } from 'lucide-react';
+import { Search, ShoppingBag, Sliders, Filter, CheckCircle2, PackageSearch } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-// Pre-process products once outside the component to save category override calculation time on every render
-const processedProducts: Product[] = (productsData.products as Product[]).map(p => {
-  const name = p.name.toLowerCase();
-  let cat = p.category;
-
-  // Primary Keyword Overrides for common misclassifications
-  if (name.includes('tape') || name.includes('scoth') || name.includes('paper') || name.includes('pencil') || name.includes('drawing board') || name.includes('staple')) cat = 'Office Supplies';
-  else if (name.includes('oil') && !name.includes('shampoo') && !name.includes('beard')) cat = 'Food & Groceries';
-  else if (name.includes('heater') || name.includes('shovel') || name.includes('scoop') || name.includes('iron') || name.includes('pan') || name.includes('broom')) cat = 'Household';
-  else if (name.includes('dog') || name.includes('cat') || name.includes('pet')) cat = 'Pet Care';
-  else if (name.includes('milk') || name.includes('bread') || name.includes('flour') || name.includes('cake') || name.includes('meat') || name.includes('sausag') || name.includes('honey') || name.includes('salt') || name.includes('ketchup') || name.includes('mustard') || name.includes('sauce') || name.includes('mayonnaise') || name.includes('rice') || name.includes('noodle') || name.includes('spaghetti') || name.includes('sugar') || name.includes('coffee') || name.includes('tea')) cat = 'Food & Groceries';
-  else if (name.includes('wine') || name.includes('beer') || name.includes('spirit') || name.includes('vodka') || name.includes('whisky') || name.includes('gin') || name.includes('liqueur')) cat = 'Alcohol';
-  else if (name.includes('soap') || name.includes('shampoo') || name.includes('toothpaste') || name.includes('brush') || name.includes('lotion') || name.includes('deodorant') || name.includes('razor') || name.includes('gel')) cat = 'Personal Care';
-  else if (name.includes('diaper') || name.includes('wipe') || name.includes('baby') || name.includes('infant')) cat = 'Baby & Kids';
-  else if (p.category === 'Cosmetics & Personal Care') cat = 'Personal Care';
-  else if (p.category === 'Alcoholic Drinks') cat = 'Alcohol';
-  else if (p.category === 'Food Products') cat = 'Food & Groceries';
-  else if (p.category === 'Kitchenware & Electronics') cat = 'Kitchenware';
-  else if (p.category === 'Baby Products') cat = 'Baby & Kids';
-  else if (p.category === 'Sports & Wellness') cat = 'Personal Care';
-  else if (p.category === 'General') cat = 'Other';
-
-  return { ...p, category: cat };
-});
-
-const ALL_CATEGORIES = Array.from(new Set(processedProducts.map(p => p.category)));
+import AiAssistant from '../components/AiAssistant';
+import { AiSearchIntent } from '../services/aiService';
 
 export default function Home() {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   
@@ -47,27 +25,67 @@ export default function Home() {
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  useEffect(() => {
+    const q = query(collection(db, 'products'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
+      setProducts(prods);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const allCategories = useMemo(() => {
+    return Array.from(new Set(products.map(p => p.category))).sort();
+  }, [products]);
+
+  const handleAiSearch = (intent: AiSearchIntent) => {
+    // Apply filters from AI
+    if (intent.category) setSelectedCategory(intent.category);
+    if (intent.minPrice !== null) setMinPrice(intent.minPrice);
+    if (intent.maxPrice !== null) setMaxPrice(intent.maxPrice);
+    
+    // Update URL for the search query
+    const newParams = new URLSearchParams(searchParams);
+    if (intent.searchQuery) {
+      newParams.set('search', intent.searchQuery);
+    } else {
+      newParams.delete('search');
+    }
+    setSearchParams(newParams);
+    
+    // Open filter panel if we have price filters to show the user what happened
+    if (intent.minPrice !== null || intent.maxPrice !== null) {
+      setIsFilterOpen(true);
+    }
+
+    // Scroll to results
+    document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const searchQuery = useMemo(() => 
     searchParams.get('search')?.toLowerCase() || ''
   , [searchParams]);
 
   const filteredProducts = useMemo(() => {
-    return processedProducts.filter(product => {
+    return products.filter(product => {
       if (selectedCategory && product.category !== selectedCategory) return false;
       
       if (searchQuery) {
-        const matches = product.name.toLowerCase().includes(searchQuery) || 
-                       product.category.toLowerCase().includes(searchQuery);
-        if (!matches) return false;
+        const keywords = searchQuery.split(/\s+/).filter(k => k.length > 0);
+        const name = product.name.toLowerCase();
+        const category = product.category.toLowerCase();
+        const matchesAny = keywords.some(keyword => name.includes(keyword) || category.includes(keyword));
+        if (!matchesAny) return false;
       }
       
       if (minPrice !== '' && product.price < minPrice) return false;
       if (maxPrice !== '' && product.price > maxPrice) return false;
-      if (onlyInStock && !product.inStock) return false;
+      if (onlyInStock && (!product.inStock || (product.stockCount !== undefined && product.stockCount <= 0))) return false;
 
       return true;
     });
-  }, [selectedCategory, searchQuery, minPrice, maxPrice, onlyInStock]);
+  }, [products, selectedCategory, searchQuery, minPrice, maxPrice, onlyInStock]);
 
   const displayedProducts = useMemo(() => {
     return filteredProducts.slice(0, visibleCount);
@@ -142,7 +160,7 @@ export default function Home() {
 
       <div id="market">
         <CategoryBar 
-          categories={ALL_CATEGORIES} 
+          categories={allCategories} 
           selectedCategory={selectedCategory} 
           getCategoryLabel={getCategoryLabel}
           onSelectCategory={(cat) => {
@@ -330,6 +348,7 @@ export default function Home() {
            </div>
         </section>
       </main>
+      <AiAssistant onSearchApplied={handleAiSearch} />
     </div>
   );
 }

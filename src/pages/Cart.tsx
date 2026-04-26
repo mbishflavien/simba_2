@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import BranchMap, { SIMBA_BRANCHES } from '../components/BranchMap';
 
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { db, handleFirestoreError } from '../lib/firebase';
 import { OrderItem } from '../types';
 
@@ -107,6 +107,18 @@ export default function Cart() {
 
   const saveOrder = async () => {
     if (!user) return;
+
+    // Check stock for all items before starting
+    for (const item of cart) {
+      const productRef = doc(db, 'products', String(item.id));
+      const snap = await getDoc(productRef);
+      if (snap.exists()) {
+        const prod = snap.data();
+        if (prod.stockCount !== undefined && prod.stockCount < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.name}`);
+        }
+      }
+    }
     
     const orderId = `SIMBA-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`.toUpperCase();
     const orderItems: OrderItem[] = cart.map(item => ({
@@ -118,6 +130,7 @@ export default function Cart() {
     }));
 
     try {
+      // 1. Save the order
       await setDoc(doc(db, 'orders', orderId), {
         orderId,
         userId: user.uid,
@@ -129,6 +142,7 @@ export default function Cart() {
         pickupBranch: paymentMethod === 'cash' ? selectedBranch : null,
         createdAt: serverTimestamp()
       });
+
       return orderId;
     } catch (error) {
       console.error("Error saving order:", error);

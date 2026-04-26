@@ -32,6 +32,41 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "When the order was placed" }
       },
       "required": ["orderId", "userId", "items", "total", "status", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Details about a product in the supermarket inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique product ID" },
+        "name": { "type": "string", "description": "Name of the product" },
+        "price": { "type": "number", "description": "Price in RWF" },
+        "category": { "type": "string", "description": "Product category" },
+        "inStock": { "type": "boolean", "description": "Whether the product is currently available" },
+        "stockCount": { "type": "number", "description": "Current quantity in stock" },
+        "image": { "type": "string", "description": "URL to the product image" },
+        "unit": { "type": "string", "description": "Unit of measurement (e.g., 1kg, 500ml, unit)" },
+        "rating": { "type": "number", "description": "Average rating from 1 to 5" },
+        "reviewCount": { "type": "number", "description": "Total number of reviews" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the product was added" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the product details were last updated" }
+      },
+      "required": ["id", "name", "price", "category", "stockCount", "image", "createdAt", "updatedAt"]
+    },
+    "BranchReview": {
+      "title": "Branch Review",
+      "description": "A user review for a specific supermarket branch",
+      "type": "object",
+      "properties": {
+        "reviewId": { "type": "string", "description": "Unique ID for the review" },
+        "userId": { "type": "string", "description": "ID of the user who wrote the review" },
+        "userDisplayName": { "type": "string", "description": "Name of the user for display" },
+        "branchId": { "type": "string", "description": "The specific branch being reviewed" },
+        "rating": { "type": "number", "description": "Rating from 1 to 5" },
+        "comment": { "type": "string", "description": "The text of the review" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the review was submitted" }
+      },
+      "required": ["reviewId", "userId", "branchId", "rating", "comment", "createdAt"]
     }
   },
   "firestore": {
@@ -42,6 +77,14 @@
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Historical records of all customer orders"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Inventory of products available for sale"
+    },
+    "/branchReviews/{reviewId}": {
+      "schema": "BranchReview",
+      "description": "Customer reviews and ratings for specific branches"
     }
   }
 }

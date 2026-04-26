@@ -176,7 +176,8 @@ const resources = {
       "pickup_instructions": "You can pay with cash when you pick up your order at the selected branch.",
       "access_denied": "Access Denied",
       "please_login_to_view_profile": "Please log in to view your profile and orders.",
-      "close": "Close"
+      "close": "Close",
+      "reviews": "Reviews"
     }
   },
   fr: {
@@ -352,7 +353,8 @@ const resources = {
       "pickup_instructions": "Vous pouvez payer en espèces lors du retrait de votre commande dans la succursale sélectionnée.",
       "access_denied": "Accès refusé",
       "please_login_to_view_profile": "Veuillez vous connecter pour voir votre profil et vos commandes.",
-      "close": "Fermer"
+      "close": "Fermer",
+      "reviews": "Avis"
     }
   },
   rw: {
@@ -528,7 +530,8 @@ const resources = {
       "pickup_instructions": "Uzishyura mu ntoki umaze gufata ibyo waguze ku ishami wahisemo.",
       "access_denied": "Ntibyemewe",
       "please_login_to_view_profile": "Injira kugira ngo urebe umwirondoro wawe n'amateka y'ingendo.",
-      "close": "Funga"
+      "close": "Funga",
+      "reviews": "Ibitekerezo"
     }
   }
 };

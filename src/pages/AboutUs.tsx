@@ -1,11 +1,35 @@
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Award, Target, Users, Zap, MapPin, Store, Coffee, Gamepad2, GraduationCap } from 'lucide-react';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuth } from '../components/AuthProvider';
+import { Award, Target, Users, Zap, MapPin, Store, Coffee, Gamepad2, GraduationCap, Star, Send, MessageSquare, RefreshCcw } from 'lucide-react';
+import { SIMBA_BRANCHES } from '../components/BranchMap';
+import { cn } from '../lib/utils';
+
+interface BranchReview {
+  id: string;
+  branchId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: any;
+}
 
 export default function AboutUs() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(SIMBA_BRANCHES[0].id);
+  const [reviews, setReviews] = useState<BranchReview[]>([]);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReviewsLoading, setIsReviewsLoading] = useState(true);
 
   const achievements = [
     { year: '2013', title: t('ach_2013') },
@@ -19,6 +43,48 @@ export default function AboutUs() {
     'Simba Kigali Heights', 'Simba UTC', 'Simba Gacuriro', 'Simba Gikondo',
     'Simba Sonatube', 'Simba Kisimenti', 'Simba Rebero'
   ];
+
+  // Fetch reviews for selected branch
+  useEffect(() => {
+    setIsReviewsLoading(true);
+    const q = query(
+      collection(db, 'branchReviews'), 
+      where('branchId', '==', selectedBranchId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const revs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BranchReview));
+      setReviews(revs);
+      setIsReviewsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [selectedBranchId]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newComment.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'branchReviews'), {
+        branchId: selectedBranchId,
+        userId: user.uid,
+        userName: user.displayName || 'Kigali Shopper',
+        rating: newRating,
+        comment: newComment,
+        createdAt: serverTimestamp()
+      });
+      setNewComment('');
+      setNewRating(5);
+    } catch (err) {
+      console.error("Error adding review:", err);
+      alert("Failed to post review. Please ensure you are logged in.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const sections = [
     {
@@ -114,6 +180,146 @@ export default function AboutUs() {
               </p>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* Branch Feedback Section (New) */}
+      <section className="max-w-7xl mx-auto px-4 mb-32">
+        <div className="text-left mb-16 px-6 border-l-8 border-brand-primary">
+          <h2 className="text-5xl sm:text-6xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] leading-none">
+            BRANCH <span className="text-brand-primary">EXPERIENCE</span>
+          </h2>
+          <p className="micro-label mt-4 opacity-40 uppercase tracking-widest italic">{t('share_your_thoughts')}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+          {/* Branch Selector */}
+          <div className="lg:col-span-1 space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-brand-primary mb-6 italic">{t('select_branch')}</h3>
+            <div className="bg-black/5 dark:bg-white/5 rounded-[40px] p-4 border border-brand-border h-[500px] overflow-y-auto custom-scrollbar">
+              {SIMBA_BRANCHES.map(branch => (
+                <button
+                  key={branch.id}
+                  onClick={() => setSelectedBranchId(branch.id)}
+                  className={cn(
+                    "w-full text-left p-6 rounded-[30px] mb-2 transition-all flex flex-col gap-1 border-2",
+                    selectedBranchId === branch.id 
+                      ? "bg-brand-primary border-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-[1.02]" 
+                      : "bg-white/50 dark:bg-black/40 border-transparent hover:border-brand-primary/30"
+                  )}
+                >
+                  <span className="font-black italic uppercase tracking-tighter text-lg">{branch.name}</span>
+                  <span className={cn("text-[9px] font-bold uppercase opacity-50", selectedBranchId === branch.id ? "text-white" : "text-zinc-500")}>
+                    {branch.address}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Reviews & Form */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Review Form */}
+            {user ? (
+               <form onSubmit={handleSubmitReview} className="bg-black/5 dark:bg-white/5 border border-brand-border rounded-[40px] p-8 sm:p-12">
+                  <div className="flex items-center gap-6 mb-8">
+                    <div className="w-16 h-16 bg-brand-primary rounded-full flex items-center justify-center text-white text-2xl font-black uppercase italic">
+                      {user.displayName?.[0] || 'K'}
+                    </div>
+                    <div>
+                      <h4 className="font-black italic uppercase tracking-tighter text-xl">{t('review_title')}</h4>
+                      <div className="flex items-center gap-2 mt-2">
+                        {[1, 2, 3, 4, 5].map(star => (
+                           <button
+                             key={star}
+                             type="button"
+                             onClick={() => setNewRating(star)}
+                             className="focus:outline-none"
+                           >
+                             <Star className={cn("h-6 w-6 transition-all", star <= newRating ? "fill-amber-400 text-amber-400 scale-110" : "text-zinc-300 dark:text-zinc-700")} />
+                           </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <textarea
+                    required
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    placeholder={t('review_placeholder')}
+                    className="w-full bg-white dark:bg-zinc-900 border border-brand-border rounded-3xl p-6 text-sm font-bold placeholder:text-zinc-500 outline-none focus:border-brand-primary transition-colors min-h-[120px] mb-6"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest flex items-center gap-3 hover:bg-orange-600 transition-all disabled:opacity-50 active:scale-95 italic"
+                    >
+                      {isSubmitting ? (
+                        <RefreshCcw className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Send className="h-5 w-5" />
+                      )}
+                      {t('post_review')}
+                    </button>
+                  </div>
+               </form>
+            ) : (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-[40px] p-10 text-center">
+                 <p className="text-[var(--brand-text)] font-black uppercase italic tracking-widest">{t('login_to_review')}</p>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            <div className="space-y-6">
+              <h4 className="micro-label uppercase tracking-widest font-black italic border-b border-brand-border pb-4 flex items-center gap-3">
+                <MessageSquare className="h-4 w-4" />
+                {reviews.length} {t('customer_stories')}
+              </h4>
+              
+              {isReviewsLoading ? (
+                <div className="flex justify-center p-20">
+                   <RefreshCcw className="h-10 w-10 animate-spin text-brand-primary" />
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-20 bg-black/5 dark:bg-white/5 rounded-[40px] border border-dashed border-brand-border">
+                  <p className="font-black italic uppercase opacity-20 tracking-tighter text-xl">{t('no_reviews_yet')}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {reviews.map(rev => (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      key={rev.id}
+                      className="bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md border border-brand-border p-8 rounded-[40px] relative group overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={cn("h-3 w-3", i < rev.rating ? "fill-amber-400 text-amber-400" : "text-zinc-200 dark:text-zinc-800")} />
+                          ))}
+                        </div>
+                        <span className="text-[8px] font-black uppercase opacity-30 italic">
+                          {rev.createdAt instanceof Timestamp ? rev.createdAt.toDate().toLocaleDateString() : 'Just now'}
+                        </span>
+                      </div>
+                      <p className="text-[var(--brand-text)] font-bold italic uppercase tracking-tight text-sm leading-relaxed mb-6">
+                        "{rev.comment}"
+                      </p>
+                      <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-xl bg-brand-primary/10 flex items-center justify-center font-black text-brand-primary uppercase italic text-xs">
+                           {rev.userName[0]}
+                         </div>
+                         <span className="text-[10px] font-black uppercase tracking-widest opacity-60 italic">{rev.userName}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
