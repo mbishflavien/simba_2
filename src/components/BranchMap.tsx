@@ -58,7 +58,9 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: apiKey
+    googleMapsApiKey: apiKey,
+    version: 'weekly',
+    libraries: ['places' as any]
   });
 
   const [map, setMap] = React.useState<google.maps.Map | null>(null);
@@ -73,29 +75,33 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
 
   // Sync map bounds with markers
   React.useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !window.google) return;
     
-    const bounds = new window.google.maps.LatLngBounds();
-    SIMBA_BRANCHES.forEach(branch => {
-      bounds.extend({ lat: branch.lat, lng: branch.lng });
-    });
-    
-    if (userLocation) {
-      bounds.extend(userLocation);
-    }
-    
-    map.fitBounds(bounds);
+    try {
+      const bounds = new window.google.maps.LatLngBounds();
+      SIMBA_BRANCHES.forEach(branch => {
+        bounds.extend({ lat: branch.lat, lng: branch.lng });
+      });
+      
+      if (userLocation) {
+        bounds.extend(userLocation);
+      }
+      
+      map.fitBounds(bounds);
 
-    // If userLocation exists, they probably want to see where they are
-    if (userLocation) {
-      map.setZoom(13);
-      map.panTo(userLocation);
+      // If userLocation exists, they probably want to see where they are
+      if (userLocation) {
+        map.setZoom(13);
+        map.panTo(userLocation);
+      }
+    } catch (e) {
+      console.error("Map bounds error:", e);
     }
   }, [map, isLoaded, userLocation]);
 
   // If a branch is selected via the list, pan to it
   React.useEffect(() => {
-    if (!map || !selectedBranch) return;
+    if (!map || !selectedBranch || !window.google) return;
     const branch = SIMBA_BRANCHES.find(b => b.id === selectedBranch);
     if (branch) {
       map.panTo({ lat: branch.lat, lng: branch.lng });
@@ -152,19 +158,19 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
     return closest;
   }, [userLocation]);
 
-  if (loadError) {
+  if (!apiKey) {
     return (
-      <div className="h-[500px] bg-red-50 dark:bg-red-950/10 rounded-[40px] border border-red-200 dark:border-red-900/30 flex flex-col items-center justify-center p-8 text-center transition-all animate-in zoom-in duration-500">
-        <MapPin className="h-12 w-12 text-red-500 opacity-20 mb-4" />
-        <h3 className="font-black uppercase italic text-red-600 mb-2">Map Loading Error</h3>
-        <p className="text-[10px] font-bold uppercase opacity-60 text-red-700 leading-relaxed max-w-sm">
-          {loadError.message || "Failed to initialize Google Maps. Check your API key and billing status."}
+      <div className="h-[500px] bg-zinc-900 rounded-[40px] border border-white/10 flex flex-col items-center justify-center p-8 text-center">
+        <MapPin className="h-12 w-12 text-brand-primary opacity-20 mb-4" />
+        <h3 className="font-black uppercase italic text-white mb-2">Maps API Key Missing</h3>
+        <p className="text-[10px] font-bold uppercase opacity-40 text-white/60 leading-relaxed max-w-sm italic">
+          Please configure VITE_GOOGLE_MAPS_API_KEY in your .env or secrets to enable interactive maps and directions.
         </p>
       </div>
     );
   }
 
-  if (!isLoaded) return <div className="h-[500px] bg-black/5 dark:bg-white/5 animate-pulse rounded-[40px]" />;
+  if (!isLoaded && !loadError) return <div className="h-[500px] bg-black/5 dark:bg-white/5 animate-pulse rounded-[40px]" />;
 
   const handleOpenExternal = (branch: Branch) => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${branch.lat},${branch.lng}`;
@@ -496,14 +502,22 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
           </div>
         </div>
 
-        <div className="flex overflow-x-auto gap-4 pb-4 snap-x custom-scrollbar">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
           {filteredBranches.length > 0 ? (
             filteredBranches.map(branch => (
-              <button
+              <div
                 key={branch.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectBranch(branch)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectBranch(branch);
+                  }
+                }}
                 className={cn(
-                  "min-w-[260px] snap-center p-5 rounded-[28px] transition-all border text-left flex flex-col justify-between h-[140px]",
+                  "p-5 rounded-[28px] transition-all border text-left flex flex-col justify-between h-[140px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
                   selectedBranch === branch.id 
                     ? "bg-brand-primary border-brand-primary text-white shadow-xl shadow-brand-primary/20" 
                     : "bg-white dark:bg-zinc-900 border-brand-border"
@@ -526,13 +540,13 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
                 {selectedBranch === branch.id && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleOpenExternal(branch); }}
-                    className="flex items-center gap-2 text-[9px] font-black uppercase bg-white/20 px-3 py-1.5 rounded-lg w-fit mt-2"
+                    className="flex items-center gap-2 text-[9px] font-black uppercase bg-white/20 px-3 py-1.5 rounded-lg w-fit mt-2 hover:bg-white/30 transition-colors"
                   >
                     <Navigation className="h-3 w-3" />
                     Get Directions
                   </button>
                 )}
-              </button>
+              </div>
             ))
           ) : (
             <div className="w-full py-8 text-center bg-black/5 dark:bg-white/5 rounded-[28px] border border-dashed border-brand-border">

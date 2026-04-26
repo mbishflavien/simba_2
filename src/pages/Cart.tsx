@@ -267,63 +267,111 @@ export default function Cart() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 sm:gap-20 items-start">
-        {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-6">
-          <AnimatePresence mode="popLayout">
-            {cart.map((item) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="card-gradient p-6 sm:p-8 flex gap-8 items-center group"
-              >
-                <div className="w-24 h-24 sm:w-40 sm:h-40 bg-black/5 dark:bg-black rounded-[30px] overflow-hidden shrink-0 flex items-center justify-center">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-contain p-4 grayscale group-hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start gap-4 mb-4">
-                    <div>
-                      <p className="micro-label mb-2 uppercase tracking-widest text-[10px] !opacity-60">{item.category}</p>
-                      <h3 className="font-black text-[var(--brand-text)] text-xl sm:text-2xl tracking-tight leading-none truncate italic uppercase">{item.name}</h3>
-                    </div>
-                    <button 
-                      onClick={() => removeFromCart(item.id)}
-                      className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="h-6 w-6" />
-                    </button>
+        {/* Left Column: Cart Items & Branch Selection */}
+        <div className="lg:col-span-2 space-y-12">
+          {/* Cart Items Section */}
+          <div className="space-y-6">
+            <AnimatePresence mode="popLayout">
+              {cart.map((item) => (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="card-gradient p-6 sm:p-8 flex gap-8 items-center group"
+                >
+                  <div className="w-24 h-24 sm:w-40 sm:h-40 bg-black/5 dark:bg-black rounded-[30px] overflow-hidden shrink-0 flex items-center justify-center">
+                    <img src={item.image} alt={item.name} className="w-full h-full object-contain p-4 grayscale group-hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
                   </div>
                   
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4 bg-black/5 dark:bg-black border border-brand-border dark:border-white/10 rounded-full p-1.5 px-4 font-black">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-4 mb-4">
+                      <div>
+                        <p className="micro-label mb-2 uppercase tracking-widest text-[10px] !opacity-60">{item.category}</p>
+                        <h3 className="font-black text-[var(--brand-text)] text-xl sm:text-2xl tracking-tight leading-none truncate italic uppercase">{item.name}</h3>
+                      </div>
                       <button 
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="opacity-40 hover:opacity-100 transition-opacity"
+                        onClick={() => removeFromCart(item.id)}
+                        className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 transition-colors"
                       >
-                         -
-                      </button>
-                      <span className="text-sm">{item.quantity}</span>
-                      <button 
-                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                         className="opacity-40 hover:opacity-100 transition-opacity"
-                      >
-                         +
+                        <Trash2 className="h-6 w-6" />
                       </button>
                     </div>
-                    <p className="text-2xl font-black italic tracking-tighter text-[var(--brand-text)]">
-                      {(item.price * item.quantity).toLocaleString()} <span className="text-[10px] not-italic font-bold opacity-30 tracking-widest uppercase">RWF</span>
-                    </p>
+                    
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4 bg-black/5 dark:bg-black border border-brand-border dark:border-white/10 rounded-full p-1.5 px-4 font-black">
+                        <button 
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          className="opacity-40 hover:opacity-100 transition-opacity"
+                        >
+                           -
+                        </button>
+                        <span className="text-sm">{item.quantity}</span>
+                        <button 
+                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                           className="opacity-40 hover:opacity-100 transition-opacity"
+                        >
+                           +
+                        </button>
+                      </div>
+                      <p className="text-2xl font-black italic tracking-tighter text-[var(--brand-text)]">
+                        {(item.price * item.quantity).toLocaleString()} <span className="text-[10px] not-italic font-bold opacity-30 tracking-widest uppercase">RWF</span>
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Branch Selection (Below Order) */}
+          {checkoutStep === 'cash' && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8 p-10 bg-black/5 dark:bg-white/5 border border-brand-border rounded-[48px]"
+            >
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none">
+                  {t('select_pickup_branch')}<span className="text-brand-primary">.</span>
+                </h2>
+                <p className="micro-label !opacity-60 uppercase tracking-widest">Disciplined Branch Selection</p>
+              </div>
+              
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder={t('current_location_placeholder')}
+                  value={neighborhood}
+                  onChange={e => setNeighborhood(e.target.value)}
+                  className="w-full bg-white dark:bg-zinc-900 border border-brand-border rounded-2xl py-5 pl-6 pr-14 text-sm font-bold italic outline-none focus:border-brand-primary shadow-sm"
+                />
+                <button 
+                  onClick={handleFindNearest}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-brand-primary text-white rounded-xl hover:bg-orange-600 transition-all active:scale-95"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="overflow-hidden">
+                <BranchMap 
+                   onSelectBranch={(b) => {
+                     setSelectedBranch(b.id);
+                     setFormErrors({});
+                   }}
+                   selectedBranch={selectedBranch}
+                   userLocation={userCoords}
+                />
+              </div>
+              
+              {formErrors.branch && <p className="text-xs text-red-500 font-bold uppercase text-center mt-2">{formErrors.branch}</p>}
+            </motion.div>
+          )}
         </div>
 
-        {/* Summary / Checkout Procedure */}
+        {/* Right Column: Summary / Payment Step View */}
         <div className="lg:col-span-1">
           <div className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 p-10 rounded-[40px] sticky top-32">
             {checkoutStep === 'cart' && (
@@ -566,46 +614,42 @@ export default function Cart() {
                    {t('back')}
                  </button>
               </form>
-            )}
-
-            {checkoutStep === 'cash' && (
-              <div className="space-y-6 lg:min-w-[600px]">
-                <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-4">
-                  {t('select_pickup_branch')}<span className="text-brand-primary">.</span>
+            )}            {checkoutStep === 'cash' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-8">
+                  {t('checkout_summary')}<span className="text-brand-primary">.</span>
                 </h2>
-                
-                <div className="relative mb-6">
-                  <input 
-                    type="text" 
-                    placeholder={t('current_location_placeholder')}
-                    value={neighborhood}
-                    onChange={e => setNeighborhood(e.target.value)}
-                    className="w-full bg-black/5 dark:bg-white/5 border border-brand-border rounded-2xl py-4 pl-6 pr-14 text-sm font-bold italic outline-none focus:border-brand-primary"
-                  />
-                  <button 
-                    onClick={handleFindNearest}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-brand-primary text-white rounded-xl hover:bg-orange-600 transition-colors"
-                  >
-                    <Search className="h-4 w-4" />
-                  </button>
+                <div className="space-y-4 mb-8">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase opacity-60">
+                    <span>{t('subtotal')}</span>
+                    <span className="text-[var(--brand-text)]">{formatCurrency(totalPrice)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs font-bold uppercase opacity-60">
+                    <span>{t('logistics')}</span>
+                    <span className="text-brand-primary font-black">FREE PICKUP</span>
+                  </div>
+                  <div className="pt-4 border-t border-brand-border dark:border-white/10 flex justify-between items-end">
+                    <span className="font-black uppercase tracking-tighter italic text-[var(--brand-text)]">{t('total')}</span>
+                    <span className="text-3xl font-black text-brand-primary tracking-tighter italic">
+                      {totalPrice.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
 
-                <BranchMap 
-                   onSelectBranch={(b) => {
-                     setSelectedBranch(b.id);
-                     setFormErrors({});
-                   }}
-                   selectedBranch={selectedBranch}
-                   userLocation={userCoords}
-                />
-                
-                {formErrors.branch && <p className="text-[10px] text-red-500 font-bold uppercase text-center mt-2">{formErrors.branch}</p>}
+                <div className="p-5 bg-brand-primary/5 rounded-3xl border border-brand-primary/10 mb-8">
+                  <p className="text-[9px] font-black uppercase leading-relaxed opacity-60 italic">
+                    {selectedBranch 
+                      ? `Ready for pickup at ${SIMBA_BRANCHES.find(b => b.id === selectedBranch)?.name}` 
+                      : t('select_pickup_branch_note')}
+                  </p>
+                </div>
 
                 <button 
                   onClick={(e) => confirmCash(e as any)}
-                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all italic active:scale-95 shadow-2xl shadow-brand-primary/20"
+                  disabled={!selectedBranch || isProcessing}
+                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all italic active:scale-95 shadow-2xl shadow-brand-primary/20 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                 >
-                  {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin mx-auto" /> : t('order_received').toUpperCase()}
+                  {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin mx-auto" /> : t('confirm_order').toUpperCase()}
                 </button>
                 <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
                   {t('back')}
