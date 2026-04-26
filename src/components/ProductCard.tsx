@@ -28,7 +28,6 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
 
   return (
     <motion.div
-      layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="card-gradient p-5 flex flex-col group"

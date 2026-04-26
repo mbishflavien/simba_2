@@ -28,24 +28,69 @@ export default function Navbar() {
   };
 
   const suggestions = useMemo(() => {
-    if (!searchQuery.trim() || searchQuery.length < 2) return [];
+    if (!searchQuery.trim()) return [];
     
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     
     // Extract unique categories first
     const categories = Array.from(new Set(products.map(p => p.category)));
     
     const matchingCategories = categories
-      .filter(cat => cat.toLowerCase().includes(query))
+      .filter(cat => {
+        const lowerCat = cat.toLowerCase();
+        if (lowerCat.includes(query)) return true;
+        
+        // Category synonyms
+        if (query === 'liquor' || query === 'alcohol' || query === 'beer' || query === 'wine' || query === 'whiskey') {
+          return lowerCat.includes('alcohol');
+        }
+        if (query === 'skincare' || query === 'beauty' || query === 'soap') {
+          return lowerCat.includes('cosmetics') || lowerCat.includes('personal care');
+        }
+        if (query === 'gym' || query === 'fitness' || query === 'health') {
+          return lowerCat.includes('sports') || lowerCat.includes('wellness');
+        }
+        
+        return false;
+      })
       .map(cat => ({ type: 'category' as const, value: cat }));
 
+    // Product suggestions usually need a bit more context if there are many
     const matchingProducts = products
       .filter(p => p.name.toLowerCase().includes(query))
+      .filter(p => !categories.some(cat => cat.toLowerCase() === p.name.toLowerCase())) // Avoid duplicate names if they exist as categories
       .slice(0, 5)
       .map(p => ({ type: 'product' as const, value: p.name, id: p.id }));
 
-    return [...matchingCategories, ...matchingProducts].slice(0, 8);
+    // Re-order to show categories first if it's a short query, then products
+    const combined = [...matchingCategories, ...matchingProducts];
+    
+    return combined.slice(0, 8);
   }, [searchQuery, products]);
+
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev + 1) % (suggestions.length || 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev - 1 + (suggestions.length || 1)) % (suggestions.length || 1));
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      const s = suggestions[activeIndex];
+      if (s) {
+        setSearchQuery(s.value);
+        setShowSuggestions(false);
+        navigate(`/?search=${s.value}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [searchQuery]);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
@@ -132,6 +177,7 @@ export default function Navbar() {
                   setSearchQuery(e.target.value);
                   setShowSuggestions(true);
                 }}
+                onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
                 className="w-80 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-3 pl-14 pr-16 text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-8 focus:ring-brand-primary/5 transition-all placeholder:text-zinc-500 dark:placeholder:text-white/20 text-black dark:text-white shadow-xl group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
               />
@@ -171,12 +217,22 @@ export default function Navbar() {
                           setShowSuggestions(false);
                           navigate(`/?search=${s.value}`);
                         }}
-                        className="w-full text-left px-6 py-3 hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors flex items-center justify-between group"
+                        onMouseEnter={() => setActiveIndex(idx)}
+                        className={cn(
+                          "w-full text-left px-6 py-3 transition-colors flex items-center justify-between group",
+                          activeIndex === idx ? "bg-brand-primary/10 dark:bg-brand-primary/20" : "hover:bg-zinc-50 dark:hover:bg-white/5"
+                        )}
                       >
-                        <span className="text-xs font-bold uppercase tracking-tight italic dark:text-white truncate max-w-[200px]">
+                        <span className={cn(
+                          "text-xs font-bold uppercase tracking-tight italic truncate max-w-[200px]",
+                          activeIndex === idx ? "text-brand-primary" : "dark:text-white"
+                        )}>
                           {s.value}
                         </span>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-brand-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className={cn(
+                          "text-[8px] font-black uppercase tracking-widest text-brand-primary transition-opacity",
+                          activeIndex === idx ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        )}>
                           {s.type === 'category' ? t('category') : t('product')}
                         </span>
                       </button>
@@ -319,6 +375,7 @@ export default function Navbar() {
                     setSearchQuery(e.target.value);
                     setShowSuggestions(true);
                   }}
+                  onKeyDown={handleKeyDown}
                   placeholder={t('search_placeholder')}
                   className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-transparent focus:border-brand-primary rounded-2xl py-4 pl-14 pr-4 focus:ring-8 focus:ring-brand-primary/10 outline-none text-black dark:text-white font-black italic uppercase tracking-tight transition-all placeholder:text-zinc-500 dark:placeholder:text-white/20 shadow-xl"
                 />
@@ -342,9 +399,16 @@ export default function Navbar() {
                             setIsSearchOpen(false);
                             navigate(`/?search=${s.value}`);
                           }}
-                          className="w-full text-left px-6 py-4 hover:bg-brand-primary/10 transition-colors flex items-center justify-between border-b border-zinc-100 dark:border-white/5 last:border-0"
+                          onMouseEnter={() => setActiveIndex(idx)}
+                          className={cn(
+                            "w-full text-left px-6 py-4 transition-colors flex items-center justify-between border-b border-zinc-100 dark:border-white/5 last:border-0",
+                            activeIndex === idx ? "bg-brand-primary/10" : ""
+                          )}
                         >
-                          <span className="text-sm font-bold uppercase tracking-tight italic dark:text-white truncate">
+                          <span className={cn(
+                            "text-sm font-bold uppercase tracking-tight italic truncate",
+                            activeIndex === idx ? "text-brand-primary" : "dark:text-white"
+                          )}>
                             {s.value}
                           </span>
                           <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{s.type === 'category' ? t('cat_short') : t('prod_short')}</span>

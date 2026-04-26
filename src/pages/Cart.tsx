@@ -32,7 +32,7 @@ export default function Cart() {
   const { t } = useTranslation();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'method' | 'momo' | 'card' | 'cash' | 'waiting'>('cart');
+  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'method' | 'confirmation' | 'momo' | 'card' | 'cash' | 'waiting'>('cart');
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'cash'>('momo');
   const [phoneNumber, setPhoneNumber] = useState('078');
   const [address, setAddress] = useState('');
@@ -87,13 +87,11 @@ export default function Cart() {
       return;
     }
     setFormErrors({});
-    if (paymentMethod === 'momo') {
-      setCheckoutStep('momo');
-    } else if (paymentMethod === 'card') {
-      setCheckoutStep('card');
-    } else {
+    if (paymentMethod === 'cash' && !selectedBranch) {
       setCheckoutStep('cash');
+      return;
     }
+    setCheckoutStep('confirmation');
   };
 
   const handleFindNearest = () => {
@@ -271,11 +269,10 @@ export default function Cart() {
         <div className="lg:col-span-2 space-y-12">
           {/* Cart Items Section */}
           <div className="space-y-6">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="wait">
               {cart.map((item) => (
                 <motion.div
                   key={item.id}
-                  layout
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
@@ -336,25 +333,9 @@ export default function Cart() {
                 <h2 className="text-3xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none">
                   {t('select_pickup_branch')}<span className="text-brand-primary">.</span>
                 </h2>
-                <p className="micro-label !opacity-60 uppercase tracking-widest">Disciplined Branch Selection</p>
+                <p className="micro-label !opacity-60 uppercase tracking-widest italic tracking-wider">Disciplined & Direct Selection</p>
               </div>
               
-              <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder={t('current_location_placeholder')}
-                  value={neighborhood}
-                  onChange={e => setNeighborhood(e.target.value)}
-                  className="w-full bg-white dark:bg-zinc-900 border border-brand-border rounded-2xl py-5 pl-6 pr-14 text-sm font-bold italic outline-none focus:border-brand-primary shadow-sm"
-                />
-                <button 
-                  onClick={handleFindNearest}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-brand-primary text-white rounded-xl hover:bg-orange-600 transition-all active:scale-95"
-                >
-                  <Search className="h-4 w-4" />
-                </button>
-              </div>
-
               <div className="overflow-hidden">
                 <BranchMap 
                    onSelectBranch={(b) => {
@@ -366,7 +347,7 @@ export default function Cart() {
                 />
               </div>
               
-              {formErrors.branch && <p className="text-xs text-red-500 font-bold uppercase text-center mt-2">{formErrors.branch}</p>}
+              {formErrors.branch && <p className="text-xs text-red-500 font-black uppercase text-center mt-2 italic shadow-sm">{formErrors.branch}</p>}
             </motion.div>
           )}
         </div>
@@ -521,6 +502,92 @@ export default function Cart() {
               </div>
             )}
 
+            {checkoutStep === 'confirmation' && (
+              <div className="space-y-8">
+                <h2 className="text-3xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-4">
+                  {t('confirm_order')}<span className="text-brand-primary">.</span>
+                </h2>
+                <p className="micro-label !opacity-40 uppercase tracking-widest italic mb-8">Please review your details</p>
+
+                <div className="space-y-4 bg-black/5 dark:bg-white/5 p-6 rounded-[32px] border border-brand-border">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase opacity-40">Payment Method</p>
+                    <div className="flex items-center gap-3">
+                      {paymentMethod === 'momo' ? <Smartphone className="h-4 w-4 text-brand-primary" /> : 
+                       paymentMethod === 'card' ? <CreditCard className="h-4 w-4 text-brand-primary" /> : 
+                       <MapPin className="h-4 w-4 text-brand-primary" />}
+                      <span className="text-sm font-black uppercase italic">
+                        {paymentMethod === 'momo' ? 'MTN MoMo' : 
+                         paymentMethod === 'card' ? 'Credit/Debit Card' : 
+                         'Cash on Pickup'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-4 border-t border-brand-border">
+                    <p className="text-[10px] font-black uppercase opacity-40">Items</p>
+                    <div className="max-h-24 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+                      {cart.map(item => (
+                        <div key={item.id} className="flex justify-between text-[10px] font-bold uppercase italic">
+                          <span className="truncate mr-2">{item.quantity}x {item.name}</span>
+                          <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-4 border-t border-brand-border">
+                    <p className="text-[10px] font-black uppercase opacity-40">
+                      {paymentMethod === 'cash' ? 'Pickup Location' : 'Delivery Address'}
+                    </p>
+                    <p className="text-xs font-bold leading-relaxed">
+                      {paymentMethod === 'cash' 
+                        ? SIMBA_BRANCHES.find(b => b.id === selectedBranch)?.name 
+                        : address}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-6">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase opacity-60 px-2">
+                    <span>{t('subtotal')}</span>
+                    <span>{formatCurrency(totalPrice)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs font-bold uppercase opacity-60 px-2">
+                    <span>{t('logistics')}</span>
+                    <span className={cn(paymentMethod === 'cash' || totalPrice > 50000 ? "text-green-500" : "")}>
+                      {paymentMethod === 'cash' || totalPrice > 50000 ? 'FREE' : formatCurrency(2000)}
+                    </span>
+                  </div>
+                  <div className="pt-4 border-t-2 border-brand-primary/20 flex justify-between items-end px-2">
+                    <span className="font-black uppercase tracking-tighter italic text-xl">{t('total')}</span>
+                    <span className="text-4xl font-black text-brand-primary tracking-tighter italic">
+                      {(totalPrice + (paymentMethod === 'cash' || totalPrice > 50000 ? 0 : 2000)).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-8 space-y-4">
+                  <button 
+                    onClick={() => {
+                      if (paymentMethod === 'momo') setCheckoutStep('momo');
+                      else if (paymentMethod === 'card') setCheckoutStep('card');
+                      else confirmCash({ preventDefault: () => {} } as any);
+                    }}
+                    className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-7 rounded-full font-black uppercase tracking-widest transition-all italic shadow-2xl shadow-brand-primary/20"
+                  >
+                    {paymentMethod === 'cash' ? t('confirm_order').toUpperCase() : t('proceed_to_payment').toUpperCase()}
+                  </button>
+                  <button 
+                    onClick={() => setCheckoutStep('method')}
+                    className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center"
+                  >
+                    {t('change_details')}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {checkoutStep === 'momo' && (
               <form onSubmit={confirmMomo} className="space-y-8">
                  <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-8">
@@ -645,11 +712,11 @@ export default function Cart() {
                 </div>
 
                 <button 
-                  onClick={(e) => confirmCash(e as any)}
-                  disabled={!selectedBranch || isProcessing}
-                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all italic active:scale-95 shadow-2xl shadow-brand-primary/20 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                  onClick={() => setCheckoutStep('confirmation')}
+                  disabled={!selectedBranch}
+                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all italic active:scale-95 shadow-2xl shadow-brand-primary/20 disabled:opacity-50"
                 >
-                  {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin mx-auto" /> : t('confirm_order').toUpperCase()}
+                  {t('review_order').toUpperCase()}
                 </button>
                 <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
                   {t('back')}

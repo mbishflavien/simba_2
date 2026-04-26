@@ -67,6 +67,21 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "When the review was submitted" }
       },
       "required": ["reviewId", "userId", "branchId", "rating", "comment", "createdAt"]
+    },
+    "ProductReview": {
+      "title": "Product Review",
+      "description": "A user review for a specific product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the review" },
+        "productId": { "type": "string", "description": "The specific product being reviewed" },
+        "userId": { "type": "string", "description": "ID of the user who wrote the review" },
+        "userName": { "type": "string", "description": "Name of the user for display" },
+        "rating": { "type": "number", "description": "Rating from 1 to 5" },
+        "comment": { "type": "string", "description": "The text of the review" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the review was submitted" }
+      },
+      "required": ["id", "productId", "userId", "rating", "comment", "createdAt"]
     }
   },
   "firestore": {
@@ -85,6 +100,10 @@
     "/branchReviews/{reviewId}": {
       "schema": "BranchReview",
       "description": "Customer reviews and ratings for specific branches"
+    },
+    "/productReviews/{reviewId}": {
+      "schema": "ProductReview",
+      "description": "Customer reviews and ratings for specific products"
     }
   }
 }

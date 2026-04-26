@@ -1,9 +1,42 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
+import React, { useState, useMemo, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Navigation, Star, Search, X } from 'lucide-react';
+import { MapPin, Search, X, Navigation, Locate, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
+import L from 'leaflet';
+
+// Import Leaflet CSS
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet marker icon issue
+const customIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const selectedIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [30, 48],
+  iconAnchor: [15, 48],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const userIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
 
 interface Branch {
   id: string;
@@ -11,6 +44,7 @@ interface Branch {
   lat: number;
   lng: number;
   address: string;
+  distance?: number;
 }
 
 export const SIMBA_BRANCHES: Branch[] = [
@@ -23,16 +57,19 @@ export const SIMBA_BRANCHES: Branch[] = [
   { id: 'remera', name: 'Simba Remera', lat: -1.9602, lng: 30.1065, address: 'RSSB Building, Remera' },
 ];
 
-const containerStyle = {
-  width: '100%',
-  height: '500px',
-  borderRadius: '24px'
-};
+const DEFAULT_CENTER: [number, number] = [-1.9441, 30.0619];
 
-const center = {
-  lat: -1.9441,
-  lng: 30.0619
-};
+// Distance helper (Haversine)
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 interface BranchMapProps {
   onSelectBranch: (branch: Branch) => void;
@@ -40,521 +77,352 @@ interface BranchMapProps {
   userLocation?: { lat: number; lng: number } | null;
 }
 
+function ChangeView({ center, zoom }: { center: [number, number], zoom: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
+  return null;
+}
+
 export default function BranchMap({ onSelectBranch, selectedBranch, userLocation }: BranchMapProps) {
   const { t } = useTranslation();
-  const [activeMarker, setActiveMarker] = useState<string | null>(null);
-  const [directionsError, setDirectionsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [internalUserPos, setInternalUserPos] = useState<[number, number] | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [zoom, setZoom] = useState(13);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Computed user position (prop override takes precedence)
+  const effectiveUserPos = useMemo(() => {
+    if (userLocation) return [userLocation.lat, userLocation.lng] as [number, number];
+    return internalUserPos;
+  }, [userLocation?.lat, userLocation?.lng, internalUserPos]);
+
+  // Auto-detect location on mount if no location provided
+  useEffect(() => {
+    if (!userLocation) {
+      handleLocate();
+    }
+  }, [userLocation]);
+
+  const handleLocate = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser.");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setInternalUserPos(coords);
+        setMapCenter(coords);
+        setZoom(14);
+        setIsLocating(false);
+        setLocationError(null);
+      },
+      (err) => {
+        console.error("Locate error:", err);
+        setLocationError("Could not detect your current location. Showing default shop location.");
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  };
+
+  const branchesWithDistance = useMemo(() => {
+    const reference = effectiveUserPos || DEFAULT_CENTER;
+    return SIMBA_BRANCHES.map(branch => ({
+      ...branch,
+      distance: getDistance(reference[0], reference[1], branch.lat, branch.lng)
+    })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+  }, [effectiveUserPos]);
 
   const filteredBranches = useMemo(() => {
-    return SIMBA_BRANCHES.filter(branch => 
+    if (!searchQuery.trim()) return branchesWithDistance;
+    return branchesWithDistance.filter(branch => 
       branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       branch.address.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
-
-  const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || "";
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: apiKey,
-    version: 'weekly',
-    libraries: ['places' as any]
-  });
-
-  const [map, setMap] = React.useState<google.maps.Map | null>(null);
-
-  const onLoad = useCallback(function callback(map: google.maps.Map) {
-    setMap(map);
-  }, []);
-
-  const onUnmount = useCallback(function callback() {
-    setMap(null);
-  }, []);
-
-  // Sync map bounds with markers
-  React.useEffect(() => {
-    if (!map || !isLoaded || !window.google) return;
-    
-    try {
-      const bounds = new window.google.maps.LatLngBounds();
-      SIMBA_BRANCHES.forEach(branch => {
-        bounds.extend({ lat: branch.lat, lng: branch.lng });
-      });
-      
-      if (userLocation) {
-        bounds.extend(userLocation);
-      }
-      
-      map.fitBounds(bounds);
-
-      // If userLocation exists, they probably want to see where they are
-      if (userLocation) {
-        map.setZoom(13);
-        map.panTo(userLocation);
-      }
-    } catch (e) {
-      console.error("Map bounds error:", e);
-    }
-  }, [map, isLoaded, userLocation]);
-
-  // If a branch is selected via the list, pan to it
-  React.useEffect(() => {
-    if (!map || !selectedBranch || !window.google) return;
-    const branch = SIMBA_BRANCHES.find(b => b.id === selectedBranch);
-    if (branch) {
-      map.panTo({ lat: branch.lat, lng: branch.lng });
-      map.setZoom(15);
-    }
-  }, [map, selectedBranch]);
-
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-
-  const directionsCallback = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
-    if (result !== null && status === 'OK') {
-      setDirections(result);
-      setDirectionsError(null);
-    } else if (status === 'REQUEST_DENIED') {
-      setDirectionsError('Directions API not enabled or Key restricted.');
-      console.error('Directions Error:', status);
-    } else {
-      setDirectionsError('Could not calculate route.');
-      console.error('Directions Error:', status);
-    }
-  }, []);
-
-  // Clear directions when selected branch or user location changes
-  useEffect(() => {
-    setDirections(null);
-    setDirectionsError(null);
-  }, [selectedBranch, userLocation]);
+  }, [searchQuery, branchesWithDistance]);
 
   const nearestBranch = useMemo(() => {
-    if (!userLocation) return null;
+    return branchesWithDistance[0];
+  }, [branchesWithDistance]);
 
-    const getDist = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-      const R = 6371; // km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
+  const handleSearchCommit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!searchQuery.trim()) return;
 
-    let minDist = Infinity;
-    let closest: Branch | null = null;
+    // Local match first
+    const match = branchesWithDistance.find(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (match) {
+      setMapCenter([match.lat, match.lng]);
+      setZoom(15);
+      onSelectBranch(match);
+      return;
+    }
 
-    SIMBA_BRANCHES.forEach(branch => {
-      const d = getDist(userLocation.lat, userLocation.lng, branch.lat, branch.lng);
-      if (d < minDist) {
-        minDist = d;
-        closest = branch;
+    // Attempt geocoding (Nominatim)
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ", Kigali, Rwanda")}`);
+      const data = await resp.json();
+      if (data && data.length > 0) {
+        const newCoords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        setMapCenter(newCoords);
+        setInternalUserPos(newCoords); // Set as reference point for distance
+        setZoom(15);
+        setLocationError(null);
+      } else {
+        setLocationError("Location not found. Try 'Downtown' or 'Simba Supermarket'.");
       }
-    });
-
-    return closest;
-  }, [userLocation]);
-
-  if (!apiKey) {
-    return (
-      <div className="h-[500px] bg-zinc-900 rounded-[40px] border border-white/10 flex flex-col items-center justify-center p-8 text-center">
-        <MapPin className="h-12 w-12 text-brand-primary opacity-20 mb-4" />
-        <h3 className="font-black uppercase italic text-white mb-2">Maps API Key Missing</h3>
-        <p className="text-[10px] font-bold uppercase opacity-40 text-white/60 leading-relaxed max-w-sm italic">
-          Please configure VITE_GOOGLE_MAPS_API_KEY in your .env or secrets to enable interactive maps and directions.
-        </p>
-      </div>
-    );
-  }
-
-  if (!isLoaded && !loadError) return <div className="h-[500px] bg-black/5 dark:bg-white/5 animate-pulse rounded-[40px]" />;
-
-  const handleOpenExternal = (branch: Branch) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${branch.lat},${branch.lng}`;
-    window.open(url, '_blank');
+    } catch (err) {
+      console.error("Geocoding failed:", err);
+      setLocationError("Search service unavailable. Please check your connection.");
+    }
   };
 
+  const activeBranch = useMemo(() => {
+    return SIMBA_BRANCHES.find(b => b.id === selectedBranch);
+  }, [selectedBranch]);
+
+  useEffect(() => {
+    if (activeBranch) {
+      const branchCoords: [number, number] = [activeBranch.lat, activeBranch.lng];
+      setMapCenter(prev => {
+        if (prev[0] === branchCoords[0] && prev[1] === branchCoords[1]) return prev;
+        return branchCoords;
+      });
+      setZoom(15);
+    } else if (effectiveUserPos) {
+      setMapCenter(effectiveUserPos);
+    }
+  }, [activeBranch?.id, effectiveUserPos]);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row gap-6 items-stretch">
-        {/* Search & List Sidebar (Desktop) */}
-        {!isExpanded && (
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="w-full lg:w-[360px] flex flex-col gap-4 order-2 lg:order-1"
-          >
-            {/* Nearest Branch Card */}
-            <AnimatePresence mode="wait">
-              {nearestBranch && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="p-6 bg-brand-primary/5 dark:bg-brand-primary/10 border border-brand-primary/20 rounded-[32px] overflow-hidden relative group"
-                >
-                  <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
-                    <Star className="h-16 w-16 fill-brand-primary" />
-                  </div>
-                  <p className="micro-label !text-brand-primary uppercase font-black mb-1">{t('nearest_branch')}</p>
-                  <h4 className="font-black italic uppercase tracking-tight text-xl text-[var(--brand-text)] leading-tight mb-2">
-                    {nearestBranch.name}
-                  </h4>
-                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase leading-relaxed mb-4">
-                    {nearestBranch.address}
-                  </p>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => onSelectBranch(nearestBranch)}
-                      className="flex-1 py-3 bg-brand-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all active:scale-95 shadow-lg shadow-brand-primary/20"
-                    >
-                      Select Branch
-                    </button>
-                    <button 
-                      onClick={() => handleOpenExternal(nearestBranch)}
-                      className="p-3 bg-white dark:bg-zinc-800 rounded-xl border border-brand-border hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-                    >
-                      <Navigation className="h-4 w-4 text-[var(--brand-text)]" />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* List Card */}
-            <div className="flex-1 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md rounded-[32px] border border-brand-border flex flex-col overflow-hidden min-h-[400px]">
-              <div className="p-6 border-b border-brand-border space-y-4 bg-white/50 dark:bg-white/5">
-                <div className="flex items-center justify-between">
-                  <p className="micro-label font-black uppercase tracking-[0.2em] opacity-40 italic font-sans">{t('supermarket_network')}</p>
-                  <span className="text-[10px] font-black text-brand-primary bg-brand-primary/10 px-2.5 py-1 rounded-full italic">
-                    {filteredBranches.length}
-                  </span>
-                </div>
-                
-                {/* Enhanced Search Input */}
-                <div className="relative group/search">
-                  <Search className={cn(
-                    "absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 transition-colors",
-                    searchQuery ? "text-brand-primary" : "text-zinc-400 group-hover/search:text-brand-primary"
-                  )} />
-                  <input 
-                    type="text"
-                    placeholder="Search branches..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-black/5 dark:bg-white/5 border border-transparent focus:border-brand-primary/30 focus:bg-white dark:focus:bg-zinc-800 rounded-2xl py-3.5 pl-11 pr-10 text-[11px] font-bold uppercase tracking-tight text-[var(--brand-text)] placeholder:text-zinc-500 outline-none transition-all shadow-inner"
-                  />
-                  {searchQuery && (
-                    <button 
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-all"
-                    >
-                      <X className="h-3 w-3 text-zinc-500" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {filteredBranches.length > 0 ? (
-                  filteredBranches.map(branch => (
-                    <button
-                      key={branch.id}
-                      onClick={() => onSelectBranch(branch)}
-                      className={cn(
-                        "w-full text-left p-4 rounded-2xl transition-all flex items-center justify-between group border",
-                        selectedBranch === branch.id 
-                          ? "bg-brand-primary border-brand-primary text-white shadow-xl shadow-brand-primary/30" 
-                          : "bg-white/50 dark:bg-black/20 border-transparent hover:border-brand-primary/30 hover:bg-white dark:hover:bg-zinc-800 text-[var(--brand-text)]"
-                      )}
-                    >
-                      <div className="flex-1 min-w-0 pr-4">
-                        <p className={cn(
-                          "font-black italic uppercase tracking-tighter text-sm truncate",
-                          selectedBranch === branch.id ? "text-white" : "text-[var(--brand-text)]"
-                        )}>
-                          {branch.name}
-                        </p>
-                        <p className={cn(
-                          "text-[9px] font-bold uppercase truncate opacity-50",
-                          selectedBranch === branch.id ? "text-white" : "text-zinc-500"
-                        )}>
-                          {branch.address}
-                        </p>
-                      </div>
-                      <MapPin className={cn(
-                        "h-3 w-3 shrink-0 transition-transform",
-                        selectedBranch === branch.id ? "text-white scale-125" : "text-brand-primary opacity-20 group-hover:opacity-100"
-                      )} />
-                    </button>
-                  ))
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center py-12 text-center">
-                    <Search className="h-10 w-10 text-zinc-400 opacity-10 mb-4" />
-                    <p className="text-[10px] font-black uppercase italic opacity-30">No matches found for "{searchQuery}"</p>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 border-t border-brand-border bg-black/5 dark:bg-white/5">
-                <button 
-                  onClick={() => window.open('https://www.google.com/maps/search/Simba+Supermarket+Kigali', '_blank')}
-                  className="w-full flex items-center justify-center gap-2 py-4 rounded-xl hover:bg-brand-primary/5 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--brand-text)] opacity-40 hover:opacity-100 italic"
-                >
-                  <Navigation className="h-3 w-3" />
-                  Global Search in Maps
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Main Map Container */}
-        <div className="flex-1 order-1 lg:order-2">
-          <div className="relative rounded-[48px] overflow-hidden border border-brand-border h-[600px] lg:h-[700px] shadow-2xl shadow-brand-primary/10">
-            {/* Map Expand Toggle (Desktop) */}
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="hidden lg:flex absolute top-6 right-6 z-10 p-3 bg-zinc-900/90 text-white backdrop-blur-md rounded-2xl border border-white/10 hover:bg-brand-primary transition-all shadow-xl items-center gap-2 group"
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row gap-6 items-end">
+        <form onSubmit={handleSearchCommit} className="relative group/search flex-1">
+          <Search className={cn(
+            "absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors",
+            searchQuery ? "text-brand-primary" : "text-zinc-400 group-hover/search:text-brand-primary"
+          )} />
+          <input 
+            type="text"
+            placeholder="Type a location or branch name in Kigali..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white dark:bg-zinc-900 border border-brand-border rounded-[32px] py-7 pl-16 pr-14 text-sm font-bold uppercase tracking-tight text-[var(--brand-text)] placeholder:text-zinc-500 outline-none transition-all shadow-xl focus:ring-4 focus:ring-brand-primary/10"
+          />
+          {searchQuery && (
+            <button 
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-6 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-all text-zinc-400"
             >
-              <div className="flex flex-col gap-0.5 items-center justify-center w-4 h-4 overflow-hidden">
-                <div className={cn("w-full h-0.5 bg-current transition-transform", isExpanded ? "rotate-45 translate-y-1" : "")} />
-                {!isExpanded && <div className="w-full h-0.5 bg-current" />}
-                <div className={cn("w-full h-0.5 bg-current transition-transform", isExpanded ? "-rotate-45 -translate-y-1" : "")} />
-              </div>
-              <span className="text-[10px] font-black uppercase italic tracking-widest hidden group-hover:block">
-                {isExpanded ? 'Restore Sidebar' : 'Expand Map'}
-              </span>
+              <X className="h-5 w-5" />
             </button>
-
-            {!apiKey && (
-              <div className="absolute top-6 left-6 lg:left-auto lg:bottom-6 lg:right-6 lg:top-auto z-20 px-4 py-2 bg-zinc-900/80 backdrop-blur-md rounded-full border border-white/10 text-[9px] font-black italic uppercase tracking-widest text-brand-primary flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
-                Live Preview Mode
-              </div>
-            )}
-            
-            <GoogleMap
-              mapContainerStyle={{ width: '100%', height: '100%' }}
-              center={center}
-              zoom={12}
-              onLoad={onLoad}
-              onUnmount={onUnmount}
-              options={{
-                styles: [
-                  { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
-                  { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-                  { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-                  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
-                  { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
-                  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
-                  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#3c3c3c" }] }
-                ],
-                disableDefaultUI: true,
-                zoomControl: true,
-                zoomControlOptions: {
-                  position: window.google?.maps?.ControlPosition?.RIGHT_CENTER
-                }
-              }}
-            >
-              {filteredBranches.map((branch) => (
-                <Marker
-                  key={branch.id}
-                  position={{ lat: branch.lat, lng: branch.lng }}
-                  onClick={() => {
-                    setActiveMarker(branch.id);
-                    onSelectBranch(branch);
-                  }}
-                  icon={{
-                    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-                    fillColor: selectedBranch === branch.id ? '#FF5500' : '#888888',
-                    fillOpacity: 1,
-                    strokeWeight: 1,
-                    strokeColor: '#FFFFFF',
-                    scale: 1.5,
-                  }}
-                />
-              ))}
-
-              {userLocation && (
-                <Marker
-                  position={userLocation}
-                  icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: '#3B82F6',
-                    fillOpacity: 1,
-                    strokeWeight: 2,
-                    strokeColor: '#FFFFFF',
-                    scale: 6,
-                  }}
-                />
-              )}
-
-              {activeMarker && (
-                <InfoWindow
-                  position={SIMBA_BRANCHES.find(b => b.id === activeMarker)!}
-                  onCloseClick={() => setActiveMarker(null)}
-                >
-                  <div className="p-3 min-w-[200px]">
-                    <h4 className="font-black italic uppercase text-xs text-brand-primary mb-1">
-                      {SIMBA_BRANCHES.find(b => b.id === activeMarker)?.name}
-                    </h4>
-                    <p className="text-[10px] font-bold text-zinc-600 uppercase leading-tight mb-3">
-                      {SIMBA_BRANCHES.find(b => b.id === activeMarker)?.address}
-                    </p>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleOpenExternal(SIMBA_BRANCHES.find(b => b.id === activeMarker)!)}
-                        className="flex-1 py-2 bg-brand-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-sm"
-                      >
-                        View Directions
-                      </button>
-                    </div>
-                  </div>
-                </InfoWindow>
-              )}
-
-              {userLocation && selectedBranch && !directions && !directionsError && apiKey && (
-                <DirectionsService
-                  options={{
-                    origin: userLocation,
-                    destination: {
-                      lat: SIMBA_BRANCHES.find(b => b.id === selectedBranch)!.lat,
-                      lng: SIMBA_BRANCHES.find(b => b.id === selectedBranch)!.lng,
-                    },
-                    travelMode: google.maps.TravelMode.DRIVING,
-                  }}
-                  callback={directionsCallback}
-                />
-              )}
-
-              {directions && (
-                <DirectionsRenderer
-                  options={{
-                    directions: directions,
-                    suppressMarkers: true,
-                    polylineOptions: {
-                      strokeColor: '#FF5500',
-                      strokeWeight: 6,
-                      strokeOpacity: 1,
-                    },
-                  }}
-                />
-              )}
-            </GoogleMap>
-
-            {/* Directions / Error Floating Footer (Desktop/Mobile) */}
-            <AnimatePresence>
-              {directionsError && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 50 }}
-                  className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-lg p-6 bg-zinc-900 text-white rounded-[32px] border border-white/10 shadow-2xl z-30 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
-                      <Navigation className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black uppercase italic tracking-widest mb-0.5">Route Restricted</p>
-                      <p className="text-[9px] opacity-40 font-bold uppercase italic">Billing required for in-app directions</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => selectedBranch && handleOpenExternal(SIMBA_BRANCHES.find(b => b.id === selectedBranch)!)}
-                    className="px-6 py-3 bg-brand-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-lg shadow-brand-primary/20"
-                  >
-                    Go to Google Maps
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+          )}
+        </form>
+        
+        <button 
+          onClick={handleLocate}
+          disabled={isLocating}
+          className="flex items-center gap-3 px-8 py-7 bg-brand-primary text-white dark:text-black rounded-[32px] font-black uppercase tracking-widest text-xs hover:bg-orange-600 transition-all shadow-xl disabled:opacity-50"
+        >
+          {isLocating ? <Locate className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+          {isLocating ? 'Detecting...' : 'Near Me'}
+        </button>
       </div>
 
-      {/* Mobile-Only Branch List (Cards at bottom) */}
-      <div className="lg:hidden mt-6 space-y-4 px-2">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <p className="micro-label font-black uppercase tracking-[0.2em] opacity-40 italic">Pickup Locations</p>
-            <button 
-              onClick={() => window.open('https://www.google.com/maps/search/Simba+Supermarket+Kigali', '_blank')}
-              className="flex items-center gap-1.5 text-[9px] font-black uppercase text-brand-primary hover:underline italic"
-            >
-              <Navigation className="h-3 w-3" />
-              Full Maps
-            </button>
-          </div>
-
-          {/* Enhanced Mobile Search */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
-            <input 
-              type="text"
-              placeholder="Filter branches..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-zinc-900 border border-brand-border rounded-2xl py-3.5 pl-11 pr-4 text-[11px] font-bold uppercase outline-none shadow-sm"
+      <AnimatePresence>
+        {locationError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-tight"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {locationError}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      <div className="flex flex-col gap-10">
+        {/* Leaflet Map */}
+        <div className="relative rounded-[48px] overflow-hidden border border-brand-border h-[500px] shadow-2xl shadow-brand-primary/10 z-0">
+          <MapContainer 
+            center={mapCenter} 
+            zoom={zoom} 
+            style={{ height: '100%', width: '100%' }}
+            scrollWheelZoom={false}
+          >
+            <ChangeView center={mapCenter} zoom={zoom} />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              className="grayscale brightness-90 contrast-125"
             />
+            
+            {filteredBranches.map((branch) => (
+              <Marker 
+                key={branch.id} 
+                position={[branch.lat, branch.lng]}
+                icon={selectedBranch === branch.id ? selectedIcon : customIcon}
+                eventHandlers={{
+                  click: () => onSelectBranch(branch),
+                }}
+              >
+                <Popup className="simba-popup">
+                  <div className="p-2 min-w-[150px]">
+                    <h4 className="font-black italic uppercase text-xs text-brand-primary mb-1">{branch.name}</h4>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase leading-tight mb-2">{branch.address}</p>
+                    {branch.distance !== undefined && (
+                      <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">{branch.distance.toFixed(1)} km from you</span>
+                    )}
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+            
+            {effectiveUserPos && (
+              <>
+                <Marker position={effectiveUserPos} icon={userIcon}>
+                  <Popup><span className="text-[10px] font-black uppercase italic">{userLocation ? 'Target Location' : 'You are here'}</span></Popup>
+                </Marker>
+                <Circle center={effectiveUserPos} pathOptions={{ color: '#0ea5e9', fillColor: '#0ea5e966' }} radius={500} />
+              </>
+            )}
+          </MapContainer>
+          
+          <div className="absolute bottom-6 left-6 z-10 px-4 py-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-full border border-brand-border text-[9px] font-black italic uppercase tracking-widest text-brand-primary flex items-center gap-2 shadow-xl">
+             <div className="flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 fill-amber-400 text-amber-400" />
+                <span>Simba Stores</span>
+             </div>
+             <div className="w-[1px] h-3 bg-brand-border" />
+             <div className="flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 fill-sky-500 text-sky-500" />
+                <span>{userLocation ? 'Search' : 'You'}</span>
+             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
-          {filteredBranches.length > 0 ? (
-            filteredBranches.map(branch => (
-              <div
+        {/* Branch Results Section */}
+        <div className="space-y-8">
+          <div className="flex items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-6 bg-brand-primary rounded-full" />
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-[var(--brand-text)]">
+                Local Stores
+              </h3>
+            </div>
+            <span className="text-[10px] font-black text-brand-primary bg-brand-primary/10 px-3 py-1.5 rounded-full italic tracking-widest uppercase">
+              {filteredBranches.length} {filteredBranches.length === 1 ? 'STORE' : 'STORES'} FOUND
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredBranches.map((branch, idx) => (
+              <motion.div
                 key={branch.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                whileHover={{ y: -6 }}
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectBranch(branch)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelectBranch(branch);
-                  }
-                }}
                 className={cn(
-                  "p-5 rounded-[28px] transition-all border text-left flex flex-col justify-between h-[140px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+                  "p-8 rounded-[48px] transition-all border text-left flex flex-col justify-between min-h-[220px] cursor-pointer outline-none focus-visible:ring-4 focus-visible:ring-brand-primary group relative overflow-hidden",
                   selectedBranch === branch.id 
-                    ? "bg-brand-primary border-brand-primary text-white shadow-xl shadow-brand-primary/20" 
-                    : "bg-white dark:bg-zinc-900 border-brand-border"
+                    ? "bg-brand-primary border-brand-primary text-white shadow-2xl shadow-brand-primary/40 ring-4 ring-brand-primary/10" 
+                    : "bg-white dark:bg-zinc-950 border-brand-border hover:border-brand-primary/50 shadow-sm"
                 )}
               >
-                <div>
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      {idx === 0 && effectiveUserPos && (
+                        <span className="text-[8px] font-black uppercase bg-green-500 text-white px-2 py-1 rounded-md mb-2 inline-block tracking-widest">Closest to you</span>
+                      )}
+                      <p className={cn(
+                        "font-black italic uppercase tracking-tighter text-2xl leading-tight group-hover:scale-105 transition-transform origin-left",
+                        selectedBranch === branch.id ? "text-white" : "text-[var(--brand-text)]"
+                      )}>
+                        {branch.name.replace('Simba ', '')}
+                      </p>
+                    </div>
+                    <div className={cn(
+                      "p-3 rounded-2xl transition-all",
+                      selectedBranch === branch.id ? "bg-white/20 text-white" : "bg-brand-primary/10 text-brand-primary"
+                    )}>
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                  </div>
                   <p className={cn(
-                    "font-black italic uppercase tracking-tighter text-base leading-tight",
-                    selectedBranch === branch.id ? "text-white" : "text-[var(--brand-text)]"
-                  )}>
-                    {branch.name}
-                  </p>
-                  <p className={cn(
-                    "text-[10px] font-bold uppercase mt-1 opacity-60",
+                    "text-[11px] font-bold uppercase opacity-60 leading-relaxed max-w-[90%]",
                     selectedBranch === branch.id ? "text-white" : "text-zinc-500"
                   )}>
                     {branch.address}
                   </p>
                 </div>
-                {selectedBranch === branch.id && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleOpenExternal(branch); }}
-                    className="flex items-center gap-2 text-[9px] font-black uppercase bg-white/20 px-3 py-1.5 rounded-lg w-fit mt-2 hover:bg-white/30 transition-colors"
-                  >
-                    <Navigation className="h-3 w-3" />
-                    Get Directions
-                  </button>
-                )}
+
+                <div className="flex items-center justify-between mt-6 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <span className={cn(
+                      "text-[10px] font-black uppercase px-3 py-1.5 rounded-xl",
+                      selectedBranch === branch.id ? "bg-white/20 text-white" : "bg-black/5 dark:bg-white/5 text-zinc-500"
+                    )}>
+                      {branch.id === 'town-center' ? 'CITY HUB' : 'LOCAL STORE'}
+                    </span>
+                    {branch.distance !== undefined && (
+                      <span className={cn(
+                        "text-[10px] font-black flex items-center gap-1",
+                        selectedBranch === branch.id ? "text-white/80" : "text-brand-primary"
+                      )}>
+                        <Navigation className="h-3 w-3" />
+                        {branch.distance.toFixed(1)} km
+                      </span>
+                    )}
+                  </div>
+                  
+                  {selectedBranch === branch.id && (
+                    <motion.div 
+                      layoutId="active-check"
+                      className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-brand-primary shadow-lg"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-current animate-ping" />
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Abstract background graphics */}
+                <div className={cn(
+                  "absolute -right-4 -bottom-4 w-24 h-24 rounded-full blur-2xl transition-opacity",
+                  selectedBranch === branch.id ? "bg-white/20 opacity-100" : "bg-brand-primary/5 opacity-0 group-hover:opacity-100"
+                )} />
+              </motion.div>
+            ))}
+            
+            {filteredBranches.length === 0 && (
+              <div className="col-span-full py-32 text-center bg-black/5 dark:bg-white/5 rounded-[64px] border border-dashed border-brand-border">
+                <Search className="h-16 w-16 mx-auto text-brand-border mb-6 opacity-20" />
+                <p className="text-xl font-black uppercase italic opacity-40 tracking-tighter">No branches found in this area</p>
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="mt-6 text-brand-primary font-black uppercase tracking-widest text-xs hover:underline decoration-2 underline-offset-4"
+                >
+                  Clear search and show all branches
+                </button>
               </div>
-            ))
-          ) : (
-            <div className="w-full py-8 text-center bg-black/5 dark:bg-white/5 rounded-[28px] border border-dashed border-brand-border">
-              <p className="text-[10px] font-black uppercase italic opacity-40">No branches found</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

@@ -11,32 +11,38 @@ export interface AiSearchIntent {
 }
 
 const CATEGORIES = [
-  'Food & Groceries',
-  'Household',
-  'Alcohol',
-  'Baby & Kids',
-  'Personal Care',
-  'Kitchenware',
-  'Office Supplies',
-  'Pet Care'
+  'Alcoholic Drinks',
+  'Baby Products',
+  'Cosmetics & Personal Care',
+  'Food Products',
+  'Kitchenware & Electronics',
+  'Sports & Wellness'
 ];
 
 export async function parseSearchIntent(query: string): Promise<AiSearchIntent> {
   const systemInstruction = `
-    You are the Simba Supermarket Smart Assistant. 
+    You are the Simba Supermarket Smart Assistant (Simba Smart). 
     Your goal is to parse a user's natural language shopping request into search filters.
     
-    Available Categories: ${CATEGORIES.join(', ')}.
-    
+    CRITICAL: 
+    - Use THESE Categories: ${CATEGORIES.join(', ')}.
+    - Mapping synonyms: 
+      - "liquor", "wine", "beer", "whiskey", "beverages", "drinks" -> Category: Alcoholic Drinks.
+      - "snacks", "groceries", "food", "ingredients", "spices" -> Category: Food Products.
+      - "babies", "kids", "diapers", "toys" -> Category: Baby Products.
+      - "skincare", "soap", "shampoo", "beauty", "cosmetics" -> Category: Cosmetics & Personal Care.
+      - "gym", "fitness", "health", "massage" -> Category: Sports & Wellness.
+      - "appliances", "electronic", "pans", "pots", "kitchen" -> Category: Kitchenware & Electronics.
+
     Return a JSON object with:
-    - searchQuery: a string containing 1-3 highly relevant keywords to find products (e.g., if they want cake ingredients, return "flour sugar baking").
-    - category: one of the available categories or null.
+    - searchQuery: a string containing 1-2 highly relevant generic keywords found in our database (e.g., if they want "liquor", use "alcohol" or "cognac" if appropriate, but generally keep it simple and inclusive).
+    - category: one of the EXACT categories listed above or null if not clear.
     - minPrice: number or null.
     - maxPrice: number or null.
-    - assistantResponse: a short, helpful, and ultra-bold characteristic response. (e.g. "Sourcing the freshest ingredients for your cake right now! 🔥")
+    - assistantResponse: a short, helpful, and ultra-bold characteristic response. (e.g. "Sourcing the finest spirits for your collection! 🥃")
 
-    Example: "I need ingredients for a cake"
-    Response: { "searchQuery": "flour sugar baking", "category": "Food & Groceries", "minPrice": null, "maxPrice": null, "assistantResponse": "Found the finest baking essentials for your masterpiece! 🎂" }
+    Example: "I need some liquor for a party"
+    Response: { "searchQuery": "alcohol", "category": "Alcoholic Drinks", "minPrice": null, "maxPrice": null, "assistantResponse": "Found the perfect spirits to get the party started! 🥂" }
   `;
 
   try {

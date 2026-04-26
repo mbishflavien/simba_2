@@ -31,10 +31,12 @@ import {
   Edit,
   Trash2,
   Save,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
+import initialProducts from '../data/products.json';
 
 const STATUS_ICONS = {
   pending: <Clock className="h-4 w-4" />,
@@ -62,6 +64,7 @@ export default function AdminDashboard() {
   const [newOrderAlert, setNewOrderAlert] = useState<string | null>(null);
   const [isEditingProduct, setIsEditingProduct] = useState<Partial<Product> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -165,6 +168,33 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSeedData = async () => {
+    if (!window.confirm("This will add all products from the local catalog to Firestore. Continue?")) return;
+    setIsSeeding(true);
+    try {
+      const promises = initialProducts.products.map((p: any) => {
+        const productRef = doc(db, 'products', String(p.id));
+        return setDoc(productRef, {
+          ...p,
+          id: String(p.id), // Ensure it's stored as string
+          stockCount: p.stockCount || 50,
+          inStock: true,
+          rating: 4.5,
+          reviewCount: Math.floor(Math.random() * 10) + 1,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
+      });
+      await Promise.all(promises);
+      alert("Store seeded successfully! 🦁");
+    } catch (error) {
+      console.error("Error seeding data:", error);
+      alert("Failed to seed data.");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <RefreshCcw className="h-8 w-8 animate-spin text-brand-primary" />
@@ -208,6 +238,16 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-6">
+            {profile?.isAdmin && (
+              <button 
+                onClick={handleSeedData}
+                disabled={isSeeding}
+                className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white dark:text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all disabled:opacity-50"
+              >
+                {isSeeding ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                <span>Seed Catalog</span>
+              </button>
+            )}
             <button 
               onClick={handleLogout}
               className="flex items-center gap-2 px-6 py-3 bg-rose-500/10 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all group"

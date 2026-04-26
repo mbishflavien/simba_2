@@ -75,12 +75,21 @@ export default function Home() {
         const keywords = searchQuery.split(/\s+/).filter(k => k.length > 0);
         const name = product.name.toLowerCase();
         const category = product.category.toLowerCase();
-        const matchesAny = keywords.some(keyword => name.includes(keyword) || category.includes(keyword));
+        
+        // Expand keywords with synonyms
+        const expandedKeywords = keywords.flatMap(k => {
+          if (k === 'liquor' || k === 'wine' || k === 'beer' || k === 'whiskey') return [k, 'alcohol'];
+          if (k === 'food' || k === 'grocery') return [k, 'groceries'];
+          if (k === 'gym' || k === 'fitness') return [k, 'sports', 'wellness'];
+          return [k];
+        });
+
+        const matchesAny = expandedKeywords.some(keyword => name.includes(keyword) || category.includes(keyword));
         if (!matchesAny) return false;
       }
       
-      if (minPrice !== '' && product.price < minPrice) return false;
-      if (maxPrice !== '' && product.price > maxPrice) return false;
+      if (minPrice !== '' && product.price < (minPrice as number)) return false;
+      if (maxPrice !== '' && product.price > (maxPrice as number)) return false;
       if (onlyInStock && (!product.inStock || (product.stockCount !== undefined && product.stockCount <= 0))) return false;
 
       return true;
@@ -97,14 +106,12 @@ export default function Home() {
 
   const getCategoryLabel = (cat: string) => {
     const map: Record<string, string> = {
-       'Food & Groceries': t('cat_food'),
-       'Household': t('cat_household'),
-       'Alcohol': t('cat_alcohol'),
-       'Baby & Kids': t('cat_baby'),
-       'Personal Care': t('cat_personal'),
-       'Kitchenware': t('cat_kitchen'),
-       'Office Supplies': t('cat_office'),
-       'Pet Care': t('cat_pet'),
+       'Alcoholic Drinks': t('cat_alcohol'),
+       'Baby Products': t('cat_baby'),
+       'Cosmetics & Personal Care': t('cat_personal'),
+       'Food Products': t('cat_food'),
+       'Kitchenware & Electronics': t('cat_kitchen'),
+       'Sports & Wellness': t('cat_sports'),
        'Other': t('cat_other')
     };
     return map[cat] || cat;

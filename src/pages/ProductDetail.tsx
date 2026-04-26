@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp, updateDoc, increment, getDoc, runTransaction } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { doc, onSnapshot, collection, query, where, orderBy, getDocs, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { db, handleFirestoreError } from '../lib/firebase';
 import { Product } from '../types';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../components/AuthProvider';
@@ -30,6 +30,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasPurchased, setHasPurchased] = useState(false);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +63,34 @@ export default function ProductDetail() {
     };
   }, [id]);
 
+  useEffect(() => {
+    const checkPurchase = async () => {
+      if (!user || !id) {
+        setHasPurchased(false);
+        return;
+      }
+
+      try {
+        const q = query(
+          collection(db, 'orders'),
+          where('userId', '==', user.uid),
+          where('status', 'in', ['delivered', 'shipped', 'processing']) // Assume processing/shipped counts as purchased/active interest
+        );
+        const snapshot = await getDocs(q);
+        const purchased = snapshot.docs.some(doc => {
+          const data = doc.data();
+          return data.items && data.items.some((item: any) => String(item.id) === String(id));
+        });
+        setHasPurchased(purchased);
+      } catch (err) {
+        console.error("Error checking purchase history:", err);
+        // Fallback to false or handle error
+      }
+    };
+
+    checkPurchase();
+  }, [user, id]);
+
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newComment.trim() || isSubmitting || !product || !id) return;
@@ -83,7 +112,8 @@ export default function ProductDetail() {
         const newAverage = Number((totalRating / newCount).toFixed(1));
 
         // 1. Add Review
-        transaction.set(doc(reviewRef), {
+        const newReviewDoc = doc(reviewRef);
+        transaction.set(newReviewDoc, {
           productId: id,
           userId: user.uid,
           userName: user.displayName || 'Kigali Shopper',
@@ -102,8 +132,7 @@ export default function ProductDetail() {
       setNewComment('');
       setNewRating(5);
     } catch (err) {
-      console.error("Error adding review:", err);
-      alert("Failed to post review. Please try again.");
+      handleFirestoreError(err, 'write', 'productReviews');
     } finally {
       setIsSubmitting(false);
     }
@@ -295,26 +324,49 @@ export default function ProductDetail() {
               <form onSubmit={handleSubmitReview} className="bg-black/5 dark:bg-white/5 border border-brand-border rounded-[40px] p-8 sm:p-10 sticky top-32">
                 <h4 className="font-black italic uppercase tracking-tighter text-xl mb-6">{t('review_title')}</h4>
                 
+                {hasPurchased && (
+                  <div className="flex items-center gap-2 mb-6 px-4 py-2 bg-green-500/10 text-green-500 rounded-xl border border-green-500/20 w-fit">
+                    <ShieldCheck className="h-3 w-3" />
+                    <span className="text-[9px] font-black uppercase tracking-widest leading-none">Verified Purchase</span>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2 mb-8">
                   {[1, 2, 3, 4, 5].map(star => (
                     <button
                       key={star}
                       type="button"
                       onClick={() => setNewRating(star)}
-                      className="focus:outline-none"
+                      className="focus:outline-none group/star"
                     >
-                      <Star className={cn("h-8 w-8 transition-all", star <= newRating ? "fill-amber-400 text-amber-400 scale-110" : "text-zinc-300 dark:text-zinc-700")} />
+                      <Star className={cn(
+                        "h-8 w-8 transition-all duration-300", 
+                        star <= newRating 
+                          ? "fill-amber-400 text-amber-400 scale-110" 
+                          : "text-zinc-300 dark:text-zinc-700 group-hover/star:text-amber-400/50"
+                      )} />
                     </button>
                   ))}
                 </div>
 
-                <textarea
-                  required
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  placeholder={t('review_placeholder')}
-                  className="w-full bg-white dark:bg-zinc-900 border border-brand-border rounded-3xl p-6 text-sm font-bold placeholder:text-zinc-500 outline-none focus:border-brand-primary transition-colors min-h-[150px] mb-6"
-                />
+                <div className="relative mb-6">
+                  <textarea
+                    required
+                    maxLength={500}
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    placeholder={t('review_placeholder')}
+                    className="w-full bg-white dark:bg-zinc-900 border border-brand-border rounded-3xl p-6 text-sm font-bold placeholder:text-zinc-500 outline-none focus:border-brand-primary transition-colors min-h-[150px]"
+                  />
+                  <div className="absolute bottom-4 right-6 flex items-center gap-2">
+                    <span className={cn(
+                      "text-[10px] font-black tracking-widest uppercase",
+                      newComment.length > 450 ? "text-red-500" : "text-zinc-400"
+                    )}>
+                      {newComment.length} / 500
+                    </span>
+                  </div>
+                </div>
 
                 <button
                   type="submit"
@@ -326,7 +378,7 @@ export default function ProductDetail() {
                 </button>
               </form>
             ) : (
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-[40px] p-10 text-center sticky top-32">
+              <div className="bg-zinc-500/10 border border-zinc-500/20 rounded-[40px] p-10 text-center sticky top-32">
                  <p className="text-[var(--brand-text)] font-black uppercase italic tracking-widest">{t('login_to_review')}</p>
                  <button onClick={() => navigate('/login')} className="mt-4 text-brand-primary font-black uppercase tracking-widest text-xs hover:underline">LOGIN NOW →</button>
               </div>
