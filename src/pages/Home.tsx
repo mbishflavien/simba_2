@@ -36,7 +36,18 @@ export default function Home() {
   }, []);
 
   const allCategories = useMemo(() => {
-    return Array.from(new Set(products.map(p => p.category))).sort();
+    // Deduplicate and normalize categories
+    return Array.from(new Set(products.map(p => {
+      const cat = p.category?.trim();
+      if (!cat) return null;
+      // Normalize common synonyms to avoid duplicates
+      if (cat === 'Alcohol') return 'Alcoholic Drinks';
+      if (cat === 'Kitchenware') return 'Kitchenware & Electronics';
+      if (cat === 'Personal Care') return 'Cosmetics & Personal Care';
+      if (cat === 'Baby & Kids') return 'Baby Products';
+      if (cat === 'Food & Groceries') return 'Food Products';
+      return cat;
+    }).filter(Boolean))).sort() as string[];
   }, [products]);
 
   const handleAiSearch = (intent: AiSearchIntent) => {
@@ -105,57 +116,63 @@ export default function Home() {
   }, []);
 
   const getCategoryLabel = (cat: string) => {
-    const map: Record<string, string> = {
-       'Alcoholic Drinks': t('cat_alcohol'),
-       'Baby Products': t('cat_baby'),
-       'Cosmetics & Personal Care': t('cat_personal'),
-       'Food Products': t('cat_food'),
-       'Kitchenware & Electronics': t('cat_kitchen'),
-       'Sports & Wellness': t('cat_sports'),
-       'Other': t('cat_other')
+    const manualMap: Record<string, string> = {
+      'Alcoholic Drinks': t('cat_alcohol'),
+      'Kitchenware & Electronics': t('cat_kitchen'),
+      'Cosmetics & Personal Care': t('cat_personal'),
+      'Baby Products': t('cat_baby'),
+      'Sports & Wellness': t('cat_sports'),
+      'Food Products': t('cat_food'),
     };
-    return map[cat] || cat;
+    
+    if (manualMap[cat]) return manualMap[cat];
+
+    const key = `cat_${cat.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_')}`;
+    const translated = t(key);
+    return translated === key ? cat : translated;
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero Section */}
       {!searchQuery && !selectedCategory && (
-        <section className="relative h-[60vh] sm:h-[80vh] flex items-center justify-center overflow-hidden border-b border-brand-border">
+        <section className="relative h-[70vh] sm:h-[85vh] flex items-center justify-center overflow-hidden">
           {/* Background Image with Overlay */}
           <div className="absolute inset-0 z-0">
             <img 
               src="https://ecommercenews.eu/wp-content/uploads/2021/06/groceries_supermarket_food.jpg" 
               alt="Supermarket" 
-              className="w-full h-full object-cover grayscale-[20%] dark:grayscale-[60%] transition-all duration-700"
+              className="w-full h-full object-cover grayscale-[30%] opacity-40 scale-105"
               referrerPolicy="no-referrer"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent dark:from-black/90 dark:via-black/60 dark:to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--brand-bg)]/80 to-[var(--brand-bg)]" />
           </div>
 
           <div className="max-w-7xl mx-auto px-4 z-10 w-full">
             <motion.div 
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="max-w-2xl text-left"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-3xl text-center mx-auto"
             >
-              <div className="mb-6 inline-block">
-                 <span className="micro-label bg-brand-primary/10 border border-brand-primary/30 px-4 py-2 rounded-full text-brand-primary !opacity-100 italic">
+              <div className="mb-8 inline-flex items-center gap-4 bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-2.5 rounded-full">
+                 <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
+                 <span className="micro-label !text-brand-primary !opacity-100">
                     {t('kigali_marketplace')}
                  </span>
               </div>
-              <h1 className="massive-header mb-8 text-white">
+              <h1 className="massive-header text-[var(--brand-text)]">
                 {t('curated')}<br/><span className="text-brand-primary">{t('freshness')}</span>
               </h1>
-              <p className="text-white/70 text-xs sm:text-base font-bold italic uppercase tracking-[0.2em] mb-12 drop-shadow-lg">
+              <p className="text-[var(--brand-text)] opacity-40 text-xs sm:text-base font-bold italic uppercase tracking-[0.3em] mb-12 max-w-xl mx-auto">
                 {t('hero_description')}
               </p>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap items-center justify-center gap-6">
                 <button 
                   onClick={() => {
                      document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 transition-all shadow-2xl shadow-brand-primary/40 active:scale-95 italic"
+                  className="btn-primary scale-110"
                 >
                   {t('start_shopping')}
                 </button>
@@ -165,7 +182,7 @@ export default function Home() {
         </section>
       )}
 
-      <div id="market">
+      <div id="market" className="sticky top-16 sm:top-20 z-40">
         <CategoryBar 
           categories={allCategories} 
           selectedCategory={selectedCategory} 
@@ -173,33 +190,47 @@ export default function Home() {
           onSelectCategory={(cat) => {
             setSelectedCategory(cat);
             setVisibleCount(16);
+            if (searchQuery) setSearchParams({});
           }} 
         />
       </div>
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-16 sm:py-24 w-full">
+      <main className="flex-1 max-w-7xl mx-auto px-4 py-20 sm:py-32 w-full relative">
+        {/* Floating background decorations */}
+        <div className="absolute top-1/4 -left-64 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-3/4 -right-64 w-96 h-96 bg-brand-accent/5 blur-[120px] rounded-full pointer-events-none" />
+
         {/* Results Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-16 px-4 gap-8">
-          <div>
-            <h2 className="text-4xl sm:text-6xl font-black tracking-tight italic uppercase leading-none text-[var(--brand-text)]">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-20 px-4 gap-12">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-px flex-1 bg-brand-border" />
+              <span className="micro-label !text-brand-primary">SINCE 2007</span>
+              <div className="h-px w-8 bg-brand-border" />
+            </div>
+            <h2 className="text-5xl sm:text-8xl font-display font-black tracking-tight italic uppercase leading-[0.8] text-[var(--brand-text)]">
               {searchQuery ? `${t('searching')} "${searchQuery}"` : (selectedCategory ? getCategoryLabel(selectedCategory) : t('market_aisles'))}
             </h2>
-            <div className="h-1.5 w-32 bg-brand-primary mt-6" />
-            <p className="micro-label mt-8 !opacity-60">
+            <p className="micro-label mt-10 !opacity-60 flex items-center gap-3">
+              <ShoppingBag className="h-3 w-3" />
               {t('products_found', { count: filteredProducts.length })}
             </p>
           </div>
           
-          <button 
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={cn(
-              "flex items-center gap-3 px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] border-2 transition-all",
-              isFilterOpen ? "bg-brand-primary border-brand-primary text-white dark:text-black" : "border-zinc-200 dark:border-white/10 hover:border-brand-primary/50"
-            )}
-          >
-            <Sliders className="h-4 w-4" />
-            {isFilterOpen ? t('hide_filters') : t('advanced_filters')}
-          </button>
+          <div className="flex flex-wrap gap-4">
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={cn(
+                "flex items-center gap-4 px-10 py-5 rounded-full font-black uppercase tracking-[0.2em] text-[9px] border transition-all duration-500 italic",
+                isFilterOpen 
+                  ? "bg-brand-primary border-brand-primary text-white dark:text-black shadow-lg shadow-brand-primary/20" 
+                  : "bg-white/5 dark:bg-black/20 border-brand-border hover:border-brand-primary/50 text-[var(--brand-text)]"
+              )}
+            >
+              <Sliders className={cn("h-4 w-4 transition-transform duration-500", isFilterOpen && "rotate-180")} />
+              {isFilterOpen ? t('hide_filters') : t('advanced_filters')}
+            </button>
+          </div>
         </div>
 
         {/* Filter Panel */}
@@ -288,10 +319,17 @@ export default function Home() {
           {displayedProducts.length > 0 ? (
             <motion.div 
               layout
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12 sm:gap-y-20"
             >
-              {displayedProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {displayedProducts.map((product, idx) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: (idx % 4) * 0.1, duration: 0.5 }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
               ))}
             </motion.div>
           ) : (
@@ -325,30 +363,33 @@ export default function Home() {
         )}
 
         {/* Home CTA Section */}
-        <section className="mt-32">
-           <div className="bg-brand-primary p-12 sm:p-24 rounded-[60px] relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-24 opacity-10 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
-                 <ShoppingBag className="h-64 w-64 text-white dark:text-black" />
+        <section className="mt-48 mb-20 px-4">
+           <div className="bg-brand-primary p-12 sm:p-24 rounded-[80px] relative overflow-hidden group shadow-2xl shadow-brand-primary/20">
+              <div className="absolute top-0 right-0 p-32 opacity-10 group-hover:scale-110 transition-transform duration-1000 pointer-events-none">
+                 <ShoppingBag className="h-96 w-96 text-white dark:text-black" />
               </div>
               <div className="relative z-10 max-w-2xl text-left">
-                  <h2 className="text-5xl sm:text-7xl font-black italic uppercase tracking-tighter text-zinc-950 dark:text-white mb-8">
+                  <div className="mb-8 inline-flex items-center gap-3 micro-label !text-zinc-950 dark:text-white bg-black/10 px-4 py-2 rounded-full">
+                    {t('premium_quality')}
+                  </div>
+                  <h2 className="text-5xl sm:text-[100px] font-display font-black italic uppercase tracking-tighter text-zinc-950 dark:text-white mb-10 leading-[0.8]">
                     {t('cta_title')}
                   </h2>
-                  <p className="text-zinc-950/80 dark:text-white/90 font-bold uppercase tracking-widest italic mb-12 text-sm sm:text-base leading-relaxed">
+                  <p className="text-zinc-950/70 dark:text-white/80 font-bold uppercase tracking-[0.25em] italic mb-16 text-sm sm:text-base leading-snug max-w-lg">
                     {t('cta_desc')}
                   </p>
-                  <div className="flex flex-wrap gap-6">
+                  <div className="flex flex-wrap items-center gap-10">
                     <button 
                       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                      className="bg-zinc-900 dark:bg-white text-white dark:text-brand-primary px-12 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl hover:bg-black dark:hover:bg-zinc-100 transition-all text-xs italic active:scale-95"
+                      className="bg-zinc-950 dark:bg-white text-white dark:text-brand-primary px-16 py-6 rounded-full font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-black dark:hover:bg-zinc-100 transition-all text-xs italic active:scale-95"
                     >
-                      {t('shop_now')}
+                      {t('shop_all')}
                     </button>
                     <Link 
                       to="/about"
-                      className="inline-flex items-center gap-2 text-zinc-900 dark:text-white font-black uppercase tracking-widest text-xs italic hover:underline"
+                      className="inline-flex items-center gap-3 text-zinc-950 dark:text-white font-black uppercase tracking-widest text-[10px] italic hover:gap-5 transition-all group/link"
                     >
-                      {t('about_simba')} →
+                      {t('about_simba')} <span className="group-hover:translate-x-2 transition-transform">→</span>
                     </Link>
                   </div>
               </div>

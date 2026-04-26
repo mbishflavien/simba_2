@@ -188,12 +188,10 @@ const resources = {
       "storewide_items": "Storewide Items",
       "pending": "Pending",
       "total_revenue": "Total Revenue",
-      "out_of_stock": "Out of Stock",
       "inventory_status": "Inventory Status",
       "system_operational": "System Operational",
       "no_orders_found": "No orders found",
       "new_order_received": "New Order Received!",
-      "payment": "Payment",
       "destination": "Destination",
       "approve_process": "Approve & Process",
       "mark_shipped": "Mark as Shipped",
@@ -222,7 +220,11 @@ const resources = {
       "stock_table": "Stock",
       "actions_table": "Actions",
       "no_matching_products": "No matching products found",
-      "recent": "Recent"
+      "recent": "Recent",
+      "left_in_stock": "left",
+      "free_delivery_badge": "FREE DELIVERY",
+      "premium_quality": "PREMIUM QUALITY",
+      "shop_all": "SHOP ALL"
     }
   },
   fr: {
@@ -409,12 +411,10 @@ const resources = {
       "storewide_items": "Articles en magasin",
       "pending": "En attente",
       "total_revenue": "Revenu total",
-      "out_of_stock": "Rupture de stock",
       "inventory_status": "État de l'inventaire",
       "system_operational": "Système opérationnel",
       "no_orders_found": "Aucune commande trouvée",
       "new_order_received": "Nouvelle commande reçue !",
-      "payment": "Paiement",
       "destination": "Destination",
       "approve_process": "Approuver et traiter",
       "mark_shipped": "Marquer comme expédié",
@@ -443,7 +443,11 @@ const resources = {
       "stock_table": "Stock",
       "actions_table": "Actions",
       "no_matching_products": "Aucun produit correspondant trouvé",
-      "recent": "Récent"
+      "recent": "Récent",
+      "left_in_stock": "restant",
+      "free_delivery_badge": "LIVRAISON GRATUITE",
+      "premium_quality": "QUALITÉ SUPÉRIEURE",
+      "shop_all": "VOIR TOUT"
     }
   },
   rw: {
@@ -630,12 +634,10 @@ const resources = {
       "storewide_items": "Ibicuruzwa Byose",
       "pending": "Bitegerejwe",
       "total_revenue": "Amafaranga Yose",
-      "out_of_stock": "Byashize",
       "inventory_status": "Imiterere y'Ibihari",
       "system_operational": "Sisitemu Irakora Neza",
       "no_orders_found": "Nta mategeko arahari",
       "new_order_received": "Itegeko Rishya Ryabonetse!",
-      "payment": "Kwishura",
       "destination": "Aho Rijyanwa",
       "approve_process": "Kwemera & Gutunganya",
       "mark_shipped": "Kwerekana ko Byoherejwe",
@@ -664,7 +666,11 @@ const resources = {
       "stock_table": "Ibihari",
       "actions_table": "Ibikorwa",
       "no_matching_products": "Nta gicuruzwa gihuye kibonetse",
-      "recent": "Vuba aha"
+      "recent": "Vuba aha",
+      "left_in_stock": "bisigaye",
+      "free_delivery_badge": "KUGEZA KU RURURI KU BUNTU",
+      "premium_quality": "UBUZIRANENGE BWO HEJURU",
+      "shop_all": "REBA BYOSE"
     }
   }
 };

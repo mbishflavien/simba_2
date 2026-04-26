@@ -121,7 +121,7 @@ export default function AboutUs() {
     { name: t('cat_fruits_veg'), key: 'Food & Groceries' },
     { name: t('cat_meats'), key: 'Food & Groceries' },
     { name: t('cat_frozen'), key: 'Food & Groceries' },
-    { name: t('cat_wines_spirits'), key: 'Alcohol' },
+    { name: t('cat_wines_spirits'), key: 'Alcoholic Drinks' },
     { name: t('cat_furniture'), key: 'Household' },
     { name: t('cat_electronic'), key: 'Kitchenware' },
     { name: t('cat_utensils'), key: 'Household' },

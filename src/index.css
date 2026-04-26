@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Outfit:ital,wght@0,400;0,600;0,800;0,900;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Outfit:ital,wght@0,400;0,600;0,800;0,900;1,900&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
   
   --color-brand-primary: #f97316; /* Vibrant Orange */
   --color-brand-accent: #FFCC00; /* MoMo Yellow */
@@ -16,55 +17,76 @@
 
 @layer base {
   :root {
-    --brand-bg: #f9fafb;
+    --brand-bg: #f5f5f5;
     --brand-text: #080808;
-    --brand-text-muted: rgba(0, 0, 0, 0.5);
+    --brand-text-muted: rgba(0, 0, 0, 0.4);
     --brand-card: #ffffff;
-    --brand-border: rgba(0, 0, 0, 0.08);
-    --brand-nav: rgba(249, 250, 251, 0.8);
-    --brand-card-hover: rgba(249, 115, 22, 0.03);
+    --brand-border: rgba(0, 0, 0, 0.05);
+    --brand-nav: rgba(245, 245, 245, 0.85);
+    --brand-card-hover: rgba(249, 115, 22, 0.02);
   }
 
   .dark {
-    --brand-bg: #080808;
-    --brand-text: #f0f0f0;
+    --brand-bg: #050505;
+    --brand-text: #ffffff;
     --brand-text-muted: rgba(255, 255, 255, 0.3);
-    --brand-card: rgba(255, 255, 255, 0.05);
-    --brand-border: rgba(255, 255, 255, 0.1);
-    --brand-nav: rgba(8, 8, 8, 0.8);
-    --brand-card-hover: rgba(255, 255, 255, 0.08);
+    --brand-card: rgba(18, 18, 18, 1);
+    --brand-border: rgba(255, 255, 255, 0.08);
+    --brand-nav: rgba(5, 5, 5, 0.85);
+    --brand-card-hover: rgba(255, 255, 255, 0.03);
   }
 
   body {
     background-color: var(--brand-bg);
     color: var(--brand-text);
-    @apply antialiased transition-colors duration-300 font-sans selection:bg-brand-primary/20;
+    @apply antialiased transition-colors duration-300 font-sans selection:bg-brand-primary/30 selection:text-white;
+  }
+
+  /* Custom Scrollbar - Premium Feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-brand-primary/20 rounded-full hover:bg-brand-primary/40 transition-colors;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-brand-primary text-white dark:text-black px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all hover:bg-orange-600 dark:hover:bg-orange-400 active:scale-95 flex items-center justify-center gap-2;
+    @apply bg-brand-primary text-white dark:text-black px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-orange-600 dark:hover:bg-orange-400 active:scale-95 flex items-center justify-center gap-3 italic shadow-lg shadow-brand-primary/20;
   }
   
   .card-gradient {
     background-color: var(--brand-card);
     border: 1px solid var(--brand-border);
-    @apply rounded-[40px] overflow-hidden transition-all hover:bg-[var(--brand-card-hover)] hover:border-brand-primary/30;
+    @apply rounded-[40px] overflow-hidden transition-all duration-500 hover:bg-[var(--brand-card-hover)] hover:border-brand-primary/30 hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-brand-primary/5;
   }
 
   .nav-blur {
-    @apply sticky top-0 z-50 backdrop-blur-xl transition-colors duration-300;
+    @apply sticky top-0 z-50 backdrop-blur-2xl transition-all duration-300;
     background-color: var(--brand-nav);
     border-bottom: 1px solid var(--brand-border);
   }
 
   .micro-label {
-    @apply text-[10px] font-black uppercase tracking-[0.3em];
+    @apply text-[9px] font-black uppercase tracking-[0.35em] italic;
     color: var(--brand-text-muted);
   }
   
   .massive-header {
-    @apply text-[60px] sm:text-[110px] font-black italic tracking-tighter uppercase leading-[0.75];
+    @apply text-[56px] sm:text-[120px] font-black italic tracking-tighter uppercase leading-[0.8] mb-4;
   }
+
+  .glass-surface {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+}
+
+/* Animations */
+@keyframes noise-fade {
+  0%, 100% { opacity: 0.05; }
+  50% { opacity: 0.08; }
 }

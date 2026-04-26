@@ -588,7 +588,7 @@ export default function AdminDashboard() {
                           <option value="">Select Category</option>
                           <option value="Food & Groceries">Food & Groceries</option>
                           <option value="Household">Household</option>
-                          <option value="Alcohol">Alcohol</option>
+                          <option value="Alcoholic Drinks">Alcoholic Drinks</option>
                           <option value="Personal Care">Personal Care</option>
                           <option value="Baby & Kids">Baby & Kids</option>
                           <option value="Kitchenware">Kitchenware</option>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from './AuthProvider';
 import { useTranslation } from 'react-i18next';
