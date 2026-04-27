@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut, Zap } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from './AuthProvider';
 import { useTranslation } from 'react-i18next';
@@ -252,6 +252,16 @@ export default function Navbar() {
             <div className="flex gap-4 micro-label">
               <Link to="/about" className="mr-4 hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black">{t('about_us')}</Link>
               
+              {profile?.isAdmin && (
+                <Link 
+                  to="/admin" 
+                  className="mr-4 px-4 py-1.5 bg-brand-primary text-white dark:text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/20 rotate-1 hover:rotate-0"
+                >
+                  <Zap className="h-3 w-3" />
+                  {t('admin_hub')}
+                </Link>
+              )}
+
               {user ? (
                 <div className="flex items-center gap-4">
                   <Link 

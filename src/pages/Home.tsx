@@ -200,6 +200,36 @@ export default function Home() {
         <div className="absolute top-1/4 -left-64 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute top-3/4 -right-64 w-96 h-96 bg-brand-accent/5 blur-[120px] rounded-full pointer-events-none" />
 
+        {/* Best Sellers Section (Only on main home) */}
+        {!searchQuery && !selectedCategory && (
+          <section className="mb-32">
+            <div className="flex items-center justify-between mb-12 px-4">
+              <div className="flex items-center gap-4">
+                <div className="w-2 h-10 bg-brand-primary rounded-full" />
+                <h2 className="text-4xl sm:text-6xl font-display font-black tracking-tight italic uppercase text-[var(--brand-text)]">
+                  {t('best_selling')}<span className="text-brand-primary">.</span>
+                </h2>
+              </div>
+              <Link to="/?search=best" className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:gap-3 transition-all flex items-center gap-2 italic">
+                {t('view_more')} <span>→</span>
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {products.slice(0, 4).map((product, idx) => (
+                <motion.div
+                  key={`best-${product.id}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Results Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-20 px-4 gap-12">
           <div className="flex-1">

@@ -258,6 +258,46 @@ export default function Cart() {
             {t('checkout_ready')} — {totalItems} {t('items')}
           </p>
         </div>
+        
+        {/* Progress Stepper */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          {[
+            { step: 'cart' as const, label: t('step_cart') },
+            { step: 'method' as const, label: t('step_details') },
+            { step: 'confirmation' as const, label: t('step_confirm') }
+          ].map((s, idx) => {
+            const isActive = checkoutStep === s.step || (s.step === 'method' && ['momo', 'card', 'cash', 'waiting'].includes(checkoutStep));
+            const isCompleted = (checkoutStep !== 'cart' && s.step === 'cart') || (checkoutStep === 'confirmation' && s.step === 'method');
+            
+            return (
+              <React.Fragment key={s.step}>
+                <div className="flex flex-col items-center gap-2 group">
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 border-2",
+                    isActive ? "bg-brand-primary border-brand-primary text-white" : 
+                    isCompleted ? "bg-green-500 border-green-500 text-white" :
+                    "bg-black/5 dark:bg-white/5 border-brand-border text-[var(--brand-text-muted)]"
+                  )}>
+                    {isCompleted ? <CheckCircle className="h-5 w-5" /> : <span className="text-[10px] font-black">{idx + 1}</span>}
+                  </div>
+                  <span className={cn(
+                    "hidden sm:block text-[8px] font-black uppercase tracking-widest italic transition-opacity",
+                    isActive ? "opacity-100 text-brand-primary" : "opacity-40"
+                  )}>
+                    {s.label}
+                  </span>
+                </div>
+                {idx < 2 && (
+                  <div className={cn(
+                    "h-0.5 w-4 sm:w-12 rounded-full transition-all duration-500",
+                    isCompleted ? "bg-green-500" : "bg-brand-border"
+                  )} />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+
         <Link to="/" className="text-[var(--brand-text-muted)] hover:text-brand-primary micro-label flex items-center gap-2 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           {t('back_to_shop')}

@@ -6,6 +6,20 @@ import { useAuth } from '../components/AuthProvider';
 import { Order, Product } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from 'recharts';
+import { 
   Package, 
   Truck, 
   CheckCircle, 
@@ -34,7 +48,10 @@ import {
   Save,
   Image as ImageIcon,
   Zap,
-  Globe
+  Globe,
+  TrendingUp,
+  BarChart3,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
@@ -56,13 +73,15 @@ const STATUS_COLORS = {
   cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200 dark:border-rose-900/50'
 };
 
+const COLORS = ['#f97316', '#FFCC00', '#f59e0b', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899'];
+
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation();
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<'orders' | 'inventory'>('orders');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory'>('overview');
   const [inventorySearch, setInventorySearch] = useState('');
   const [newOrderAlert, setNewOrderAlert] = useState<string | null>(null);
   const [isEditingProduct, setIsEditingProduct] = useState<Partial<Product> | null>(null);
@@ -208,18 +227,83 @@ export default function AdminDashboard() {
     return <Navigate to="/" replace />;
   }
 
-  const stats = useMemo(() => ({
-    total: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    revenue: orders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0),
-    inventoryCount: products.length,
-    outOfStock: products.filter(p => (p.stockCount !== undefined && p.stockCount <= 0)).length
-  }), [orders, products]);
+  const stats = useMemo(() => {
+    const deliveredOrders = orders.filter(o => o.status === 'delivered');
+    const totalRevenue = deliveredOrders.reduce((acc, o) => acc + o.total, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayOrders = deliveredOrders.filter(o => {
+      const d = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : new Date();
+      return d >= today;
+    });
+
+    const todayRevenue = todayOrders.reduce((acc, o) => acc + o.total, 0);
+
+    return {
+      total: orders.length,
+      pending: orders.filter(o => o.status === 'pending').length,
+      revenue: totalRevenue,
+      todayRevenue: todayRevenue,
+      inventoryCount: products.length,
+      outOfStock: products.filter(p => (p.stockCount !== undefined && p.stockCount <= 0)).length
+    };
+  }, [orders, products]);
+
+  const salesData = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }).reverse();
+
+    return last7Days.map(date => {
+      const dayOrders = orders.filter(o => {
+        if (o.status === 'cancelled') return false;
+        const d = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : new Date();
+        const compareDate = new Date(d);
+        compareDate.setHours(0, 0, 0, 0);
+        return compareDate.getTime() === date.getTime();
+      });
+
+      return {
+        name: date.toLocaleDateString(undefined, { weekday: 'short' }),
+        revenue: dayOrders.reduce((acc, o) => acc + o.total, 0),
+        orders: dayOrders.length
+      };
+    });
+  }, [orders]);
+
+  const categoryData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.filter(o => o.status !== 'cancelled').forEach(o => {
+      o.items.forEach(item => {
+        const cat = item.category || 'Other';
+        counts[cat] = (counts[cat] || 0) + (item.price * item.quantity);
+      });
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+  }, [orders]);
+
+  const topProducts = useMemo(() => {
+    const itemCounts: Record<string, { name: string, quantity: number, revenue: number }> = {};
+    orders.filter(o => o.status === 'delivered').forEach(order => {
+      order.items.forEach(item => {
+        if (!itemCounts[item.id]) {
+          itemCounts[item.id] = { name: item.name, quantity: 0, revenue: 0 };
+        }
+        itemCounts[item.id].quantity += item.quantity;
+        itemCounts[item.id].revenue += item.price * item.quantity;
+      });
+    });
+    return Object.values(itemCounts).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  }, [orders]);
 
   const filteredProducts = useMemo(() => 
     products.filter(p => 
       p.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-      p.category.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+      (p.category && p.category.toLowerCase().includes(inventorySearch.toLowerCase())) ||
       p.id.toString().includes(inventorySearch)
     )
   , [products, inventorySearch]);
@@ -315,7 +399,19 @@ export default function AdminDashboard() {
             ADMIN <span className="text-brand-primary">HUB</span>
           </h1>
           
-          <div className="flex gap-4 mt-8">
+          <div className="flex flex-wrap gap-4 mt-8">
+            <button 
+              onClick={() => setActiveTab('overview')}
+              className={cn(
+                "px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3",
+                activeTab === 'overview' 
+                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
+                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+              )}
+            >
+              <TrendingUp className="h-4 w-4" />
+              {t('overview')}
+            </button>
             <button 
               onClick={() => setActiveTab('orders')}
               className={cn(
@@ -345,47 +441,214 @@ export default function AdminDashboard() {
         
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full md:w-auto">
           <div className="bg-black/5 dark:bg-white/5 border border-brand-border p-4 rounded-2xl">
-            <p className="text-[9px] font-black uppercase opacity-40 mb-1">{activeTab === 'orders' ? t('total_orders') : t('storewide_items')}</p>
-            <p className="text-2xl font-black italic">{activeTab === 'orders' ? stats.total : stats.inventoryCount}</p>
+            <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('total_orders')}</p>
+            <p className="text-2xl font-black italic">{stats.total}</p>
           </div>
-          {activeTab === 'orders' ? (
-            <>
-              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-2xl">
-                <p className="text-[9px] font-black uppercase text-orange-500 mb-1">{t('pending')}</p>
-                <p className="text-2xl font-black italic text-orange-500">{stats.pending}</p>
-              </div>
-              <div className="bg-brand-primary/10 border border-brand-primary/20 p-4 rounded-2xl col-span-2">
-                <p className="text-[9px] font-black uppercase text-brand-primary mb-1">{t('total_revenue')}</p>
-                <p className="text-2xl font-black italic text-brand-primary">{stats.revenue.toLocaleString()} <span className="text-[8px] not-italic opacity-40">RWF</span></p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className={cn(
-                "p-4 rounded-2xl border",
-                stats.outOfStock > 0 ? "bg-rose-500/10 border-rose-500/20" : "bg-emerald-500/10 border-emerald-500/20"
-              )}>
-                <p className={cn("text-[9px] font-black uppercase mb-1", stats.outOfStock > 0 ? "text-rose-500" : "text-emerald-500")}>
-                  {t('out_of_stock')}
-                </p>
-                <p className={cn("text-2xl font-black italic", stats.outOfStock > 0 ? "text-rose-500" : "text-emerald-500")}>
-                  {stats.outOfStock}
-                </p>
-              </div>
-              <div className="bg-black/5 dark:bg-white/5 border border-brand-border p-4 rounded-2xl col-span-2 flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('inventory_status')}</p>
-                  <p className="text-sm font-black italic opacity-60">{t('system_operational')}</p>
-                </div>
-                <Database className="h-8 w-8 opacity-10" />
-              </div>
-            </>
-          )}
+          <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-2xl">
+            <p className="text-[9px] font-black uppercase text-orange-500 mb-1">{t('pending')}</p>
+            <p className="text-2xl font-black italic text-orange-500">{stats.pending}</p>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl">
+             <p className="text-[9px] font-black uppercase text-emerald-500 mb-1">{t('today_sales')}</p>
+             <p className="text-2xl font-black italic text-emerald-500">{stats.todayRevenue.toLocaleString()} <span className="text-[8px] not-italic opacity-40">RWF</span></p>
+          </div>
+          <div className="bg-brand-primary/10 border border-brand-primary/20 p-4 rounded-2xl">
+            <p className="text-[9px] font-black uppercase text-brand-primary mb-1">{t('total_revenue')}</p>
+            <p className="text-2xl font-black italic text-brand-primary">{stats.revenue.toLocaleString()} <span className="text-[8px] not-italic opacity-40">RWF</span></p>
+          </div>
         </div>
       </div>
 
       <AnimatePresence mode="wait">
-        {activeTab === 'orders' ? (
+        {activeTab === 'overview' ? (
+          <motion.div
+            key="overview-tab"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="space-y-8"
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Sales Chart */}
+              <div className="lg:col-span-2 bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+                <div className="flex items-center justify-between mb-8 px-2">
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="h-5 w-5 text-brand-primary" />
+                    <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('sales_trend')}</h3>
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-widest opacity-40">{t('last_7_days')}</span>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={salesData}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 10, fontWeight: 900, fill: 'currentColor', opacity: 0.4}} 
+                      />
+                      <YAxis 
+                        hide 
+                        axisLine={false} 
+                        tickLine={false} 
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#000', 
+                          border: 'none', 
+                          borderRadius: '16px',
+                          color: '#fff',
+                          fontSize: '10px',
+                          fontWeight: 900,
+                          textTransform: 'uppercase'
+                        }}
+                        itemStyle={{ color: '#fff' }}
+                        cursor={{ stroke: '#f97316', strokeWidth: 2 }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="#f97316" 
+                        strokeWidth={4}
+                        fillOpacity={1} 
+                        fill="url(#colorRevenue)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Category Breakdown */}
+              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+                <div className="flex items-center gap-3 mb-8 px-2">
+                  <PieChartIcon className="h-5 w-5 text-brand-primary" />
+                  <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('revenue_by_category')}</h3>
+                </div>
+                <div className="h-[250px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                         contentStyle={{ 
+                          backgroundColor: '#000', 
+                          border: 'none', 
+                          borderRadius: '16px',
+                          color: '#fff',
+                          fontSize: '10px',
+                          fontWeight: 900,
+                          textTransform: 'uppercase'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {categoryData.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                        <span className="text-[10px] font-black uppercase italic opacity-60 truncate max-w-[120px]">{item.name}</span>
+                      </div>
+                      <span className="text-[10px] font-black italic">{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Daily Sales Table (Demonstrated on chart already above, but let's add a top-sold section) */}
+              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+                <div className="flex items-center gap-3 mb-8 px-2">
+                  <ShoppingBasket className="h-5 w-5 text-brand-primary" />
+                  <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('top_selling_products')}</h3>
+                </div>
+                <div className="space-y-4">
+                  {topProducts.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-brand-border group hover:border-brand-primary/50 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-brand-primary text-white rounded-xl flex items-center justify-center font-black italic">
+                          #{idx + 1}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase italic truncate max-w-[200px]">{item.name}</p>
+                          <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest">{item.quantity} {t('total_sold')}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black italic">{formatCurrency(item.revenue)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Summary Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
+                  <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center mb-6">
+                    <User className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('delivery_vs_pickup')}</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-black italic">{orders.filter(o => o.address).length}</p>
+                      <span className="text-[10px] font-bold opacity-20 uppercase tracking-widest">/ {orders.filter(o => !o.address).length}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
+                  <div className="w-12 h-12 bg-indigo-500/10 text-indigo-500 rounded-2xl flex items-center justify-center mb-6">
+                    <CreditCard className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('average_order_value')}</p>
+                    <p className="text-3xl font-black italic">
+                      {Math.round(stats.revenue / (orders.length || 1)).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
+                   <div className="w-12 h-12 bg-orange-500/10 text-orange-500 rounded-2xl flex items-center justify-center mb-6">
+                      <ShoppingBag className="h-6 w-6" />
+                   </div>
+                   <div>
+                      <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('sales_performance')}</p>
+                      <p className="text-3xl font-black italic">+{Math.round((stats.todayRevenue / (stats.revenue || 1)) * 100)}%</p>
+                   </div>
+                </div>
+                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
+                   <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mb-6">
+                      <RefreshCcw className="h-6 w-6" />
+                   </div>
+                   <div>
+                      <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('inventory_status')}</p>
+                      <p className="text-xl font-black italic uppercase tracking-tighter text-emerald-500">100% OK</p>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : activeTab === 'orders' ? (
           <motion.div 
             key="orders-tab"
             initial={{ opacity: 0, x: -20 }}

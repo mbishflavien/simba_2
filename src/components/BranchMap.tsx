@@ -316,11 +316,11 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
             <div className="flex items-center gap-3">
               <div className="w-1.5 h-6 bg-brand-primary rounded-full" />
               <h3 className="text-xl font-black italic uppercase tracking-tighter text-[var(--brand-text)]">
-                Local Stores
+                {t('local_stores')}
               </h3>
             </div>
             <span className="text-[10px] font-black text-brand-primary bg-brand-primary/10 px-3 py-1.5 rounded-full italic tracking-widest uppercase">
-              {filteredBranches.length} {filteredBranches.length === 1 ? 'STORE' : 'STORES'} FOUND
+              {filteredBranches.length} {filteredBranches.length === 1 ? t('store') : t('branches').toUpperCase()} {t('found').toUpperCase()}
             </span>
           </div>
 
@@ -346,7 +346,7 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       {idx === 0 && effectiveUserPos && (
-                        <span className="text-[8px] font-black uppercase bg-green-500 text-white px-2 py-1 rounded-md mb-2 inline-block tracking-widest">Closest to you</span>
+                        <span className="text-[8px] font-black uppercase bg-green-500 text-white px-2 py-1 rounded-md mb-2 inline-block tracking-widest">{t('closest_to_you')}</span>
                       )}
                       <p className={cn(
                         "font-black italic uppercase tracking-tighter text-2xl leading-tight group-hover:scale-105 transition-transform origin-left",
@@ -376,7 +376,7 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
                       "text-[10px] font-black uppercase px-3 py-1.5 rounded-xl",
                       selectedBranch === branch.id ? "bg-white/20 text-white" : "bg-black/5 dark:bg-white/5 text-zinc-500"
                     )}>
-                      {branch.id === 'town-center' ? 'CITY HUB' : 'LOCAL STORE'}
+                      {branch.id === 'town-center' ? t('city_hub') : t('local_store')}
                     </span>
                     {branch.distance !== undefined && (
                       <span className={cn(
@@ -410,12 +410,12 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
             {filteredBranches.length === 0 && (
               <div className="col-span-full py-32 text-center bg-black/5 dark:bg-white/5 rounded-[64px] border border-dashed border-brand-border">
                 <Search className="h-16 w-16 mx-auto text-brand-border mb-6 opacity-20" />
-                <p className="text-xl font-black uppercase italic opacity-40 tracking-tighter">No branches found in this area</p>
+                <p className="text-xl font-black uppercase italic opacity-40 tracking-tighter">{t('no_branches_found')}</p>
                 <button 
                   onClick={() => setSearchQuery('')}
                   className="mt-6 text-brand-primary font-black uppercase tracking-widest text-xs hover:underline decoration-2 underline-offset-4"
                 >
-                  Clear search and show all branches
+                  {t('clear_search_show_all')}
                 </button>
               </div>
             )}
