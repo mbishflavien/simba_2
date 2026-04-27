@@ -253,7 +253,10 @@ const resources = {
       "city_hub": "CITY HUB",
       "local_store": "LOCAL STORE",
       "no_branches_found": "No branches found in this area",
-      "clear_search_show_all": "Clear search and show all branches"
+      "clear_search_show_all": "Clear search and show all branches",
+      "my_wishlist": "My Wishlist",
+      "no_wishlist_items": "Your wishlist is empty. Start exploring our premium products!",
+      "wishlist_desc": "Products you've saved for later."
     }
   },
   fr: {
@@ -505,7 +508,10 @@ const resources = {
       "city_hub": "CENTRE VILLE",
       "local_store": "MAGASIN LOCAL",
       "no_branches_found": "Aucune succursale trouvée",
-      "clear_search_show_all": "Effacer et tout afficher"
+      "clear_search_show_all": "Effacer et tout afficher",
+      "my_wishlist": "Ma Liste de Souhaits",
+      "no_wishlist_items": "Votre liste de souhaits est vide. Commencez à explorer nos produits premium !",
+      "wishlist_desc": "Produits que vous avez enregistrés pour plus tard."
     }
   },
   rw: {
@@ -757,7 +763,10 @@ const resources = {
       "city_hub": "MU MUJYI",
       "local_store": "ISHAMI RYA HAFI",
       "no_branches_found": "Nta shami rihaboneka",
-      "clear_search_show_all": "Gukuraho ishakisha urebere andi"
+      "clear_search_show_all": "Gukuraho ishakisha urebere andi",
+      "my_wishlist": "Ibyo nifuza",
+      "no_wishlist_items": "Nta kintu na kimwe wari washyira mu byo wifuza. Tangira urebe ibyiza dufite!",
+      "wishlist_desc": "Ibihahwa wabitse ushaka kugura nyuma."
     }
   }
 };
@@ -770,6 +779,9 @@ i18n
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false
+    },
+    react: {
+      useSuspense: false
     }
   });
 

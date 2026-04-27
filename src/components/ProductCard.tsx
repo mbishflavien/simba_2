@@ -1,8 +1,10 @@
 import React, { useMemo, useCallback } from 'react';
 import { Product } from '../types';
 import { useCart } from '../hooks/useCart';
+import { useWishlist } from '../hooks/useWishlist';
+import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { ShoppingCart, Plus, Minus, Info, Check, Star } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Info, Check, Star, Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
@@ -13,6 +15,8 @@ export interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) => {
   const { addToCart, cart, updateQuantity } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [isAdded, setIsAdded] = React.useState(false);
 
@@ -46,20 +50,38 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
             </span>
           </div>
         )}
+        {user && (
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleWishlist(product);
+            }}
+            className={cn(
+              "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border border-white/20 group/heart hover:scale-110 active:scale-95 z-20",
+              isInWishlist(product.id) 
+                ? "bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/30" 
+                : "bg-black/20 text-white/60 hover:text-white"
+            )}
+            aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart className={cn("h-5 w-5 transition-transform", isInWishlist(product.id) ? "fill-white" : "fill-none scale-90 group-hover/heart:scale-100")} />
+          </button>
+        )}
       </Link>
 
       <div className="flex flex-col gap-1 px-1">
         <div className="flex justify-between items-start mb-0.5">
           <div className="flex items-center gap-2">
             <span className="micro-label">
-              {t(`cat_${product.category.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_')}`)}
+              {product.category ? t(`cat_${product.category.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_')}`) : t('cat_other')}
             </span>
             {product.price > 100000 && (
               <span className="text-[8px] font-black bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded-md uppercase tracking-widest italic animate-pulse">
                 {t('premium_quality')}
               </span>
             )}
-            {product.category.toLowerCase().includes('food') && (
+            {product.category?.toLowerCase().includes('food') && (
               <span className="text-[8px] font-black bg-green-500/20 text-green-500 px-2 py-0.5 rounded-md uppercase tracking-widest italic">
                 {t('freshness_guaranteed')}
               </span>

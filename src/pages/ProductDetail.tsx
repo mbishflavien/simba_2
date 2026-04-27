@@ -4,9 +4,10 @@ import { doc, onSnapshot, collection, query, where, orderBy, getDocs, serverTime
 import { db, handleFirestoreError } from '../lib/firebase';
 import { Product } from '../types';
 import { useCart } from '../hooks/useCart';
+import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { ArrowLeft, ShoppingCart, ShieldCheck, Truck, RefreshCcw, Star, Send, MessageSquare, Package } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, ShieldCheck, Truck, RefreshCcw, Star, Send, MessageSquare, Package, Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -24,6 +25,7 @@ export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart, cart, updateQuantity } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const { user } = useAuth();
   const { t } = useTranslation();
 
@@ -279,6 +281,20 @@ export default function ProductDetail() {
                     className="flex-1 h-20 bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black px-10 rounded-full font-black uppercase tracking-widest transition-all shadow-2xl shadow-brand-primary/20 active:scale-95 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-white/10 italic"
                   >
                     {t('add_to_cart')}
+                  </button>
+                )}
+                {user && (
+                  <button 
+                    onClick={() => product && toggleWishlist(product)}
+                    className={cn(
+                      "w-20 h-20 rounded-full flex items-center justify-center transition-all border-2",
+                      isInWishlist(Number(id)) 
+                        ? "bg-rose-500 text-white border-rose-500 shadow-xl shadow-rose-500/20" 
+                        : "bg-black/5 dark:bg-white/5 border-brand-border text-[var(--brand-text-muted)] hover:text-rose-500 hover:border-rose-500/50"
+                    )}
+                    aria-label={isInWishlist(Number(id)) ? "Remove from wishlist" : "Add to wishlist"}
+                  >
+                    <Heart className={cn("h-8 w-8", isInWishlist(Number(id)) ? "fill-white" : "fill-none")} />
                   </button>
                 )}
              </div>

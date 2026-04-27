@@ -84,8 +84,8 @@ export default function Home() {
       
       if (searchQuery) {
         const keywords = searchQuery.split(/\s+/).filter(k => k.length > 0);
-        const name = product.name.toLowerCase();
-        const category = product.category.toLowerCase();
+        const name = product.name?.toLowerCase() || '';
+        const category = product.category?.toLowerCase() || '';
         
         // Expand keywords with synonyms
         const expandedKeywords = keywords.flatMap(k => {

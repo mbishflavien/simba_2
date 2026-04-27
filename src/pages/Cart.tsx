@@ -721,7 +721,8 @@ export default function Cart() {
                    {t('back')}
                  </button>
               </form>
-            )}            {checkoutStep === 'cash' && (
+            )}
+            {checkoutStep === 'cash' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-8">
                   {t('checkout_summary')}<span className="text-brand-primary">.</span>

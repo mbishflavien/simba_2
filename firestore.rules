@@ -159,5 +159,22 @@ service cloud.firestore {
         && incoming().createdAt == existing().createdAt
       ));
     }
+
+    // 6. Wishlist Rules
+    match /users/{userId}/wishlist/{productId} {
+      function isValidWishlistItem(data) {
+        return data.userId == userId
+          && data.productId == productId
+          && data.addedAt is timestamp;
+      }
+
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) 
+        && isValidWishlistItem(incoming())
+        && isValidId(productId)
+        && incoming().addedAt == request.time;
+      
+      allow delete: if isOwner(userId);
+    }
   }
 }

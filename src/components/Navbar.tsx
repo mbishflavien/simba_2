@@ -32,8 +32,8 @@ export default function Navbar() {
     
     const query = searchQuery.toLowerCase().trim();
     
-    // Extract unique categories first
-    const categories = Array.from(new Set(products.map(p => p.category)));
+    // Extract unique categories first (filter out any undefined/null)
+    const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
     
     const matchingCategories = categories
       .filter(cat => {

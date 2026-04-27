@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { CartProvider } from './hooks/useCart';
+import { WishlistProvider } from './hooks/useWishlist';
 import { AuthProvider, useAuth } from './components/AuthProvider';
 import { cn } from './lib/utils';
 import Navbar from './components/Navbar';
@@ -28,10 +29,12 @@ export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <Router>
-          <ScrollToTop />
-          <AppLayout />
-        </Router>
+        <WishlistProvider>
+          <Router>
+            <ScrollToTop />
+            <AppLayout />
+          </Router>
+        </WishlistProvider>
       </CartProvider>
     </AuthProvider>
   );
