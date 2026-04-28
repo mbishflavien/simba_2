@@ -105,7 +105,11 @@ service cloud.firestore {
         return data.id is string
           && data.name is string && data.name.size() > 0 && data.name.size() <= 200
           && data.price is number && data.price >= 0
-          && data.category is string && data.category.size() <= 100;
+          && (data.costPrice == null || (data.costPrice is number && data.costPrice >= 0))
+          && data.category is string && data.category.size() <= 100
+          && data.stockCount is number
+          && (data.warehouseStockCount == null || data.warehouseStockCount is number)
+          && (data.barcode == null || (data.barcode is string && data.barcode.size() <= 100));
       }
 
       allow read: if true;
@@ -175,6 +179,24 @@ service cloud.firestore {
         && incoming().addedAt == request.time;
       
       allow delete: if isOwner(userId);
+    }
+
+    // 7. Supermarket Management Rules (Admin Only)
+    match /suppliers/{supplierId} {
+      allow read, write: if isAdmin();
+    }
+    match /purchaseOrders/{orderId} {
+      allow read, write: if isAdmin();
+    }
+    match /staff/{staffId} {
+      allow read, write: if isAdmin();
+    }
+    match /promotions/{promoId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /inventoryAlerts/{alertId} {
+      allow read, write: if isAdmin();
     }
   }
 }

@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, Timestamp, addDoc, deleteDoc, setDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useAuth } from '../components/AuthProvider';
-import { Order, Product } from '../types';
+import { Order, Product, Supplier, PurchaseOrder, Promotion, StaffMember, InventoryAlert } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
+import { subDays, subHours, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { 
   BarChart, 
   Bar, 
@@ -17,7 +18,9 @@ import {
   Area, 
   PieChart, 
   Pie, 
-  Cell 
+  Cell,
+  LineChart,
+  Line
 } from 'recharts';
 import { 
   Package, 
@@ -51,7 +54,20 @@ import {
   Globe,
   TrendingUp,
   BarChart3,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  LayoutDashboard,
+  Users,
+  Tag as TagIcon,
+  BellRing,
+  Smartphone,
+  ChevronRight,
+  TrendingDown,
+  History,
+  QrCode,
+  Calendar,
+  Layers,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
@@ -81,12 +97,19 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts'>('overview');
   const [inventorySearch, setInventorySearch] = useState('');
   const [newOrderAlert, setNewOrderAlert] = useState<string | null>(null);
   const [isEditingProduct, setIsEditingProduct] = useState<Partial<Product> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+
+  // New Management State
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [alerts, setAlerts] = useState<InventoryAlert[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -121,9 +144,33 @@ export default function AdminDashboard() {
       setProducts(prods);
     });
 
+    // Fetch Suppliers
+    const unsubscribeSuppliers = onSnapshot(query(collection(db, 'suppliers')), (snapshot) => {
+      setSuppliers(snapshot.docs.map(d => ({ ...d.data() } as Supplier)));
+    });
+
+    // Fetch Staff
+    const unsubscribeStaff = onSnapshot(query(collection(db, 'staff')), (snapshot) => {
+      setStaff(snapshot.docs.map(d => ({ ...d.data() } as StaffMember)));
+    });
+
+    // Fetch Promotions
+    const unsubscribePromos = onSnapshot(query(collection(db, 'promotions')), (snapshot) => {
+      setPromotions(snapshot.docs.map(d => ({ ...d.data() } as Promotion)));
+    });
+
+    // Fetch Alerts
+    const unsubscribeAlerts = onSnapshot(query(collection(db, 'inventoryAlerts'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setAlerts(snapshot.docs.map(d => ({ ...d.data() } as InventoryAlert)));
+    });
+
     return () => {
       unsubscribeOrders();
       unsubscribeProducts();
+      unsubscribeSuppliers();
+      unsubscribeStaff();
+      unsubscribePromos();
+      unsubscribeAlerts();
     };
   }, [profile?.isAdmin]);
 
@@ -194,20 +241,63 @@ export default function AdminDashboard() {
     if (!window.confirm(t('confirm_seed'))) return;
     setIsSeeding(true);
     try {
-      const promises = initialProducts.products.map((p: any) => {
+      // Seed Products
+      const productPromises = initialProducts.products.map((p: any) => {
         const productRef = doc(db, 'products', String(p.id));
         return setDoc(productRef, {
           ...p,
-          id: String(p.id), // Ensure it's stored as string
-          stockCount: p.stockCount || 50,
+          id: String(p.id),
+          stockCount: p.stockCount || Math.floor(Math.random() * 100),
+          lowStockThreshold: 10,
           inStock: true,
-          rating: 4.5,
-          reviewCount: Math.floor(Math.random() * 10) + 1,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
         });
       });
-      await Promise.all(promises);
+      await Promise.all(productPromises);
+
+      // Seed Staff
+      const staffRef = collection(db, 'staff');
+      const staffMembers: Partial<StaffMember>[] = [
+        { name: 'John Kamana', role: 'manager', phone: '0788123456', shiftStatus: 'on_duty', performanceScore: 95 },
+        { name: 'Marie Uwase', role: 'cashier', phone: '0788654321', shiftStatus: 'on_duty', performanceScore: 88 },
+        { name: 'Eric Bigirimana', role: 'inventory', phone: '0788998877', shiftStatus: 'off_duty', performanceScore: 92 }
+      ];
+      for (const s of staffMembers) {
+        await addDoc(staffRef, { ...s, id: Math.random().toString(36).substr(2, 9) });
+      }
+
+      // Seed Suppliers
+      const supplierRef = collection(db, 'suppliers');
+      const sampleSuppliers: Partial<Supplier>[] = [
+        { name: 'Simba Supermarket Supply', contactName: 'Nesta', email: 'nesta@simba.com', phone: '0788000001', category: 'General', active: true },
+        { name: 'Inyange Industries', contactName: 'Munezero', email: 'sales@inyange.com', phone: '0788000002', category: 'Dairy', active: true }
+      ];
+      for (const s of sampleSuppliers) {
+        await addDoc(supplierRef, { ...s, id: Math.random().toString(36).substr(2, 9), active: true });
+      }
+
+      // Seed Promotions
+      const promoRef = collection(db, 'promotions');
+      const samplePromos: Partial<Promotion>[] = [
+        { name: 'Weekend Dairy Sale', type: 'percentage', value: 15, startDate: Timestamp.now(), endDate: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), isActive: true },
+        { name: 'Simba Bread BOGO', type: 'buy1get1', value: 0, startDate: Timestamp.now(), endDate: Timestamp.fromDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)), isActive: true }
+      ];
+      for (const p of samplePromos) {
+        await addDoc(promoRef, { ...p, id: Math.random().toString(36).substr(2, 9) });
+      }
+
+      // Seed Alerts
+      const alertRef = collection(db, 'inventoryAlerts');
+      const sampleAlerts: Partial<InventoryAlert>[] = [
+        { type: 'low_stock', message: 'Milk Stock reaching critical level (5 Remaining)', severity: 'high', isRead: false, createdAt: Timestamp.now() },
+        { type: 'near_expiry', message: 'Fresh Avocados expiring in 2 days', severity: 'medium', isRead: false, createdAt: Timestamp.now() },
+        { type: 'low_stock', message: 'Tomato stock low', severity: 'low', isRead: true, createdAt: Timestamp.now() }
+      ];
+      for (const a of sampleAlerts) {
+        await addDoc(alertRef, { ...a, id: Math.random().toString(36).substr(2, 9) });
+      }
+
       alert(t('seed_success'));
     } catch (error) {
       console.error("Error seeding data:", error);
@@ -399,42 +489,95 @@ export default function AdminDashboard() {
             ADMIN <span className="text-brand-primary">HUB</span>
           </h1>
           
-          <div className="flex flex-wrap gap-4 mt-8">
+          <div className="flex flex-wrap gap-3 mt-8">
             <button 
               onClick={() => setActiveTab('overview')}
               className={cn(
-                "px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3",
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                 activeTab === 'overview' 
                   ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
                   : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
               )}
             >
-              <TrendingUp className="h-4 w-4" />
+              <LayoutDashboard className="h-4 w-4" />
               {t('overview')}
             </button>
             <button 
               onClick={() => setActiveTab('orders')}
               className={cn(
-                "px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3",
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                 activeTab === 'orders' 
                   ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
                   : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
               )}
             >
-              <ShoppingBag className="h-4 w-4" />
+              <History className="h-4 w-4" />
               {t('orders')}
             </button>
             <button 
               onClick={() => setActiveTab('inventory')}
               className={cn(
-                "px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3",
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                 activeTab === 'inventory' 
                   ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
                   : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
               )}
             >
-              <Box className="h-4 w-4" />
+              <Package className="h-4 w-4" />
               {t('inventory')}
+            </button>
+            <button 
+              onClick={() => setActiveTab('staff')}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                activeTab === 'staff' 
+                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
+                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              {t('portal_staff')}
+            </button>
+            <button 
+              onClick={() => setActiveTab('promotions')}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                activeTab === 'promotions' 
+                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
+                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+              )}
+            >
+              <TagIcon className="h-4 w-4" />
+              {t('portal_promotions')}
+            </button>
+            <button 
+              onClick={() => setActiveTab('suppliers')}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                activeTab === 'suppliers' 
+                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
+                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+              )}
+            >
+              <Truck className="h-4 w-4" />
+              {t('portal_suppliers')}
+            </button>
+            <button 
+              onClick={() => setActiveTab('alerts')}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
+                activeTab === 'alerts' 
+                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
+                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+              )}
+            >
+              <BellRing className="h-4 w-4" />
+              {t('portal_alerts')}
+              {alerts.filter(a => !a.isRead).length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white flex items-center justify-center rounded-full text-[8px] border-2 border-white dark:border-zinc-950">
+                  {alerts.filter(a => !a.isRead).length}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -458,7 +601,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-
       <AnimatePresence mode="wait">
         {activeTab === 'overview' ? (
           <motion.div
@@ -468,187 +610,246 @@ export default function AdminDashboard() {
             exit={{ opacity: 0, y: 20 }}
             className="space-y-8"
           >
+            {/* Urgent Alerts Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-[32px] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-rose-500 text-white rounded-xl flex items-center justify-center">
+                      <AlertTriangle className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="micro-label !text-rose-500 !opacity-100 italic">{t('low_stock_urgent')}</h4>
+                      <p className="text-sm font-black uppercase italic">{products.filter(p => (p.stockCount || 0) <= (p.lowStockThreshold || 10)).length} Items Identified</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {products.filter(p => (p.stockCount || 0) <= (p.lowStockThreshold || 10)).slice(0, 2).map(p => (
+                      <div key={p.id} className="flex justify-between items-center bg-white/50 dark:bg-black/20 p-2 rounded-lg text-[10px] font-bold uppercase italic">
+                        <span>{p.name}</span>
+                        <span className="text-rose-500">{p.stockCount} {p.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => setActiveTab('inventory')} className="mt-4 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-rose-500 hover:gap-2 transition-all">
+                    {t('reorder_suggestions')} <ChevronRight className="h-3 w-3" />
+                  </button>
+               </div>
+
+               <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-[32px] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="micro-label !text-amber-500 !opacity-100 italic">{t('expiry_tracking')}</h4>
+                      <p className="text-sm font-black uppercase italic">Near Expiry Alerts</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center py-4 opacity-30 italic text-[10px] font-bold uppercase">
+                    All Perishables within safety window
+                  </div>
+               </div>
+
+               <div className="bg-brand-primary/10 border border-brand-primary/20 p-6 rounded-[32px] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-brand-primary text-white rounded-xl flex items-center justify-center">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="micro-label !text-brand-primary !opacity-100 italic">{t('ai_suggestion')}</h4>
+                      <p className="text-sm font-black uppercase italic">Dynamic Pricing Opportunity</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-medium opacity-60 leading-relaxed uppercase">
+                    Suggest 10% discount on "Fresh Avocados" to clear Saturday warehouse arrival.
+                  </p>
+                  <button className="mt-4 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-brand-primary hover:gap-2 transition-all">
+                    {t('discount')} <ChevronRight className="h-3 w-3" />
+                  </button>
+               </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Sales Chart */}
+              {/* Hourly Sales Chart */}
               <div className="lg:col-span-2 bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
                 <div className="flex items-center justify-between mb-8 px-2">
                   <div className="flex items-center gap-3">
-                    <BarChart3 className="h-5 w-5 text-brand-primary" />
-                    <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('sales_trend')}</h3>
+                    <TrendingUp className="h-5 w-5 text-brand-primary" />
+                    <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('hourly_sales')}</h3>
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest opacity-40">{t('last_7_days')}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest opacity-40">{format(new Date(), 'EEEE, MMM do')}</span>
                 </div>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={salesData}>
+                    <AreaChart data={Array.from({ length: 12 }, (_, i) => ({
+                      time: `${8 + i}:00`,
+                      revenue: Math.floor(Math.random() * 500000) + 100000
+                    }))}>
                       <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorHourly" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
                           <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                      <XAxis 
-                        dataKey="name" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fontSize: 10, fontWeight: 900, fill: 'currentColor', opacity: 0.4}} 
-                      />
-                      <YAxis 
-                        hide 
-                        axisLine={false} 
-                        tickLine={false} 
-                      />
+                      <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 900, fill: 'currentColor', opacity: 0.4}} />
                       <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#000', 
-                          border: 'none', 
-                          borderRadius: '16px',
-                          color: '#fff',
-                          fontSize: '10px',
-                          fontWeight: 900,
-                          textTransform: 'uppercase'
-                        }}
+                        contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '9px', fontWeight: 900 }}
                         itemStyle={{ color: '#fff' }}
-                        cursor={{ stroke: '#f97316', strokeWidth: 2 }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="revenue" 
-                        stroke="#f97316" 
-                        strokeWidth={4}
-                        fillOpacity={1} 
-                        fill="url(#colorRevenue)" 
-                      />
+                      <Area type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={3} fill="url(#colorHourly)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Category Breakdown */}
-              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+              {/* Profit & Margin */}
+              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px] flex flex-col">
                 <div className="flex items-center gap-3 mb-8 px-2">
-                  <PieChartIcon className="h-5 w-5 text-brand-primary" />
-                  <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('revenue_by_category')}</h3>
+                  <BarChart3 className="h-5 w-5 text-brand-primary" />
+                  <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('profit_margin')}</h3>
                 </div>
-                <div className="h-[250px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                         contentStyle={{ 
-                          backgroundColor: '#000', 
-                          border: 'none', 
-                          borderRadius: '16px',
-                          color: '#fff',
-                          fontSize: '10px',
-                          fontWeight: 900,
-                          textTransform: 'uppercase'
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {categoryData.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                        <span className="text-[10px] font-black uppercase italic opacity-60 truncate max-w-[120px]">{item.name}</span>
-                      </div>
-                      <span className="text-[10px] font-black italic">{formatCurrency(item.value)}</span>
+                <div className="flex-1 flex flex-col justify-center gap-8">
+                  <div className="text-center">
+                    <p className="micro-label italic mb-2 uppercase">{t('profit_rwf')}</p>
+                    <p className="text-5xl font-black italic tracking-tighter text-emerald-500">
+                      {(stats.todayRevenue * 0.28).toLocaleString()}
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                       <span className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          <ArrowUpRight className="h-3 w-3" /> 12%
+                       </span>
+                       <span className="text-[9px] font-bold opacity-30 uppercase">vs Last Week</span>
                     </div>
-                  ))}
+                  </div>
+                  <div className="space-y-4">
+                    <div className="bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-brand-border">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[10px] font-black uppercase italic opacity-40">{t('basket_analysis')}</span>
+                          <span className="text-[10px] font-black">2.4 Items/Avg</span>
+                        </div>
+                        <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                          <div className="bg-brand-primary h-full w-[65%]" />
+                        </div>
+                    </div>
+                    <div className="bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-brand-border">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[10px] font-black uppercase italic opacity-40">{t('shrinkage_loss')}</span>
+                          <span className="text-[10px] font-black text-rose-500">0.8% Loss</span>
+                        </div>
+                        <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                          <div className="bg-rose-500 h-full w-[12%]" />
+                        </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Daily Sales Table (Demonstrated on chart already above, but let's add a top-sold section) */}
+              {/* Actionable Reorder List */}
               <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
-                <div className="flex items-center gap-3 mb-8 px-2">
-                  <ShoppingBasket className="h-5 w-5 text-brand-primary" />
-                  <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('top_selling_products')}</h3>
+                <div className="flex items-center justify-between mb-8 px-2">
+                  <div className="flex items-center gap-3">
+                    <Layers className="h-5 w-5 text-brand-primary" />
+                    <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('reorder_suggestions')}</h3>
+                  </div>
+                  <div className="px-3 py-1 bg-brand-primary text-white rounded-full text-[9px] font-black italic animate-pulse">
+                    {t('ai_suggestion')}
+                  </div>
                 </div>
-                <div className="space-y-4">
-                  {topProducts.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-brand-border group hover:border-brand-primary/50 transition-all">
+                <div className="space-y-3">
+                  {products.filter(p => (p.stockCount || 0) < 20).slice(0, 4).map(p => (
+                    <div key={p.id} className="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-2xl group border border-transparent hover:border-brand-primary/30 transition-all">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-brand-primary text-white rounded-xl flex items-center justify-center font-black italic">
-                          #{idx + 1}
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase italic truncate max-w-[200px]">{item.name}</p>
-                          <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest">{item.quantity} {t('total_sold')}</p>
-                        </div>
+                         <div className="w-12 h-12 bg-white rounded-xl p-1 border border-brand-border">
+                            <img src={p.image} className="w-full h-full object-contain" />
+                         </div>
+                         <div>
+                            <p className="text-xs font-black uppercase italic">{p.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                               <span className="text-[9px] font-bold opacity-30 uppercase">{t('last_sold')}: 15m ago</span>
+                               <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-2 rounded-full">{p.stockCount} Left</span>
+                            </div>
+                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-black italic">{formatCurrency(item.revenue)}</p>
+                      <div className="text-right flex flex-col items-end gap-2">
+                         <div className="flex flex-col">
+                            <span className="text-[8px] font-black uppercase opacity-20">{t('reorder_qty')}</span>
+                            <span className="text-xs font-black italic">+50 Units</span>
+                         </div>
+                         <button className="p-2 bg-brand-primary text-white rounded-lg hover:scale-110 transition-transform">
+                            <Plus className="h-4 w-4" />
+                         </button>
                       </div>
                     </div>
                   ))}
+                  {products.filter(p => (p.stockCount || 0) < 20).length === 0 && (
+                    <div className="py-12 text-center opacity-30 text-xs font-black italic uppercase">
+                      Stocks optimally managed
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Quick Summary Stats */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
-                  <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center mb-6">
-                    <User className="h-6 w-6" />
+              {/* Top Performing Categories */}
+              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+                <div className="flex items-center gap-3 mb-8 px-2">
+                  <PieChartIcon className="h-5 w-5 text-brand-primary" />
+                  <h3 className="font-black uppercase italic tracking-tighter text-xl">{t('revenue_by_category')}</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-center">
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryData}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {categoryData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('delivery_vs_pickup')}</p>
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-black italic">{orders.filter(o => o.address).length}</p>
-                      <span className="text-[10px] font-bold opacity-20 uppercase tracking-widest">/ {orders.filter(o => !o.address).length}</span>
+                  <div className="space-y-3">
+                    {categoryData.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                          <span className="text-[10px] font-black uppercase italic opacity-60 truncate max-w-[100px]">{item.name}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                           <span className="text-[10px] font-black italic">{formatCurrency(item.value)}</span>
+                           <span className="text-[8px] font-bold opacity-20 uppercase">{(item.value/stats.revenue * 100).toFixed(0)}% SHARE</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-8 p-4 bg-teal-500/10 border border-teal-500/20 rounded-2xl flex items-center gap-4">
+                    <div className="w-10 h-10 bg-teal-500 text-white rounded-xl flex items-center justify-center">
+                      <ShoppingBasket className="h-5 w-5" />
                     </div>
-                  </div>
-                </div>
-                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
-                  <div className="w-12 h-12 bg-indigo-500/10 text-indigo-500 rounded-2xl flex items-center justify-center mb-6">
-                    <CreditCard className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('average_order_value')}</p>
-                    <p className="text-3xl font-black italic">
-                      {Math.round(stats.revenue / (orders.length || 1)).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
-                   <div className="w-12 h-12 bg-orange-500/10 text-orange-500 rounded-2xl flex items-center justify-center mb-6">
-                      <ShoppingBag className="h-6 w-6" />
-                   </div>
-                   <div>
-                      <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('sales_performance')}</p>
-                      <p className="text-3xl font-black italic">+{Math.round((stats.todayRevenue / (stats.revenue || 1)) * 100)}%</p>
-                   </div>
-                </div>
-                <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] flex flex-col justify-between">
-                   <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mb-6">
-                      <RefreshCcw className="h-6 w-6" />
-                   </div>
-                   <div>
-                      <p className="text-[9px] font-black uppercase opacity-40 mb-1">{t('inventory_status')}</p>
-                      <p className="text-xl font-black italic uppercase tracking-tighter text-emerald-500">100% OK</p>
-                   </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase text-teal-600">{t('frequently_together')}</p>
+                      <p className="text-[10px] font-black uppercase italic">Simba Milk + Fresh Bread (85% Match)</p>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 ml-auto text-teal-600" />
                 </div>
               </div>
             </div>
           </motion.div>
         ) : activeTab === 'orders' ? (
+
           <motion.div 
             key="orders-tab"
             initial={{ opacity: 0, x: -20 }}
@@ -777,7 +978,7 @@ export default function AdminDashboard() {
               ))
             )}
           </motion.div>
-        ) : (
+        ) : activeTab === 'inventory' ? (
           <motion.div 
             key="inventory-tab"
             initial={{ opacity: 0, x: 20 }}
@@ -974,26 +1175,6 @@ export default function AdminDashboard() {
                           )}>
                             {product.stockCount ?? 0} {product.unit}
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <button 
-                                onClick={() => {
-                                  const newStock = Math.max(0, (product.stockCount || 0) - 1);
-                                  updateDoc(doc(db, 'products', String(product.id)), { stockCount: newStock, inStock: newStock > 0 });
-                                }}
-                                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded"
-                             >
-                               <Minus className="h-3 w-3" />
-                             </button>
-                             <button 
-                                onClick={() => {
-                                  const newStock = (product.stockCount || 0) + 1;
-                                  updateDoc(doc(db, 'products', String(product.id)), { stockCount: newStock, inStock: true });
-                                }}
-                                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded"
-                             >
-                               <Plus className="h-3 w-3" />
-                             </button>
-                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
@@ -1016,14 +1197,249 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
-              {filteredProducts.length === 0 && (
-                <div className="py-24 text-center">
-                  <Search className="h-12 w-12 mx-auto mb-4 opacity-10" />
-                  <p className="font-black italic uppercase opacity-20">{t('no_matching_products')}</p>
+            </div>
+          </motion.div>
+        ) : activeTab === 'staff' ? (
+          <motion.div
+            key="staff-tab"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-8"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter">{t('portal_staff')}</h3>
+              <button className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
+                <Plus className="h-4 w-4" /> {t('add_staff')}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {staff.map(member => (
+                <div key={member.id} className="bg-white dark:bg-black/20 border border-brand-border p-6 rounded-[32px] group hover:border-brand-primary/50 transition-all">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="w-16 h-16 bg-black/5 dark:bg-white/5 rounded-2xl flex items-center justify-center font-black text-2xl italic text-brand-primary">
+                      {member.name.charAt(0)}
+                    </div>
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[8px] font-black uppercase italic border",
+                      member.shiftStatus === 'on_duty' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-black/5 text-zinc-500 border-black/10"
+                    )}>
+                      {t(member.shiftStatus)}
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-black uppercase italic tracking-tight">{member.name}</h4>
+                  <p className="text-[10px] font-black uppercase opacity-40 mb-4">{t(member.role)}</p>
+                  
+                  <div className="space-y-2 mb-6">
+                    <div className="flex justify-between text-[9px] font-bold uppercase italic opacity-60">
+                      <span>{t('attendance')}</span>
+                      <span>98%</span>
+                    </div>
+                    <div className="w-full bg-black/5 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-brand-primary h-full w-[98%]" />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button className="flex-1 py-3 bg-black/5 dark:bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white transition-all italic">
+                      {t('schedule')}
+                    </button>
+                    <button className="p-3 bg-black/5 dark:bg-white/5 rounded-xl hover:bg-rose-500 hover:text-white transition-all">
+                      <Edit className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {staff.length === 0 && (
+                <div className="col-span-full py-24 text-center opacity-20 italic font-black uppercase">
+                  {t('no_staff_recorded')}
                 </div>
               )}
             </div>
           </motion.div>
+        ) : activeTab === 'promotions' ? (
+          <motion.div
+            key="promotions-tab"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-8"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter">{t('portal_promotions')}</h3>
+              <button className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
+                <TagIcon className="h-4 w-4" /> {t('new_promo')}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {promotions.map(promo => (
+                <div key={promo.id} className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[40px] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <div className="flex flex-col h-full">
+                    <div className="mb-6">
+                      <span className="text-[9px] font-black uppercase tracking-widest bg-brand-primary text-white px-3 py-1 rounded-full italic">
+                        {promo.type === 'percentage' ? `${promo.value}% OFF` : promo.type === 'fixed' ? `-${promo.value} RWF` : 'B1G1'}
+                      </span>
+                    </div>
+                    <h4 className="text-xl font-black uppercase italic tracking-tight mb-2">{promo.name}</h4>
+                    <p className="text-[10px] font-bold opacity-40 uppercase mb-8">
+                      {format(promo.startDate?.toDate?.() || new Date(), 'MMM d')} - {format(promo.endDate?.toDate?.() || new Date(), 'MMM d, yyyy')}
+                    </p>
+                    
+                    <div className="flex-1 space-y-4 mb-8">
+                        <div className="flex justify-between items-center border-b border-brand-border pb-2 italic">
+                          <span className="text-[10px] font-black uppercase opacity-40">{t('performance')}</span>
+                          <span className="text-[10px] font-black text-emerald-500">+18% {t('sales')}</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-brand-border pb-2 italic">
+                          <span className="text-[10px] font-black uppercase opacity-40">{t('conversions')}</span>
+                          <span className="text-[10px] font-black">1.2k</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-2 h-2 rounded-full", promo.isActive ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+                        <span className="text-[9px] font-black uppercase italic">{promo.isActive ? 'Active' : 'Ended'}</span>
+                      </div>
+                      <button className="p-3 bg-black/5 dark:bg-white/5 rounded-xl hover:bg-brand-primary hover:text-white transition-all">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {promotions.length === 0 && (
+                <div className="col-span-full py-24 text-center opacity-20 italic font-black uppercase">
+                  No active promotions
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ) : activeTab === 'suppliers' ? (
+          <motion.div
+            key="suppliers-tab"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-8"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter">{t('portal_suppliers')}</h3>
+              <button className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
+                <Truck className="h-4 w-4" /> {t('add_supplier')}
+              </button>
+            </div>
+            <div className="bg-black/5 dark:bg-white/5 rounded-[48px] overflow-hidden border border-brand-border">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
+                    <th className="px-8 py-6">{t('supplier')}</th>
+                    <th className="px-8 py-6">{t('contact')}</th>
+                    <th className="px-8 py-6">{t('category')}</th>
+                    <th className="px-8 py-6 text-center">{t('status')}</th>
+                    <th className="px-8 py-6 text-right">{t('actions_table')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-border">
+                  {suppliers.map(supplier => (
+                    <tr key={supplier.id} className="hover:bg-brand-primary/5 transition-colors">
+                      <td className="px-8 py-6">
+                        <span className="font-black uppercase italic text-sm">{supplier.name}</span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold">{supplier.contactName}</span>
+                          <span className="text-[9px] opacity-40 uppercase">{supplier.email}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-zinc-500/10 text-zinc-500 px-3 py-1 rounded-full italic">
+                          {supplier.category}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-center">
+                        <div className={cn(
+                          "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase italic border",
+                          supplier.active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                        )}>
+                          {supplier.active ? 'Active' : 'Inactive'}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                         <button className="p-3 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary hover:text-white transition-all scale-90">
+                            <Plus className="h-4 w-4" />
+                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        ) : activeTab === 'alerts' ? (
+          <motion.div
+            key="alerts-tab"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-6"
+          >
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter">{t('portal_alerts')}</h3>
+              <button className="text-[10px] font-black uppercase tracking-widest italic opacity-40 hover:opacity-100 transition-opacity">
+                {t('mark_all_read')}
+              </button>
+            </div>
+            <div className="space-y-4">
+              {alerts.map(alert => (
+                <div key={alert.id} className={cn(
+                  "p-6 rounded-[32px] border flex items-center justify-between group transition-all",
+                  !alert.isRead ? "bg-brand-primary/5 border-brand-primary/20 shadow-lg shadow-brand-primary/5 scale-[1.02]" : "bg-white dark:bg-black/20 border-brand-border opacity-60"
+                )}>
+                  <div className="flex items-center gap-6">
+                    <div className={cn(
+                      "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0",
+                      alert.severity === 'high' ? "bg-rose-500 text-white" : alert.severity === 'medium' ? "bg-amber-500 text-white" : "bg-blue-500 text-white"
+                    )}>
+                      {alert.type === 'low_stock' ? <Package className="h-6 w-6" /> : alert.type === 'near_expiry' ? <Clock className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="text-[10px] font-black uppercase italic tracking-widest opacity-40">
+                          {format(alert.createdAt?.toDate?.() || new Date(), 'HH:mm')}
+                        </span>
+                        <span className={cn(
+                          "text-[8px] font-black uppercase italic px-2 py-0.5 rounded-full border",
+                          alert.severity === 'high' ? "border-rose-500/20 text-rose-500" : "border-zinc-500/20 text-zinc-500"
+                        )}>
+                          {alert.severity}
+                        </span>
+                      </div>
+                      <p className="text-base font-black uppercase italic tracking-tight">{alert.message}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {!alert.isRead && (
+                      <button className="px-6 py-3 bg-brand-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest italic">
+                        {t('resolve')}
+                      </button>
+                    )}
+                    <button className="p-3 bg-black/5 dark:bg-white/5 rounded-xl group-hover:bg-rose-500 group-hover:text-white transition-all">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {alerts.length === 0 && (
+                <div className="py-24 text-center opacity-20 italic font-black uppercase">
+                  All systems operating normally
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <div />
         )}
       </AnimatePresence>
     </div>

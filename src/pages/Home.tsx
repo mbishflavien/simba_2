@@ -273,7 +273,25 @@ export default function Home() {
               className="overflow-hidden mb-16 mx-4"
             >
               <div className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-[40px] p-8 sm:p-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 sm:gap-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12 sm:gap-20">
+                  {/* Category Filter */}
+                  <div className="space-y-6">
+                    <h4 className="micro-label !opacity-100 italic flex items-center gap-2">
+                       <ShoppingBag className="h-3 w-3 text-brand-primary" />
+                       {t('select_category')}
+                    </h4>
+                    <select
+                      value={selectedCategory || ''}
+                      onChange={(e) => setSelectedCategory(e.target.value || null)}
+                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl py-3 px-4 text-xs font-bold focus:border-brand-primary outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="">{t('all_categories')}</option>
+                      {allCategories.map(cat => (
+                        <option key={cat} value={cat}>{getCategoryLabel(cat)}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Price Filter */}
                   <div className="space-y-6">
                     <h4 className="micro-label !opacity-100 italic flex items-center gap-2">
@@ -281,21 +299,27 @@ export default function Home() {
                        {t('price_range')} (RWF)
                     </h4>
                     <div className="flex items-center gap-4">
-                      <input 
-                        type="number"
-                        placeholder="Min"
-                        value={minPrice}
-                        onChange={(e) => setMinPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl py-3 px-4 text-xs font-bold font-mono focus:border-brand-primary outline-none"
-                      />
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black opacity-20">MIN</span>
+                        <input 
+                          type="number"
+                          placeholder="0"
+                          value={minPrice}
+                          onChange={(e) => setMinPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl py-3 pl-12 pr-4 text-xs font-bold font-mono focus:border-brand-primary outline-none"
+                        />
+                      </div>
                       <span className="opacity-30">—</span>
-                      <input 
-                        type="number"
-                        placeholder="Max"
-                        value={maxPrice}
-                        onChange={(e) => setMaxPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl py-3 px-4 text-xs font-bold font-mono focus:border-brand-primary outline-none"
-                      />
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black opacity-20">MAX</span>
+                        <input 
+                          type="number"
+                          placeholder="∞"
+                          value={maxPrice}
+                          onChange={(e) => setMaxPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl py-3 pl-12 pr-4 text-xs font-bold font-mono focus:border-brand-primary outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -332,8 +356,9 @@ export default function Home() {
                         setMinPrice('');
                         setMaxPrice('');
                         setOnlyInStock(false);
+                        setSelectedCategory(null);
                       }}
-                      className="w-full py-4 border border-zinc-200 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-white/5 transition-all text-zinc-500"
+                      className="w-full py-4 border border-zinc-200 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white dark:hover:text-black hover:border-brand-primary transition-all text-zinc-500"
                     >
                       {t('clear_all_filters')}
                     </button>

@@ -40,18 +40,102 @@
       "properties": {
         "id": { "type": "string", "description": "Unique product ID" },
         "name": { "type": "string", "description": "Name of the product" },
-        "price": { "type": "number", "description": "Price in RWF" },
+        "price": { "type": "number", "description": "Retail price in RWF" },
+        "costPrice": { "type": "number", "description": "Cost price in RWF for profit calculation" },
         "category": { "type": "string", "description": "Product category" },
         "inStock": { "type": "boolean", "description": "Whether the product is currently available" },
-        "stockCount": { "type": "number", "description": "Current quantity in stock" },
+        "stockCount": { "type": "number", "description": "Current quantity in store stock" },
+        "warehouseStockCount": { "type": "number", "description": "Current quantity in warehouse" },
+        "lowStockThreshold": { "type": "number", "description": "Threshold for low stock alerts" },
+        "barcode": { "type": "string", "description": "Barcode or QR code" },
+        "expiryDate": { "type": "string", "format": "date", "description": "Expiry date for perishables" },
+        "supplierId": { "type": "string", "description": "Primary supplier ID" },
         "image": { "type": "string", "description": "URL to the product image" },
-        "unit": { "type": "string", "description": "Unit of measurement (e.g., 1kg, 500ml, unit)" },
-        "rating": { "type": "number", "description": "Average rating from 1 to 5" },
-        "reviewCount": { "type": "number", "description": "Total number of reviews" },
+        "unit": { "type": "string", "description": "Unit of measurement (e.g., 1kg, 500ml)" },
+        "rating": { "type": "number", "description": "Average rating" },
+        "reviewCount": { "type": "number", "description": "Total reviews" },
         "createdAt": { "type": "string", "format": "date-time", "description": "When the product was added" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "When the product details were last updated" }
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the product was last updated" }
       },
-      "required": ["id", "name", "price", "category", "stockCount", "image", "createdAt", "updatedAt"]
+      "required": ["id", "name", "price", "costPrice", "category", "stockCount", "warehouseStockCount", "image", "createdAt", "updatedAt"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Information about product suppliers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contactName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "category": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "active"]
+    },
+    "PurchaseOrder": {
+      "title": "Purchase Order",
+      "description": "An order sent to a supplier for restock",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalCost": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "ordered", "received", "cancelled"] },
+        "expectedDelivery": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "supplierId", "items", "totalCost", "status", "createdAt"]
+    },
+    "Promotion": {
+      "title": "Promotion",
+      "description": "Active discounts and campaigns",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["percentage", "fixed", "buy1get1"] },
+        "value": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "applicableCategories": { "type": "array" },
+        "applicableProducts": { "type": "array" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "name", "type", "value", "startDate", "endDate", "isActive"]
+    },
+    "StaffMember": {
+      "title": "Staff Member",
+      "description": "Employee performance and shifts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["manager", "cashier", "inventory", "cleaner"] },
+        "phone": { "type": "string" },
+        "shiftStatus": { "type": "string", "enum": ["on_duty", "off_duty", "break"] },
+        "lastClockIn": { "type": "string", "format": "date-time" },
+        "performanceScore": { "type": "number" }
+      },
+      "required": ["id", "name", "role", "shiftStatus"]
+    },
+    "InventoryAlert": {
+      "title": "Inventory Alert",
+      "description": "Actionable notifications for managers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["low_stock", "near_expiry", "anomaly"] },
+        "productId": { "type": "string" },
+        "message": { "type": "string" },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "productId", "message", "severity", "isRead", "createdAt"]
     },
     "BranchReview": {
       "title": "Branch Review",
@@ -119,6 +203,26 @@
     "/productReviews/{reviewId}": {
       "schema": "ProductReview",
       "description": "Customer reviews and ratings for specific products"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "List of active and inactive suppliers"
+    },
+    "/purchaseOrders/{orderId}": {
+      "schema": "PurchaseOrder",
+      "description": "Stock replenishment records linked to suppliers"
+    },
+    "/staff/{staffId}": {
+      "schema": "StaffMember",
+      "description": "Employee performance and attendance tracking"
+    },
+    "/promotions/{promoId}": {
+      "schema": "Promotion",
+      "description": "Marketing and dynamic pricing rules"
+    },
+    "/inventoryAlerts/{alertId}": {
+      "schema": "InventoryAlert",
+      "description": "Actionable notifications for managers regarding stock and performance"
     }
   }
 }
