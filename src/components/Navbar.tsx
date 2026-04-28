@@ -142,11 +142,11 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="nav-blur">
+    <nav className="nav-blur sticky top-0 z-[100]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 sm:h-20">
+        <div className="flex justify-between items-center h-16 sm:h-24">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-4 group">
+          <Link to="/" className="flex items-center gap-3 sm:gap-4 group shrink-0">
             <div className="relative">
               <img 
                 src="https://isokko.com/m/media/upload/photos/2024/10/Untitleddesign6_6712450111ff0.png" 
@@ -156,10 +156,10 @@ export default function Navbar() {
               />
             </div>
             <div className="flex flex-col">
-              <span className="font-display font-black text-2xl sm:text-3xl tracking-tighter uppercase italic text-[var(--brand-text)] leading-[0.8]">
+              <span className="font-display font-black text-xl sm:text-3xl tracking-tighter uppercase italic text-[var(--brand-text)] leading-[0.8]">
                 SIMBA
               </span>
-              <span className="text-brand-primary font-black text-[9px] tracking-[0.4em] uppercase leading-none ml-1">
+              <span className="text-brand-primary font-black text-[7px] sm:text-[9px] tracking-[0.4em] uppercase leading-none ml-0.5 sm:ml-1">
                 SUPERMARKET
               </span>
             </div>
@@ -250,12 +250,12 @@ export default function Navbar() {
             </button>
 
             <div className="flex gap-4 micro-label">
-              <Link to="/about" className="mr-4 hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black">{t('about_us')}</Link>
+              <Link to="/about" className="mr-2 hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black">{t('about_us')}</Link>
               
               {profile?.isAdmin && (
                 <Link 
                   to="/admin" 
-                  className="mr-4 px-4 py-1.5 bg-brand-primary text-white dark:text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/20 rotate-1 hover:rotate-0"
+                  className="mr-2 px-4 py-1.5 bg-brand-primary text-white dark:text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/20 rotate-1 hover:rotate-0"
                 >
                   <Zap className="h-3 w-3" />
                   {t('admin_hub')}
@@ -285,18 +285,20 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {languages.map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => changeLanguage(lang.code)}
-                  className={cn(
-                    "cursor-pointer transition-colors hover:text-brand-primary",
-                    i18n.language === lang.code ? "text-brand-primary italic border-b border-brand-primary" : ""
-                  )}
-                >
-                  {lang.label}
-                </button>
-              ))}
+              <div className="flex gap-2">
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => changeLanguage(lang.code)}
+                    className={cn(
+                      "cursor-pointer transition-colors hover:text-brand-primary flex items-center justify-center",
+                      i18n.language === lang.code ? "text-brand-primary italic border-b border-brand-primary" : ""
+                    )}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <motion.div
@@ -323,18 +325,16 @@ export default function Navbar() {
             </motion.div>
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="flex md:hidden items-center gap-4">
+          {/* Mobile Buttons */}
+          <div className="flex md:hidden items-center gap-2 sm:gap-4">
             <button 
-              onClick={() => setIsDark(!isDark)}
-              className="p-2 bg-black/5 dark:bg-zinc-800 rounded-full"
+              onClick={() => setIsSearchOpen(true)} 
+              className="p-2 sm:p-3 text-[var(--brand-text)] bg-black/5 dark:bg-white/5 rounded-full hover:scale-110 active:scale-95 transition-all"
+              aria-label="Search"
             >
-              {isDark ? <Sun className="h-5 w-5 text-brand-accent" /> : <Moon className="h-5 w-5 text-black/40" />}
+              <Search className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
-            <button onClick={() => setIsSearchOpen(true)} className="p-2 text-[var(--brand-text)]">
-              <Search className="h-6 w-6" />
-            </button>
-            <Link to="/cart" className="relative text-[var(--brand-text)]">
+            <Link to="/cart" className="relative text-[var(--brand-text)] bg-black/5 dark:bg-white/5 p-2 sm:p-3 rounded-full hover:scale-110 active:scale-95 transition-all">
               <motion.div
                 key={totalItems}
                 initial={{ scale: 1 }}
@@ -345,37 +345,55 @@ export default function Navbar() {
                   ease: "backOut"
                 }}
               >
-                <ShoppingCart className="h-6 w-6" />
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
                 {totalItems > 0 && (
                   <motion.span 
                     key={`badge-${totalItems}`}
-                    initial={{ scale: 0, rotate: -20 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    className="absolute -top-2 -right-2 bg-brand-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-[var(--brand-bg)] shadow-lg"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-brand-primary text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-[var(--brand-bg)] shadow-lg"
                   >
                     {totalItems}
                   </motion.span>
                 )}
               </motion.div>
             </Link>
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-[var(--brand-text)]">
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            <button 
+              onClick={() => setIsMenuOpen(true)} 
+              className="p-2 sm:p-3 text-[var(--brand-text)] bg-black/5 dark:bg-white/5 rounded-full hover:scale-110 active:scale-95 transition-all"
+              aria-label="Menu"
+            >
+              <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
           </div>
         </div>
       </div>
 
+      {/* Mobile Search Overlay */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute inset-0 bg-[var(--brand-card)] z-[60] flex items-center px-4 shadow-2xl"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md md:hidden"
           >
-            <form onSubmit={handleSearch} className="flex-1 flex gap-3 items-center">
-              <div className="flex-1 relative flex items-center">
-                <Search className="absolute left-4 h-5 w-5 text-brand-primary" />
+            <motion.div
+              initial={{ y: -50 }}
+              animate={{ y: 0 }}
+              exit={{ y: -50 }}
+              className="bg-[var(--brand-bg)] p-6 pt-12 shadow-2xl rounded-b-[40px]"
+            >
+              <div className="flex gap-4 items-center mb-6">
+                <button onClick={() => setIsSearchOpen(false)} className="p-2 text-zinc-500">
+                  <X className="h-6 w-6" />
+                </button>
+                <h2 className="text-xl font-black italic uppercase tracking-tighter text-[var(--brand-text)]">
+                  {t('search_products')}
+                </h2>
+              </div>
+              <form onSubmit={handleSearch} className="relative flex items-center mb-8">
+                <Search className="absolute left-6 h-5 w-5 text-brand-primary" />
                 <input
                   autoFocus
                   type="text"
@@ -387,128 +405,205 @@ export default function Navbar() {
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder={t('search_placeholder')}
-                  className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-transparent focus:border-brand-primary rounded-2xl py-4 pl-14 pr-4 focus:ring-8 focus:ring-brand-primary/10 outline-none text-black dark:text-white font-black italic uppercase tracking-tight transition-all placeholder:text-zinc-500 dark:placeholder:text-white/20 shadow-xl"
+                  className="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-brand-primary rounded-full py-4 pl-14 pr-4 transition-all text-black dark:text-white font-bold italic uppercase tracking-tight"
                 />
-                
-                {/* Mobile Suggestions Overlay */}
-                <AnimatePresence>
-                  {showSuggestions && suggestions.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute top-full left-0 right-12 mt-4 bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-white/5 py-2 max-h-[60vh] overflow-y-auto"
+              </form>
+              
+              {/* Mobile Recent Categories / Suggestions */}
+              <div className="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar pb-8">
+                {suggestions.length > 0 ? (
+                  suggestions.map((s, idx) => (
+                    <button
+                      key={`mobile-search-${idx}`}
+                      onClick={() => {
+                        setSearchQuery(s.value);
+                        setShowSuggestions(false);
+                        setIsSearchOpen(false);
+                        navigate(`/?search=${s.value}`);
+                      }}
+                      className="w-full text-left p-4 rounded-2xl bg-black/5 dark:bg-white/5 flex justify-between items-center group active:scale-[0.98] transition-all"
                     >
-                      {suggestions.map((s, idx) => (
-                        <button
-                          key={`mobile-${s.type}-${idx}`}
-                          type="button"
-                          onClick={() => {
-                            setSearchQuery(s.value);
-                            setShowSuggestions(false);
-                            setIsSearchOpen(false);
-                            navigate(`/?search=${s.value}`);
-                          }}
-                          onMouseEnter={() => setActiveIndex(idx)}
-                          className={cn(
-                            "w-full text-left px-6 py-4 transition-colors flex items-center justify-between border-b border-zinc-100 dark:border-white/5 last:border-0",
-                            activeIndex === idx ? "bg-brand-primary/10" : ""
-                          )}
-                        >
-                          <span className={cn(
-                            "text-sm font-bold uppercase tracking-tight italic truncate",
-                            activeIndex === idx ? "text-brand-primary" : "dark:text-white"
-                          )}>
-                            {s.value}
-                          </span>
-                          <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{s.type === 'category' ? t('cat_short') : t('prod_short')}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      <span className="font-bold uppercase italic tracking-tight text-sm dark:text-white opacity-80 group-hover:opacity-100">{s.value}</span>
+                      <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest">{s.type === 'category' ? t('category') : t('product')}</span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-center text-xs font-bold uppercase italic opacity-30 py-8 tracking-widest">
+                    {t('start_typing_to_search')}
+                  </p>
+                )}
               </div>
-              <button type="button" onClick={() => setIsSearchOpen(false)} className="p-2 text-[var(--brand-text)] hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
-                <X className="h-6 w-6" />
-              </button>
-            </form>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mobile Menu */}
+      {/* Mobile Right Slide-in Drawer */}
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="md:hidden bg-[var(--brand-bg)] border-t border-brand-border overflow-hidden"
-          >
-            <div className="px-4 py-6 space-y-6">
-              <div className="flex flex-col gap-6">
-                 <Link 
-                   to="/about" 
-                   onClick={() => setIsMenuOpen(false)}
-                   className="text-2xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] hover:text-brand-primary transition-colors"
-                 >
-                   {t('about_us')}
-                 </Link>
+          <div className="fixed inset-0 z-[200] md:hidden">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute top-0 right-0 h-full w-[85%] max-w-sm bg-[var(--brand-card)] shadow-2xl flex flex-col"
+            >
+              <div className="p-8 flex justify-between items-center border-b border-brand-border">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-brand-primary flex items-center justify-center text-white dark:text-black font-black italic">S</div>
+                   <span className="font-black italic uppercase tracking-tighter text-xl text-[var(--brand-text)]">MENU</span>
+                </div>
+                <button onClick={() => setIsMenuOpen(false)} className="p-3 bg-black/5 dark:bg-white/5 rounded-full">
+                  <X className="h-6 w-6 text-zinc-500" />
+                </button>
+              </div>
 
-                 {user ? (
-                   <div className="space-y-4">
-                     <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                       <div className="w-12 h-12 rounded-full bg-brand-primary/20 flex items-center justify-center text-brand-primary text-xl font-black italic">
-                         {(profile?.displayName || user.email || '?')[0].toUpperCase()}
-                       </div>
-                       <div>
-                         <p className="text-xl font-black italic uppercase tracking-tighter text-[var(--brand-text)]">
-                           {profile?.displayName || user.email?.split('@')[0]}
-                         </p>
-                         <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{user.email}</p>
-                       </div>
-                     </div>
-                     <button 
-                       onClick={() => {
-                        handleSignOut();
-                        setIsMenuOpen(false);
-                       }}
-                       className="w-full py-4 rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-500 font-black italic uppercase tracking-widest text-xs flex items-center justify-center gap-3"
-                     >
-                       <LogOut className="w-4 h-4" />
-                       {t('logout')}
-                     </button>
-                   </div>
-                 ) : (
-                   <Link 
-                     to="/login" 
-                     onClick={() => setIsMenuOpen(false)}
-                     className="text-2xl font-black italic uppercase tracking-tighter text-brand-primary flex items-center gap-4"
-                   >
-                     <UserIcon className="w-8 h-8" />
-                     {t('login_signup')}
-                   </Link>
-                 )}
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {languages.map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => {
-                      changeLanguage(lang.code);
-                      setIsMenuOpen(false);
-                    }}
-                    className={cn(
-                      "py-3 px-4 rounded-xl text-center font-black italic uppercase tracking-widest text-[10px]",
-                      i18n.language === lang.code ? "bg-brand-primary text-white dark:text-black" : "bg-black/5 dark:bg-white/5 text-[var(--brand-text-muted)]"
+              <div className="flex-1 overflow-y-auto px-8 py-10 space-y-12">
+                {/* Profile Section */}
+                <div className="space-y-6">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 italic mb-4">{t('account')}</h3>
+                  {user ? (
+                    <div className="space-y-4">
+                      <Link 
+                        to="/profile" 
+                        onClick={() => setIsMenuOpen(false)} 
+                        className="flex items-center gap-4 group"
+                      >
+                        <div className="w-16 h-16 rounded-2xl bg-brand-primary/10 border-2 border-brand-primary/20 flex items-center justify-center text-2xl font-black text-brand-primary italic">
+                          {(profile?.displayName || user.email || '?')[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-black italic text-xl uppercase tracking-tighter text-[var(--brand-text)] truncate">{profile?.displayName || user.email?.split('@')[0]}</p>
+                          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{user.email}</p>
+                        </div>
+                      </Link>
+                      <div className="grid grid-cols-2 gap-4 pt-4">
+                        <Link 
+                          to="/profile" 
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-black/5 dark:bg-white/5 text-center active:scale-95 transition-transform"
+                        >
+                          <UserIcon className="h-5 w-5 text-brand-primary" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">{t('profile')}</span>
+                        </Link>
+                        <button 
+                          onClick={() => {
+                            handleSignOut();
+                            setIsMenuOpen(false);
+                          }}
+                          className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-black/5 dark:bg-white/5 text-center active:scale-95 transition-transform text-zinc-500"
+                        >
+                          <LogOut className="h-5 w-5" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">{t('logout')}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Link 
+                      to="/login" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="w-full flex items-center justify-between p-6 rounded-3xl bg-brand-primary text-white dark:text-black group hover:bg-orange-600 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-white/20 rounded-xl">
+                          <UserIcon className="h-6 w-6" />
+                        </div>
+                        <span className="text-xl font-black italic uppercase tracking-tighter">{t('login_signup')}</span>
+                      </div>
+                      <Zap className="h-5 w-5 opacity-40 group-hover:rotate-12 transition-transform" />
+                    </Link>
+                  )}
+                </div>
+
+                {/* Primary Nav Links */}
+                <div className="space-y-6">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 italic mb-4">{t('navigation')}</h3>
+                  <div className="space-y-4">
+                    <Link 
+                      to="/" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] hover:text-brand-primary transition-all group"
+                    >
+                      {t('home')}
+                      <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
+                    </Link>
+                    <Link 
+                      to="/about" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] hover:text-brand-primary transition-all group"
+                    >
+                      {t('about_us')}
+                      <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
+                    </Link>
+                    <Link 
+                      to="/cart" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] hover:text-brand-primary transition-all group"
+                    >
+                      {t('my_cart')}
+                      <span className="text-brand-primary text-lg ml-2">({totalItems})</span>
+                    </Link>
+                    {profile?.isAdmin && (
+                      <Link 
+                        to="/admin" 
+                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-brand-primary hover:text-orange-600 transition-all group p-4 bg-brand-primary/5 rounded-2xl border border-brand-primary/10"
+                      >
+                        {t('admin_hub')}
+                        <Zap className="h-6 w-6" />
+                      </Link>
                     )}
-                  >
-                    {lang.label}
-                  </button>
-                ))}
+                  </div>
+                </div>
+
+                {/* Preferences */}
+                <div className="space-y-6">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 italic mb-4">{t('preferences')}</h3>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setIsDark(!isDark)}
+                      className="flex-1 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-brand-border flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                    >
+                      {isDark ? <Sun className="h-5 w-5 text-brand-accent" /> : <Moon className="h-5 w-5" />}
+                      <span className="text-[9px] font-black uppercase tracking-widest">{isDark ? 'LIGHT' : 'DARK'}</span>
+                    </button>
+                    <div className="flex-1 grid grid-cols-3 gap-2">
+                      {languages.map((lang) => (
+                        <button
+                          key={lang.code}
+                          onClick={() => changeLanguage(lang.code)}
+                          className={cn(
+                            "p-2 rounded-xl text-center font-black italic uppercase tracking-widest text-[10px] flex items-center justify-center",
+                            i18n.language === lang.code ? "bg-brand-primary text-white dark:text-black" : "bg-black/5 dark:bg-white/5 opacity-50"
+                          )}
+                        >
+                          {lang.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </motion.div>
+
+              {/* Footer */}
+              <div className="p-8 border-t border-brand-border bg-black/5 dark:bg-black/20">
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-center opacity-30 leading-snug">
+                  SIMBA SUPERMARKET<br/>EST 1980 • RWANDA
+                </p>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </nav>

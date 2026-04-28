@@ -256,7 +256,15 @@ const resources = {
       "clear_search_show_all": "Clear search and show all branches",
       "my_wishlist": "My Wishlist",
       "no_wishlist_items": "Your wishlist is empty. Start exploring our premium products!",
-      "wishlist_desc": "Products you've saved for later."
+      "wishlist_desc": "Products you've saved for later.",
+      "account": "ACCOUNT",
+      "navigation": "NAVIGATION",
+      "preferences": "PREFERENCES",
+      "profile": "Profile",
+      "my_cart": "My Cart",
+      "home": "Home",
+      "search_products": "Search Products",
+      "start_typing_to_search": "Start typing to search products..."
     }
   },
   fr: {
@@ -511,7 +519,15 @@ const resources = {
       "clear_search_show_all": "Effacer et tout afficher",
       "my_wishlist": "Ma Liste de Souhaits",
       "no_wishlist_items": "Votre liste de souhaits est vide. Commencez à explorer nos produits premium !",
-      "wishlist_desc": "Produits que vous avez enregistrés pour plus tard."
+      "wishlist_desc": "Produits que vous avez enregistrés pour plus tard.",
+      "account": "COMPTE",
+      "navigation": "NAVIGATION",
+      "preferences": "PRÉFÉRENCES",
+      "profile": "Profil",
+      "my_cart": "Mon Panier",
+      "home": "Accueil",
+      "search_products": "Rechercher des Produits",
+      "start_typing_to_search": "Commencez à taper pour rechercher..."
     }
   },
   rw: {
@@ -766,7 +782,15 @@ const resources = {
       "clear_search_show_all": "Gukuraho ishakisha urebere andi",
       "my_wishlist": "Ibyo nifuza",
       "no_wishlist_items": "Nta kintu na kimwe wari washyira mu byo wifuza. Tangira urebe ibyiza dufite!",
-      "wishlist_desc": "Ibihahwa wabitse ushaka kugura nyuma."
+      "wishlist_desc": "Ibihahwa wabitse ushaka kugura nyuma.",
+      "account": "KONTU",
+      "navigation": "GUSHAKA",
+      "preferences": "IBYO UKUNDA",
+      "profile": "Konte yanjye",
+      "my_cart": "Ibicuruzwa natoranyije",
+      "home": "Ahabanza",
+      "search_products": "Shakisha Ibicuruzwa",
+      "start_typing_to_search": "Andika utangire gushakisha..."
     }
   }
 };
