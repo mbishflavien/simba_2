@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useWishlist } from '../hooks/useWishlist';
-import { db, handleFirestoreError } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { Order, Product } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
@@ -51,8 +51,7 @@ export default function Profile() {
       setOrders(ordersData);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching orders:", error);
-      handleFirestoreError(error, 'list', 'orders');
+      handleFirestoreError(error, OperationType.LIST, 'orders');
       setLoading(false);
     });
 
@@ -77,7 +76,7 @@ export default function Profile() {
       const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
       setWishlistProducts(prods);
     }, (error) => {
-      console.error("Error fetching wishlist products:", error);
+      handleFirestoreError(error, OperationType.LIST, 'products_wishlist');
     });
 
     return () => unsubscribe();

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, Timestamp, addDoc, deleteDoc, setDoc, increment } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../components/AuthProvider';
 import { Order, Product, Supplier, PurchaseOrder, Promotion, StaffMember, InventoryAlert } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (!profile?.isAdmin) return;
+    if (!profile || !profile.isAdmin) return;
 
     // Fetch Orders
     const ordersQ = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
@@ -135,6 +135,8 @@ export default function AdminDashboard() {
       }
       setOrders(ordersData);
       isFirstLoad = false;
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'orders');
     });
 
     // Fetch Products
@@ -142,26 +144,36 @@ export default function AdminDashboard() {
     const unsubscribeProducts = onSnapshot(productsQ, (snapshot) => {
       const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
       setProducts(prods);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'products');
     });
 
     // Fetch Suppliers
     const unsubscribeSuppliers = onSnapshot(query(collection(db, 'suppliers')), (snapshot) => {
       setSuppliers(snapshot.docs.map(d => ({ ...d.data() } as Supplier)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'suppliers');
     });
 
     // Fetch Staff
     const unsubscribeStaff = onSnapshot(query(collection(db, 'staff')), (snapshot) => {
       setStaff(snapshot.docs.map(d => ({ ...d.data() } as StaffMember)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'staff');
     });
 
     // Fetch Promotions
     const unsubscribePromos = onSnapshot(query(collection(db, 'promotions')), (snapshot) => {
       setPromotions(snapshot.docs.map(d => ({ ...d.data() } as Promotion)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'promotions');
     });
 
     // Fetch Alerts
     const unsubscribeAlerts = onSnapshot(query(collection(db, 'inventoryAlerts'), orderBy('createdAt', 'desc')), (snapshot) => {
       setAlerts(snapshot.docs.map(d => ({ ...d.data() } as InventoryAlert)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'inventoryAlerts');
     });
 
     return () => {

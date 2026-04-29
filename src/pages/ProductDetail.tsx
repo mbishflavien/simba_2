@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, onSnapshot, collection, query, where, orderBy, getDocs, serverTimestamp, runTransaction } from 'firebase/firestore';
-import { db, handleFirestoreError } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Product } from '../types';
 import { useCart } from '../hooks/useCart';
 import { useWishlist } from '../hooks/useWishlist';
@@ -134,7 +134,7 @@ export default function ProductDetail() {
       setNewComment('');
       setNewRating(5);
     } catch (err) {
-      handleFirestoreError(err, 'write', 'productReviews');
+      handleFirestoreError(err, OperationType.WRITE, 'productReviews');
     } finally {
       setIsSubmitting(false);
     }

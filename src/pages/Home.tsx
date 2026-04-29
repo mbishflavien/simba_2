@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ProductCard } from '../components/ProductCard';
 import CategoryBar from '../components/CategoryBar';
 import { Product } from '../types';
@@ -30,6 +30,9 @@ export default function Home() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
       setProducts(prods);
+      setIsLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'products');
       setIsLoading(false);
     });
     return () => unsubscribe();

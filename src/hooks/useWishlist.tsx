@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { db, handleFirestoreError } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
   collection, 
   doc, 
@@ -44,7 +44,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       setWishlistIds(ids);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, 'list', `users/${user.uid}/wishlist`);
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/wishlist`);
       setLoading(false);
     });
 
@@ -68,7 +68,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error) {
-      handleFirestoreError(error, wishlistIds.includes(productId) ? 'delete' : 'create', `users/${user.uid}/wishlist/${productId}`);
+      const type = wishlistIds.includes(productId) ? OperationType.DELETE : OperationType.CREATE;
+      handleFirestoreError(error, type, `users/${user.uid}/wishlist/${productId}`);
     }
   }, [user, wishlistIds]);
 

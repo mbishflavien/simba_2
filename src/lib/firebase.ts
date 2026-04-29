@@ -25,45 +25,50 @@ if (process.env.NODE_ENV !== 'production') {
   testConnection();
 }
 
-/**
- * Interface and utility for logging detailed Firestore errors.
- */
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
 export interface FirestoreErrorInfo {
   error: string;
-  operationType: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write';
+  operationType: OperationType;
   path: string | null;
   authInfo: {
-    userId: string;
-    email: string;
-    emailVerified: boolean;
-    isAnonymous: boolean;
-    providerInfo: { providerId: string; displayName: string; email: string; }[];
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
   }
 }
 
-export function handleFirestoreError(error: any, operationType: FirestoreErrorInfo['operationType'], path: string | null = null) {
-  const user = auth.currentUser;
-  const errorInfo: FirestoreErrorInfo = {
-    error: error.message || String(error),
-    operationType,
-    path,
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: user?.uid || 'anonymous',
-      email: user?.email || '',
-      emailVerified: user?.emailVerified || false,
-      isAnonymous: user?.isAnonymous || true,
-      providerInfo: user?.providerData.map(p => ({
-        providerId: p.providerId,
-        displayName: p.displayName || '',
-        email: p.email || '',
-      })) || [],
-    }
-  };
-  
-  if (error.code === 'permission-denied') {
-    console.error("Firestore Permission Denied:", JSON.stringify(errorInfo, null, 2));
-    throw new Error(JSON.stringify(errorInfo));
+      userId: auth.currentUser?.uid || 'anonymous',
+      email: auth.currentUser?.email || '',
+      emailVerified: auth.currentUser?.emailVerified || false,
+      isAnonymous: auth.currentUser?.isAnonymous ?? true,
+      tenantId: auth.currentUser?.tenantId || null,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
   }
-  
-  throw error;
+  const errorJson = JSON.stringify(errInfo);
+  console.error('Firestore Error Status: ', errorJson);
+  throw new Error(errorJson);
 }

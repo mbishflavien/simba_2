@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, handleFirestoreError } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { UserPlus, Mail, Lock, AlertCircle, ArrowRight, User } from 'lucide-react';
@@ -31,7 +31,7 @@ export default function SignUp() {
         updatedAt: serverTimestamp(),
       });
     } catch (err: any) {
-      handleFirestoreError(err, 'create', `users/${userId}`);
+      handleFirestoreError(err, OperationType.CREATE, `users/${userId}`);
     }
   };
 

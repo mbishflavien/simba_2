@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import BranchMap, { SIMBA_BRANCHES } from '../components/BranchMap';
 
 import { collection, doc, setDoc, serverTimestamp, getDoc, updateDoc, increment } from 'firebase/firestore';
-import { db, handleFirestoreError } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { OrderItem } from '../types';
 
 const NEIGHBORHOODS: Record<string, { lat: number; lng: number }> = {
@@ -144,7 +144,7 @@ export default function Cart() {
       return orderId;
     } catch (error) {
       console.error("Error saving order:", error);
-      handleFirestoreError(error, 'create', `orders/${orderId}`);
+      handleFirestoreError(error, OperationType.CREATE, `orders/${orderId}`);
       throw error;
     }
   };
