@@ -20,6 +20,8 @@ export default function SignUp() {
   const from = location.state?.from || '/';
 
   const createProfile = async (userId: string, email: string, name: string) => {
+    const adminEmails = ['flavmbish@gmail.com', 'flavmbish@icloud.com', 'flavien.mbishibishi@a2sv.org', 'test.admin@simba.com'];
+    const isAdmin = adminEmails.includes(email.toLowerCase());
     try {
       await setDoc(doc(db, 'users', userId), {
         userId,
@@ -27,6 +29,7 @@ export default function SignUp() {
         displayName: name,
         phoneNumber: null,
         address: null,
+        isAdmin,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

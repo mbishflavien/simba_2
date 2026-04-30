@@ -8,6 +8,7 @@ export interface AiSearchIntent {
   minPrice: number | null;
   maxPrice: number | null;
   assistantResponse: string;
+  isSearch: boolean;
 }
 
 const CATEGORIES = [
@@ -19,62 +20,101 @@ const CATEGORIES = [
   'Sports & Wellness'
 ];
 
-export async function parseSearchIntent(query: string): Promise<AiSearchIntent> {
-  const systemInstruction = `
-    You are the Simba Supermarket Smart Assistant (Simba Smart). 
-    Your goal is to parse a user's natural language shopping request into search filters.
-    
-    CRITICAL: 
-    - Use THESE Categories: ${CATEGORIES.join(', ')}.
-    - Mapping synonyms: 
-      - "liquor", "wine", "beer", "whiskey", "beverages", "drinks" -> Category: Alcoholic Drinks.
-      - "snacks", "groceries", "food", "ingredients", "spices" -> Category: Food Products.
-      - "babies", "kids", "diapers", "toys" -> Category: Baby Products.
-      - "skincare", "soap", "shampoo", "beauty", "cosmetics" -> Category: Cosmetics & Personal Care.
-      - "gym", "fitness", "health", "massage" -> Category: Sports & Wellness.
-      - "appliances", "electronic", "pans", "pots", "kitchen" -> Category: Kitchenware & Electronics.
+const SIMBA_FACTS = `
+  Simba Supermarket (SIMBA SUPERMARKET LTD) Details:
+  - Founded: December 3, 2007, by Mr. Teklay Teame.
+  - Mission: To meet people's daily needs in Kigali, Rwanda, and become the region's largest retail outlet.
+  - Branches: 11 branches across Rwanda, including Kigali. Major ones include Gacuriro (with Arcade Games).
+  - Services: Butchery, bakery, coffee shop (Trucillo Cafe in 5 major branches), electronics, furniture, clothing, stationary, and toys.
+  - Delivery: Kigali delivery in 30 minutes. Free delivery over 50,000 RWF.
+  - History: Officially launched August 8, 2008. One of Rwanda's most admired supermarkets.
+  - Values: Respect for individuals, Service to customers, Striving for Excellence.
+`;
 
-    Return a JSON object with:
-    - searchQuery: a string containing 1-2 highly relevant generic keywords found in our database (e.g., if they want "liquor", use "alcohol" or "cognac" if appropriate, but generally keep it simple and inclusive).
-    - category: one of the EXACT categories listed above or null if not clear.
+export async function chatWithAi(messages: { role: 'user' | 'assistant'; content: string }[]): Promise<AiSearchIntent> {
+  const systemInstruction = `
+    You are Simba Smart, the elite AI shopping assistant for Simba Supermarket, Rwanda's premier retail chain.
+    
+    TONE: Helpful, professional yet ultra-bold, characteristic, and proud of Simba's Rwandan heritage. Use emojis occasionally (🦁, 🇷🇼, 🛒).
+
+    CORE KNOWLEDGE:
+    ${SIMBA_FACTS}
+
+    USER CAPABILITIES:
+    - You can help users find products.
+    - You can answer questions about Simba's history, locations, branches, and services.
+    - You can explain delivery terms (30m Kigali delivery, free over 50k RWF).
+
+    SEARCH CAPABILITIES:
+    If the user is looking for products, you MUST parse their request into search filters.
+    Available Categories: ${CATEGORIES.join(', ')}.
+    
+    Mapping synonyms: 
+    - "liquor", "wine", "beer", "whiskey", "beverages", "drinks" -> Category: Alcoholic Drinks.
+    - "snacks", "groceries", "food", "ingredients", "spices" -> Category: Food Products.
+    - "babies", "kids", "diapers", "toys" -> Category: Baby Products.
+    - "skincare", "soap", "shampoo", "beauty", "cosmetics" -> Category: Cosmetics & Personal Care.
+    - "gym", "fitness", "health", "massage" -> Category: Sports & Wellness.
+    - "appliances", "electronic", "pans", "pots", "kitchen" -> Category: Kitchenware & Electronics.
+
+    OUTPUT FORMAT:
+    You MUST return a JSON object with:
+    - isSearch: boolean (true if the user is asking to find products, false for general conversation).
+    - searchQuery: a string containing 1-2 generic keywords if isSearch is true, otherwise empty string.
+    - category: one of the EXACT categories above or null if isSearch is false or not clear.
     - minPrice: number or null.
     - maxPrice: number or null.
-    - assistantResponse: a short, helpful, and ultra-bold characteristic response. (e.g. "Sourcing the finest spirits for your collection! 🥃")
+    - assistantResponse: Your conversational reply to the user. This should be high-quality and directly answer their question or confirm you're searching for them.
 
-    Example: "I need some liquor for a party"
-    Response: { "searchQuery": "alcohol", "category": "Alcoholic Drinks", "minPrice": null, "maxPrice": null, "assistantResponse": "Found the perfect spirits to get the party started! 🥂" }
+    Example (General): "When was Simba founded?"
+    Response: { "isSearch": false, "searchQuery": "", "category": null, "minPrice": null, "maxPrice": null, "assistantResponse": "Simba Supermarket was established on December 3, 2007! We've been serving the heart of Rwanda for over 15 years. 🦁" }
+
+    Example (Search): "I want some diapers under 20000"
+    Response: { "isSearch": true, "searchQuery": "diapers", "category": "Baby Products", "minPrice": null, "maxPrice": 20000, "assistantResponse": "I'll find the best care for your little ones within your budget. Let's look at these diapers! 👶" }
   `;
 
   try {
+    const history = messages.slice(0, -1).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user' as const,
+      parts: [{ text: m.content }]
+    }));
+
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: query,
+      contents: [...history, { role: 'user', parts: [{ text: messages[messages.length - 1].content }] }],
       config: {
         systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            isSearch: { type: Type.BOOLEAN },
             searchQuery: { type: Type.STRING },
             category: { type: Type.STRING, nullable: true },
             minPrice: { type: Type.NUMBER, nullable: true },
             maxPrice: { type: Type.NUMBER, nullable: true },
             assistantResponse: { type: Type.STRING }
           },
-          required: ["searchQuery", "assistantResponse"]
+          required: ["isSearch", "searchQuery", "assistantResponse"]
         }
       }
     });
 
     return JSON.parse(response.text || '{}') as AiSearchIntent;
   } catch (error) {
-    console.error("AI Search Error:", error);
+    console.error("AI Chat Error:", error);
     return {
-      searchQuery: query,
+      isSearch: false,
+      searchQuery: "",
       category: null,
       minPrice: null,
       maxPrice: null,
-      assistantResponse: "I'll help you find that in our aisles."
+      assistantResponse: "I'm having a momentary lapse in connection. How else can I assist you at Simba? 🦁"
     };
   }
+}
+
+// Keep backward compatibility if needed, but we'll likely move to chatWithAi
+export async function parseSearchIntent(query: string): Promise<AiSearchIntent> {
+  return chatWithAi([{ role: 'user', content: query }]);
 }

@@ -36,6 +36,7 @@ service cloud.firestore {
         request.auth.token.email == 'flavmbish@gmail.com' ||
         request.auth.token.email == 'flavmbish@icloud.com' ||
         request.auth.token.email == 'flavien.mbishibishi@a2sv.org' ||
+        request.auth.token.email == 'test.admin@simba.com' ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
       );

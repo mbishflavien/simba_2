@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, X, Bot, Loader2, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { parseSearchIntent, AiSearchIntent } from '../services/aiService';
+import { chatWithAi, AiSearchIntent } from '../services/aiService';
 import { cn } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
 
@@ -28,14 +28,17 @@ export default function AiAssistant({ onSearchApplied }: AiAssistantProps) {
     if (!query.trim() || isLoading) return;
 
     const userMsg = query;
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    const newMessages = [...messages, { role: 'user' as const, content: userMsg }];
+    setMessages(newMessages);
     setQuery('');
     setIsLoading(true);
 
     try {
-      const intent = await parseSearchIntent(userMsg);
-      setMessages(prev => [...prev, { role: 'assistant', content: intent.assistantResponse }]);
-      onSearchApplied(intent);
+      const result = await chatWithAi(newMessages);
+      setMessages(prev => [...prev, { role: 'assistant', content: result.assistantResponse }]);
+      if (result.isSearch) {
+        onSearchApplied(result);
+      }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: "I'm having trouble connecting to my central brain. Try again?" }]);
     } finally {
