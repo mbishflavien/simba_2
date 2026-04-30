@@ -203,28 +203,34 @@ export default function Home() {
         <div className="absolute top-1/4 -left-64 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute top-3/4 -right-64 w-96 h-96 bg-brand-accent/5 blur-[120px] rounded-full pointer-events-none" />
 
-        {/* Best Sellers Section (Only on main home) */}
+        {/* Best Sellers Section */}
         {!searchQuery && !selectedCategory && (
-          <section className="mb-32">
-            <div className="flex items-center justify-between mb-12 px-4">
-              <div className="flex items-center gap-4">
-                <div className="w-2 h-10 bg-brand-primary rounded-full" />
-                <h2 className="text-4xl sm:text-6xl font-display font-black tracking-tight italic uppercase text-[var(--brand-text)]">
-                  {t('best_selling')}<span className="text-brand-primary">.</span>
-                </h2>
+          <section className="mb-48 relative">
+            <div className="absolute -top-32 -left-12 text-[15vw] font-black text-zinc-100 dark:text-zinc-900/30 select-none pointer-events-none uppercase italic tracking-tighter leading-none -z-10 opacity-70">
+              Selected
+            </div>
+            <div className="flex items-center justify-between mb-16 px-4">
+              <div className="flex items-center gap-6">
+                <div className="w-3 h-12 bg-brand-primary rounded-full shadow-[0_0_20px_rgba(255,107,0,0.4)]" />
+                <div>
+                  <h2 className="text-5xl sm:text-8xl font-display font-black tracking-tight italic uppercase text-[var(--brand-text)] leading-none">
+                    Best <span className="text-brand-primary">Sellers</span>
+                  </h2>
+                  <p className="micro-label !opacity-30 uppercase tracking-[0.4em] italic mt-2 ml-1">Premium items highly sought after</p>
+                </div>
               </div>
-              <Link to="/?search=best" className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:gap-3 transition-all flex items-center gap-2 italic">
-                {t('view_more')} <span>→</span>
+              <Link to="/?search=best" className="group text-[10px] font-black uppercase tracking-widest text-brand-primary flex items-center gap-3 italic">
+                {t('view_more')} <span className="group-hover:translate-x-2 transition-transform duration-300">→</span>
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10">
               {products.slice(0, 4).map((product, idx) => (
                 <motion.div
                   key={`best-${product.id}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1 }}
+                  transition={{ delay: idx * 0.15, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
                 >
                   <ProductCard product={product} />
                 </motion.div>
@@ -377,14 +383,18 @@ export default function Home() {
           {displayedProducts.length > 0 ? (
             <motion.div 
               layout
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12 sm:gap-y-20"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 sm:gap-y-16"
             >
               {displayedProducts.map((product, idx) => (
                 <motion.div
                   key={product.id}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: (idx % 4) * 0.1, duration: 0.5 }}
+                  transition={{ 
+                    delay: (idx % 8) * 0.08, 
+                    duration: 0.7, 
+                    ease: [0.16, 1, 0.3, 1] 
+                  }}
                 >
                   <ProductCard product={product} />
                 </motion.div>

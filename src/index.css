@@ -8,6 +8,9 @@
   
   --color-brand-primary: #f97316; /* Vibrant Orange */
   --color-brand-accent: #FFCC00; /* MoMo Yellow */
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-text: var(--brand-text);
+  --color-brand-border: var(--brand-border);
   
   /* Semantic spacing/radius */
   --radius-xl: 1.5rem;
@@ -82,6 +85,31 @@
 
   .glass-surface {
     @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+
+  /* Leaflet Custom Styles */
+  .leaflet-container {
+    @apply font-sans;
+  }
+
+  .leaflet-popup-content-wrapper {
+    @apply !rounded-[32px] !bg-white dark:!bg-zinc-900 !border !border-brand-border !shadow-2xl overflow-hidden;
+  }
+
+  .leaflet-popup-content {
+    @apply !m-0 !p-0;
+  }
+
+  .leaflet-popup-tip {
+    @apply !bg-white dark:!bg-zinc-900;
+  }
+
+  .leaflet-bar {
+    @apply !border-none !shadow-xl !rounded-2xl overflow-hidden !m-6;
+  }
+
+  .leaflet-bar a {
+    @apply !bg-white dark:!bg-zinc-900 !text-brand-primary !border-brand-border !transition-colors hover:!bg-brand-primary hover:!text-white;
   }
 }
 

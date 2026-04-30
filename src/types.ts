@@ -93,6 +93,7 @@ export interface UserProfile {
   phoneNumber: string | null;
   address: string | null;
   isAdmin?: boolean;
+  preferredBranch?: string;
   createdAt: any; // Timestamp
   updatedAt: any; // Timestamp
 }

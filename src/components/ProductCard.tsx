@@ -36,11 +36,12 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
       animate={{ opacity: 1, y: 0 }}
       className="card-gradient p-5 flex flex-col group"
     >
-      <Link to={`/product/${product.id}`} className="flex-1 bg-black/5 dark:bg-black rounded-[30px] mb-5 flex items-center justify-center relative overflow-hidden group">
-        <img
+      <Link to={`/product/${product.id}`} className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-200 dark:border-white/10">
+        <motion.img
+          whileHover={{ scale: 1.12 }}
           src={product.image}
           alt={product.name}
-          className="w-full h-full object-contain p-6 group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-contain p-4 transition-transform duration-700"
           referrerPolicy="no-referrer"
         />
         {!product.inStock && (
@@ -94,84 +95,92 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
             </div>
           )}
         </div>
-        <Link to={`/product/${product.id}`} className="block mb-2">
-          <h3 className="font-display font-black tracking-tight group-hover:text-brand-primary transition-colors line-clamp-1 uppercase italic text-[var(--brand-text)] leading-tight">
+        <Link to={`/product/${product.id}`} className="block mb-4">
+          <h3 className="text-xl font-display font-black tracking-tight group-hover:text-brand-primary transition-colors line-clamp-2 uppercase italic text-[var(--brand-text)] leading-[1.05]">
             {product.name}
           </h3>
         </Link>
 
-        <div className="flex justify-between items-center mt-2 h-10">
-          <div>
-            <p className="text-2xl font-display font-black italic tracking-tighter text-[var(--brand-text)] leading-none">
-              {product.price.toLocaleString()} <span className="text-[9px] not-italic font-black opacity-30 tracking-[0.2em] uppercase text-[var(--brand-text)] font-mono">RWF</span>
+        <div className="flex justify-between items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-3 h-16">
+          <div className="flex-1">
+            <p className="text-3xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm">
+              {formatCurrency(product.price)}
             </p>
             {product.stockCount !== undefined && (
                <p className={cn(
-                 "text-[8px] font-black uppercase tracking-widest italic mt-1 leading-none",
-                 product.stockCount <= 10 ? "text-brand-primary" : "opacity-30"
+                 "text-[8px] font-black uppercase tracking-widest italic mt-2 leading-none",
+                 product.stockCount <= 10 ? "text-red-500" : "opacity-30"
                )}>
-                 {product.stockCount} {product.unit} {t('left_in_stock')}
+                 {product.stockCount < 10 ? `Only ${product.stockCount} left!` : `${product.stockCount} ${product.unit} ${t('available')}`}
                </p>
             )}
           </div>
-
-          {cartItem ? (
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-full p-1 border border-brand-border"
-            >
-              <button
-                onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-primary hover:text-white transition-colors"
+ 
+          <div className="flex-shrink-0">
+            {cartItem ? (
+              <motion.div 
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1 shadow-inner"
               >
-                <Minus className="h-3 w-3" />
-              </button>
-              <span className="w-6 text-center font-black text-xs text-[var(--brand-text)]">{cartItem.quantity}</span>
-              <button
-                onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-primary hover:text-white transition-colors"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </motion.div>
-          ) : (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={handleAddToCart}
-              disabled={!product.inStock}
-              className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 relative overflow-hidden",
-                product.inStock
-                  ? isAdded 
-                    ? "bg-green-500 text-white shadow-xl shadow-green-500/20"
-                    : "bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 shadow-xl shadow-brand-primary/20"
-                  : "bg-black/5 dark:bg-white/5 text-black/20 dark:text-white/20 cursor-not-allowed"
-              )}
-            >
-              <AnimatePresence mode="wait">
-                {isAdded ? (
-                  <motion.div
-                    key="check"
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                  >
-                    <Check className="h-5 w-5 font-black" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="plus"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                  >
-                    <Plus className="h-5 w-5 font-black" />
-                  </motion.div>
+                <button
+                  onClick={(e) => { e.preventDefault(); updateQuantity(product.id, cartItem.quantity - 1); }}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-8 text-center font-black text-xs text-[var(--brand-text)] italic">{cartItem.quantity}</span>
+                <button
+                  onClick={(e) => { e.preventDefault(); updateQuantity(product.id, cartItem.quantity + 1); }}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </motion.div>
+            ) : (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                   e.preventDefault();
+                   e.stopPropagation();
+                   handleAddToCart();
+                }}
+                disabled={!product.inStock}
+                className={cn(
+                  "px-8 h-12 rounded-2xl flex items-center justify-center gap-3 transition-all duration-500 relative font-black uppercase tracking-[0.2em] italic text-[10px] shadow-xl",
+                  product.inStock
+                    ? isAdded 
+                      ? "bg-green-500 text-white shadow-green-500/20"
+                      : "bg-black dark:bg-white text-white dark:text-black hover:bg-brand-primary dark:hover:bg-brand-primary hover:text-white dark:hover:text-white shadow-black/10"
+                    : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
                 )}
-              </AnimatePresence>
-            </motion.button>
-          )}
+              >
+                <AnimatePresence mode="wait">
+                  {isAdded ? (
+                    <motion.div
+                      key="check"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center gap-2"
+                    >
+                      <Check className="h-4 w-4" />
+                      <span>Added!</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="add-label"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center gap-2"
+                    >
+                      <span>Add+</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

@@ -99,8 +99,22 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts'>('overview');
   const [inventorySearch, setInventorySearch] = useState('');
-  const [newOrderAlert, setNewOrderAlert] = useState<string | null>(null);
+  const [newOrderAlerts, setNewOrderAlerts] = useState<Order[]>([]);
   const [isEditingProduct, setIsEditingProduct] = useState<Partial<Product> | null>(null);
+
+  const playNotificationSound = useCallback(() => {
+    try {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // A clean ping sound
+      audio.volume = 0.5;
+      audio.play().catch(e => console.error("Audio play failed:", e));
+    } catch (err) {
+      console.error("Notification sound error:", err);
+    }
+  }, []);
+
+  const removeAlert = useCallback((orderId: string) => {
+    setNewOrderAlerts(prev => prev.filter(a => a.orderId !== orderId));
+  }, []);
   const [isSaving, setIsSaving] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
 
@@ -124,12 +138,21 @@ export default function AdminDashboard() {
     let isFirstLoad = true;
     const unsubscribeOrders = onSnapshot(ordersQ, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({ ...doc.data() } as Order));
+      
       if (!isFirstLoad) {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
             const newOrder = change.doc.data() as Order;
-            setNewOrderAlert(newOrder.orderId);
-            setTimeout(() => setNewOrderAlert(null), 10000);
+            // Only alert if it's a new pending order
+            if (newOrder.status === 'pending') {
+              setNewOrderAlerts(prev => [...prev, newOrder]);
+              playNotificationSound();
+              
+              // Auto remove after 10 seconds
+              setTimeout(() => {
+                removeAlert(newOrder.orderId);
+              }, 10000);
+            }
           }
         });
       }
@@ -468,31 +491,38 @@ export default function AdminDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 py-12 lg:py-24">
-      {/* Notification Toast */}
-      <AnimatePresence>
-        {newOrderAlert && (
-          <motion.div 
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-brand-primary text-white px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-4 border border-white/20 backdrop-blur-md"
-          >
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-bounce">
-              <Bell className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-80">{t('new_order_received')}</p>
-              <p className="font-black italic uppercase tracking-tighter">#{newOrderAlert}</p>
-            </div>
-            <button 
-              onClick={() => setNewOrderAlert(null)}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+      {/* Notification Toast Stack */}
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none">
+        <AnimatePresence>
+          {newOrderAlerts.map((alert) => (
+            <motion.div 
+              key={`alert-${alert.orderId}`}
+              initial={{ opacity: 0, y: -50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className="pointer-events-auto bg-brand-primary text-white px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-4 border border-white/20 backdrop-blur-xl min-w-[300px]"
             >
-              <XCircle className="h-5 w-5" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse">
+                <BellRing className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-0.5">{t('new_order_received')}</p>
+                <p className="font-black italic uppercase tracking-tighter text-lg leading-none mb-1">#{alert.orderId}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-bold bg-white/20 px-2 py-0.5 rounded-full">{alert.paymentMethod.toUpperCase()}</span>
+                  <span className="text-[9px] font-bold">{formatCurrency(alert.total)}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => removeAlert(alert.orderId)}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
         <div>

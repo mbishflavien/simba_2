@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from 'react-leaflet';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Search, X, Navigation, Locate, AlertCircle } from 'lucide-react';
+import { MapPin, Search, X, Navigation, Locate, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import L from 'leaflet';
@@ -93,6 +93,39 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
   const [zoom, setZoom] = useState(13);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
+  const [isRouting, setIsRouting] = useState(false);
+  const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
+
+  const fetchRoute = async (start: [number, number], end: [number, number], id: string) => {
+    setActiveRouteId(id);
+    setIsRouting(true);
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`
+      );
+      const data = await response.json();
+      if (data.routes && data.routes.length > 0) {
+        const coords = data.routes[0].geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+        setRouteCoords(coords);
+        
+        // Auto zoom to fit route
+        if (coords.length > 0) {
+           // We'll let the map auto center if needed, but the ChangeView handles basic centering
+        }
+      }
+    } catch (err) {
+      console.error("Routing error:", err);
+      setLocationError("Could not calculate route. Please try again later.");
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
+  const clearRoute = () => {
+    setRouteCoords([]);
+    setActiveRouteId(null);
+  };
 
   // Computed user position (prop override takes precedence)
   const effectiveUserPos = useMemo(() => {
@@ -112,22 +145,46 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
       setLocationError("Geolocation is not supported by your browser.");
       return;
     }
+    
     setIsLocating(true);
+    setLocationError(null);
+    
+    // Use clear timeout and descriptive error
+    const geoOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000, // Increased to 10 seconds
+      maximumAge: 60000 // Allow up to 1-minute-old cached location
+    };
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setInternalUserPos(coords);
         setMapCenter(coords);
-        setZoom(14);
+        setZoom(15);
         setIsLocating(false);
         setLocationError(null);
+        console.log("Location detected:", coords);
       },
       (err) => {
-        console.error("Locate error:", err);
-        setLocationError("Could not detect your current location. Showing default shop location.");
+        let msg = "Could not detect location.";
+        switch(err.code) {
+          case err.PERMISSION_DENIED:
+            msg = "Location access denied. Please enable location permissions in your browser.";
+            break;
+          case err.POSITION_UNAVAILABLE:
+            msg = "Location information is unavailable.";
+            break;
+          case err.TIMEOUT:
+            msg = "Location request timed out. Trying again might help.";
+            break;
+        }
+        
+        console.error("Locate error:", err.code, err.message);
+        setLocationError(`${msg} Showing default Kigali center.`);
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 5000 }
+      geoOptions
     );
   };
 
@@ -195,7 +252,12 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
         return branchCoords;
       });
       setZoom(15);
-    } else if (effectiveUserPos) {
+
+      // Automatically fetch route if user position is known
+      if (effectiveUserPos && activeRouteId !== activeBranch.id) {
+        fetchRoute(effectiveUserPos, [activeBranch.lat, activeBranch.lng], activeBranch.id);
+      }
+    } else if (effectiveUserPos && !routeCoords.length) {
       setMapCenter(effectiveUserPos);
     }
   }, [activeBranch?.id, effectiveUserPos]);
@@ -252,7 +314,7 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
       
       <div className="flex flex-col gap-10">
         {/* Leaflet Map */}
-        <div className="relative rounded-[48px] overflow-hidden border border-brand-border h-[500px] shadow-2xl shadow-brand-primary/10 z-0">
+        <div className="relative rounded-[48px] overflow-hidden border border-brand-border h-[600px] shadow-2xl shadow-brand-primary/10 z-0">
           <MapContainer 
             center={mapCenter} 
             zoom={zoom} 
@@ -280,8 +342,22 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
                     <h4 className="font-black italic uppercase text-xs text-brand-primary mb-1">{branch.name}</h4>
                     <p className="text-[10px] font-bold text-zinc-600 uppercase leading-tight mb-2">{branch.address}</p>
                     {branch.distance !== undefined && (
-                      <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">{branch.distance.toFixed(1)} km from you</span>
+                      <p className="text-[8px] font-black uppercase text-zinc-400 tracking-widest mb-3">{branch.distance.toFixed(1)} km from you</p>
                     )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (effectiveUserPos) {
+                          fetchRoute(effectiveUserPos, [branch.lat, branch.lng], branch.id);
+                        } else {
+                          handleLocate();
+                        }
+                      }}
+                      className="w-full py-2 bg-brand-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors"
+                    >
+                      <Navigation className="h-3 w-3" />
+                      Get Route
+                    </button>
                   </div>
                 </Popup>
               </Marker>
@@ -292,21 +368,97 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
                 <Marker position={effectiveUserPos} icon={userIcon}>
                   <Popup><span className="text-[10px] font-black uppercase italic">{userLocation ? 'Target Location' : 'You are here'}</span></Popup>
                 </Marker>
-                <Circle center={effectiveUserPos} pathOptions={{ color: '#0ea5e9', fillColor: '#0ea5e966' }} radius={500} />
+                <Circle 
+                  center={effectiveUserPos} 
+                  pathOptions={{ 
+                    color: '#0ea5e9', 
+                    fillColor: '#0ea5e966',
+                    fillOpacity: 0.3,
+                    weight: 2
+                  }} 
+                  radius={400} 
+                  className="animate-pulse"
+                />
+                <Circle 
+                  center={effectiveUserPos} 
+                  pathOptions={{ 
+                    color: '#0ea5e9', 
+                    fillColor: '#0ea5e9',
+                    fillOpacity: 1,
+                    weight: 0
+                  }} 
+                  radius={15} 
+                />
               </>
+            )}
+
+            {routeCoords.length > 0 && (
+              <Polyline 
+                positions={routeCoords} 
+                pathOptions={{ 
+                  color: '#FF6B00', 
+                  weight: 5, 
+                  opacity: 0.8,
+                  lineJoin: 'round',
+                  dashArray: '10, 10',
+                  dashOffset: '0'
+                }} 
+              />
             )}
           </MapContainer>
           
-          <div className="absolute bottom-6 left-6 z-10 px-4 py-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-full border border-brand-border text-[9px] font-black italic uppercase tracking-widest text-brand-primary flex items-center gap-2 shadow-xl">
-             <div className="flex items-center gap-1.5">
-                <MapPin className="h-3 w-3 fill-amber-400 text-amber-400" />
-                <span>Simba Stores</span>
-             </div>
-             <div className="w-[1px] h-3 bg-brand-border" />
-             <div className="flex items-center gap-1.5">
-                <MapPin className="h-3 w-3 fill-sky-500 text-sky-500" />
-                <span>{userLocation ? 'Search' : 'You'}</span>
-             </div>
+          <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
+            <AnimatePresence>
+              {isLocating && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="px-4 py-2 bg-brand-primary text-white rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl"
+                >
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Pinpointing Location...</span>
+                </motion.div>
+              )}
+              {effectiveUserPos && !isLocating && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="px-4 py-2 bg-green-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl"
+                >
+                  <MapPin className="h-3 w-3 fill-white" />
+                  <span>Location Active</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="absolute bottom-6 left-6 z-10 flex flex-col gap-2">
+            <AnimatePresence>
+              {routeCoords.length > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onClick={clearRoute}
+                  className="px-4 py-2 bg-red-500 text-white rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl hover:bg-red-600 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                  Clear Route
+                </motion.button>
+              )}
+            </AnimatePresence>
+            <div className="px-4 py-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-full border border-brand-border text-[9px] font-black italic uppercase tracking-widest text-brand-primary flex items-center gap-2 shadow-xl">
+              <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3 fill-amber-400 text-amber-400" />
+                  <span>Simba Stores</span>
+              </div>
+              <div className="w-[1px] h-3 bg-brand-border" />
+              <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3 fill-sky-500 text-sky-500" />
+                  <span>{userLocation ? 'Search' : 'You'}</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -390,12 +542,38 @@ export default function BranchMap({ onSelectBranch, selectedBranch, userLocation
                   </div>
                   
                   {selectedBranch === branch.id && (
-                    <motion.div 
-                      layoutId="active-check"
-                      className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-brand-primary shadow-lg"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-current animate-ping" />
-                    </motion.div>
+                    <div className="flex gap-2">
+                       <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (effectiveUserPos) {
+                            fetchRoute(effectiveUserPos, [branch.lat, branch.lng], branch.id);
+                          } else {
+                            handleLocate();
+                          }
+                        }}
+                        disabled={isRouting}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                          activeRouteId === branch.id 
+                            ? "bg-white text-brand-primary" 
+                            : "bg-white/20 text-white hover:bg-white/30"
+                        )}
+                      >
+                        {isRouting && activeRouteId === branch.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Navigation className="h-3 w-3" />
+                        )}
+                        {activeRouteId === branch.id ? 'Routing...' : 'Route'}
+                      </button>
+                      <motion.div 
+                        layoutId="active-check"
+                        className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-brand-primary shadow-lg"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-current animate-ping" />
+                      </motion.div>
+                    </div>
                   )}
                 </div>
 

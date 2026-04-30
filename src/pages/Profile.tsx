@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useWishlist } from '../hooks/useWishlist';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Order, Product } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,6 +34,23 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState<'orders' | 'wishlist'>('orders');
+  const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
+
+  const handleBranchChange = async (branchId: string) => {
+    if (!user) return;
+    setIsUpdatingBranch(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        preferredBranch: branchId,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    } finally {
+      setIsUpdatingBranch(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -144,6 +161,26 @@ export default function Profile() {
               <div className="flex items-center gap-2 micro-label">
                 <Calendar className="h-3 w-3" />
                 Joined {user.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Recently'}
+              </div>
+              <div className="flex items-center gap-3 micro-label mt-2 md:mt-0">
+                <div className="flex items-center gap-2">
+                  <Package className="h-3 w-3 text-brand-primary" />
+                  <span className="opacity-40 uppercase">Preferred Branch:</span>
+                </div>
+                <select 
+                  value={profile?.preferredBranch || ''} 
+                  onChange={(e) => handleBranchChange(e.target.value)}
+                  disabled={isUpdatingBranch}
+                  className="bg-transparent border-b border-brand-border text-[var(--brand-text)] font-black italic uppercase tracking-widest text-[9px] focus:outline-none focus:border-brand-primary transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <option value="" disabled className="bg-zinc-900">Select Branch</option>
+                  {SIMBA_BRANCHES.map((branch) => (
+                    <option key={branch.id} value={branch.id} className="bg-zinc-900">
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+                {isUpdatingBranch && <div className="w-2 h-2 rounded-full bg-brand-primary animate-ping" />}
               </div>
             </div>
           </div>
