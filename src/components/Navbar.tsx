@@ -166,8 +166,8 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            <form onSubmit={handleSearch} className="relative group flex items-center">
+          <div className="hidden md:flex items-center gap-2 lg:gap-8 min-w-0">
+            <form onSubmit={handleSearch} className="relative group flex items-center flex-1 max-w-[200px] lg:max-w-xs transition-all">
               <Search className="absolute left-6 h-5 w-5 text-zinc-500 dark:text-white/30 group-focus-within:text-brand-primary transition-colors" />
               <input
                 type="text"
@@ -179,7 +179,7 @@ export default function Navbar() {
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="w-80 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-3 pl-14 pr-16 text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-8 focus:ring-brand-primary/5 transition-all placeholder:text-zinc-500 dark:placeholder:text-white/20 text-black dark:text-white shadow-xl group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
+                className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-3 pl-14 pr-16 text-xs lg:text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-8 focus:ring-brand-primary/5 transition-all placeholder:text-zinc-400 dark:placeholder:text-white/20 text-black dark:text-white shadow-xl group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
               />
               {searchQuery && (
                 <button 
@@ -249,8 +249,8 @@ export default function Navbar() {
               {isDark ? <Sun className="h-4 w-4 text-brand-accent group-hover:scale-110 transition-transform" /> : <Moon className="h-4 w-4 text-black/40 group-hover:scale-110 transition-transform" />}
             </button>
 
-            <div className="flex gap-4 micro-label">
-              <Link to="/about" className="mr-2 hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black">{t('about_us')}</Link>
+            <div className="flex items-center gap-3 lg:gap-8 micro-label">
+              <Link to="/about" className="hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black tracking-widest">{t('about_us')}</Link>
               
               {profile?.isAdmin && (
                 <Link 

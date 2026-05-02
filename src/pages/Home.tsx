@@ -214,10 +214,10 @@ export default function Home() {
         />
       </div>
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-20 sm:py-32 w-full relative">
+      <main className="flex-1 max-w-7xl mx-auto px-4 py-20 sm:py-32 w-full relative overflow-x-hidden">
         {/* Floating background decorations */}
-        <div className="absolute top-1/4 -left-64 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-3/4 -right-64 w-96 h-96 bg-brand-accent/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/4 -left-32 w-64 h-64 bg-brand-primary/5 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute top-3/4 -right-32 w-64 h-64 bg-brand-accent/5 blur-[100px] rounded-full pointer-events-none" />
 
         {/* Best Sellers Section */}
         {!searchQuery && !selectedCategory && (

@@ -101,17 +101,17 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           </h3>
         </Link>
 
-        <div className="flex justify-between items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-3 min-h-[4rem]">
-          <div className="flex-1 min-w-0">
-            <p className="text-2xl sm:text-3xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm truncate">
+        <div className="flex items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-2 sm:gap-4 min-h-[4.5rem]">
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <p className="text-xl sm:text-3xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm truncate">
               {formatCurrency(product.price)}
             </p>
             {product.stockCount !== undefined && (
                <p className={cn(
-                 "text-[8px] font-black uppercase tracking-widest italic mt-2 leading-none truncate",
+                 "text-[7px] sm:text-[8px] font-black uppercase tracking-widest italic mt-1.5 leading-none truncate",
                  product.stockCount <= 10 ? "text-red-500" : "opacity-30"
                )}>
-                 {product.stockCount < 10 ? `Only ${product.stockCount} left!` : `${product.stockCount} ${product.unit} ${t('available')}`}
+                 {product.stockCount < 10 ? `Only ${product.stockCount}` : `${product.stockCount} ${product.unit}`}
                </p>
             )}
           </div>

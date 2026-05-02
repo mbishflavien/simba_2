@@ -42,6 +42,7 @@
   body {
     background-color: var(--brand-bg);
     color: var(--brand-text);
+    overflow-x: hidden;
     @apply antialiased transition-colors duration-300 font-sans selection:bg-brand-primary/30 selection:text-white;
   }
 
@@ -69,7 +70,7 @@
   }
 
   .nav-blur {
-    @apply sticky top-0 z-50 backdrop-blur-2xl transition-all duration-300;
+    @apply sticky top-0 z-50 backdrop-blur-3xl transition-all duration-300 w-full;
     background-color: var(--brand-nav);
     border-bottom: 1px solid var(--brand-border);
   }

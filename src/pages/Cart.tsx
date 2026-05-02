@@ -400,7 +400,7 @@ export default function Cart() {
 
         {/* Right Column: Summary / Payment Step View */}
         <div className="lg:col-span-1">
-          <div className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 p-10 rounded-[40px] sticky top-32">
+          <div className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 p-6 sm:p-10 rounded-[32px] sm:rounded-[40px] sticky top-32">
             {checkoutStep === 'cart' && (
               <div className="relative">
                 <div className="absolute -top-6 -right-6 w-32 h-32 bg-brand-primary opacity-5 rounded-full blur-3xl animate-pulse" />
