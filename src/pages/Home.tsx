@@ -13,7 +13,7 @@ import AiAssistant from '../components/AiAssistant';
 import { AiSearchIntent } from '../services/aiService';
 
 export default function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -158,11 +158,27 @@ export default function Home() {
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-3xl text-center mx-auto"
             >
-              <div className="mb-8 inline-flex items-center gap-4 bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-2.5 rounded-full">
-                 <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
-                 <span className="micro-label !text-brand-primary !opacity-100">
-                    {t('kigali_marketplace')}
-                 </span>
+              <div className="mb-8 flex items-center justify-center gap-4">
+                 <div className="inline-flex items-center gap-4 bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-2.5 rounded-full">
+                   <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
+                   <span className="micro-label !text-brand-primary !opacity-100">
+                      {t('kigali_marketplace')}
+                   </span>
+                 </div>
+                 
+                 {/* Kinyarwanda Highlight */}
+                 <div 
+                   onClick={() => {
+                     const lng = i18n.language === 'rw' ? 'en' : 'rw';
+                     i18n.changeLanguage(lng);
+                   }}
+                   className="cursor-pointer inline-flex items-center gap-3 bg-brand-accent/20 backdrop-blur-xl border border-brand-accent/30 px-6 py-2.5 rounded-full hover:bg-brand-accent/40 transition-all group"
+                 >
+                   <CheckCircle2 className="h-4 w-4 text-brand-accent" />
+                   <span className="text-[10px] font-black uppercase text-brand-accent tracking-widest italic group-hover:scale-105 transition-transform">
+                     {i18n.language === 'rw' ? 'Ururimi: Kinyarwanda' : 'Kinyarwanda Support Ready'}
+                   </span>
+                 </div>
               </div>
               <h1 className="massive-header text-[var(--brand-text)]">
                 {t('curated')}<br/><span className="text-brand-primary">{t('freshness')}</span>
@@ -430,38 +446,59 @@ export default function Home() {
           </div>
         )}
 
-        {/* Home CTA Section */}
+        {/* Community Hub Section */}
         <section className="mt-48 mb-20 px-4">
-           <div className="bg-brand-primary p-12 sm:p-24 rounded-[80px] relative overflow-hidden group shadow-2xl shadow-brand-primary/20">
-              <div className="absolute top-0 right-0 p-32 opacity-10 group-hover:scale-110 transition-transform duration-1000 pointer-events-none">
-                 <ShoppingBag className="h-96 w-96 text-white dark:text-black" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="space-y-10"
+            >
+              <div className="flex items-center gap-4">
+                <div className="px-4 py-2 bg-brand-primary/10 rounded-full border border-brand-primary/20 text-[8px] font-black uppercase tracking-widest text-brand-primary italic">
+                  Simba Hub
+                </div>
+                <div className="h-px flex-1 bg-brand-border" />
               </div>
-              <div className="relative z-10 max-w-2xl text-left">
-                  <div className="mb-8 inline-flex items-center gap-3 micro-label !text-zinc-950 dark:text-white bg-black/10 px-4 py-2 rounded-full">
-                    {t('premium_quality')}
-                  </div>
-                  <h2 className="text-5xl sm:text-[100px] font-display font-black italic uppercase tracking-tighter text-zinc-950 dark:text-white mb-10 leading-[0.8]">
-                    {t('cta_title')}
-                  </h2>
-                  <p className="text-zinc-950/70 dark:text-white/80 font-bold uppercase tracking-[0.25em] italic mb-16 text-sm sm:text-base leading-snug max-w-lg">
-                    {t('cta_desc')}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-10">
-                    <button 
-                      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                      className="bg-zinc-950 dark:bg-white text-white dark:text-brand-primary px-16 py-6 rounded-full font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-black dark:hover:bg-zinc-100 transition-all text-xs italic active:scale-95"
-                    >
-                      {t('shop_all')}
-                    </button>
-                    <Link 
-                      to="/about"
-                      className="inline-flex items-center gap-3 text-zinc-950 dark:text-white font-black uppercase tracking-widest text-[10px] italic hover:gap-5 transition-all group/link"
-                    >
-                      {t('about_simba')} <span className="group-hover:translate-x-2 transition-transform">→</span>
-                    </Link>
-                  </div>
+              <h2 className="text-5xl lg:text-7xl font-black uppercase italic tracking-tighter leading-[0.9] text-[var(--brand-text)]">
+                JOIN THE <br /><span className="text-brand-primary">COMMUNITY</span>
+              </h2>
+              <p className="text-sm font-bold opacity-60 uppercase tracking-widest leading-loose italic max-w-lg">
+                Exclusive drops, weekend flash nodes, and premium Kigali culinary updates. Integrated directly via MoMo notifications.
+              </p>
+              <div className="flex gap-4">
+                <input 
+                  type="email" 
+                  placeholder="simba@kigali.rw" 
+                  className="bg-black/5 dark:bg-white/5 border border-brand-border rounded-[24px] px-8 py-5 text-[10px] uppercase font-black italic tracking-widest outline-none focus:border-brand-primary flex-1 max-w-sm"
+                />
+                <button className="bg-brand-primary text-white dark:text-black font-black uppercase tracking-widest text-[10px] px-10 rounded-[24px] italic shadow-2xl shadow-brand-primary/20 hover:scale-105 transition-transform">
+                  Enlist
+                </button>
               </div>
-           </div>
+            </motion.div>
+
+            <div className="grid grid-cols-2 gap-6 relative">
+              <div className="absolute inset-0 bg-brand-primary opacity-5 blur-[120px] rounded-full" />
+              {[
+                { label: 'Trusted By', val: '50k+', sub: 'Active Shoppers' },
+                { label: 'Network', val: '12', sub: 'Kigali Branches' },
+                { label: 'Logistics', val: '24/7', sub: 'Realtime Support' },
+                { label: 'Response', val: '<30m', sub: 'Delivery Speed' }
+              ].map((stat, i) => (
+                <motion.div 
+                   key={i}
+                   whileHover={{ y: -5, scale: 1.05 }}
+                   className="card-gradient p-10 flex flex-col justify-center text-center group"
+                >
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-40 mb-2">{stat.label}</p>
+                  <p className="text-4xl font-black italic text-brand-primary transition-transform">{stat.val}</p>
+                  <p className="text-[10px] font-bold opacity-20 uppercase tracking-tighter mt-2">{stat.sub}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </section>
       </main>
       <AiAssistant onSearchApplied={handleAiSearch} />

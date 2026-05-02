@@ -101,14 +101,14 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           </h3>
         </Link>
 
-        <div className="flex justify-between items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-3 h-16">
-          <div className="flex-1">
-            <p className="text-3xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm">
+        <div className="flex justify-between items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-3 min-h-[4rem]">
+          <div className="flex-1 min-w-0">
+            <p className="text-2xl sm:text-3xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm truncate">
               {formatCurrency(product.price)}
             </p>
             {product.stockCount !== undefined && (
                <p className={cn(
-                 "text-[8px] font-black uppercase tracking-widest italic mt-2 leading-none",
+                 "text-[8px] font-black uppercase tracking-widest italic mt-2 leading-none truncate",
                  product.stockCount <= 10 ? "text-red-500" : "opacity-30"
                )}>
                  {product.stockCount < 10 ? `Only ${product.stockCount} left!` : `${product.stockCount} ${product.unit} ${t('available')}`}
@@ -121,20 +121,20 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
               <motion.div 
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1 shadow-inner"
+                className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1 shadow-inner"
               >
                 <button
                   onClick={(e) => { e.preventDefault(); updateQuantity(product.id, cartItem.quantity - 1); }}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
                 >
-                  <Minus className="h-4 w-4" />
+                  <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
-                <span className="w-8 text-center font-black text-xs text-[var(--brand-text)] italic">{cartItem.quantity}</span>
+                <span className="w-6 sm:w-8 text-center font-black text-[10px] sm:text-xs text-[var(--brand-text)] italic">{cartItem.quantity}</span>
                 <button
                   onClick={(e) => { e.preventDefault(); updateQuantity(product.id, cartItem.quantity + 1); }}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
               </motion.div>
             ) : (
@@ -148,7 +148,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
                 }}
                 disabled={!product.inStock}
                 className={cn(
-                  "px-8 h-12 rounded-2xl flex items-center justify-center gap-3 transition-all duration-500 relative font-black uppercase tracking-[0.2em] italic text-[10px] shadow-xl",
+                  "px-4 sm:px-8 h-10 sm:h-12 rounded-2xl flex items-center justify-center gap-2 sm:gap-3 transition-all duration-500 relative font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] italic text-[9px] sm:text-[10px] shadow-xl whitespace-nowrap",
                   product.inStock
                     ? isAdded 
                       ? "bg-green-500 text-white shadow-green-500/20"
@@ -160,19 +160,19 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
                   {isAdded ? (
                     <motion.div
                       key="check"
-                      initial={{ opacity: 0, x: 20 }}
+                      initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1.5"
                     >
-                      <Check className="h-4 w-4" />
-                      <span>Added!</span>
+                      <Check className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span>{t('added')}</span>
                     </motion.div>
                   ) : (
                     <motion.div
                       key="add-label"
-                      initial={{ opacity: 0, x: -20 }}
+                      initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1.5"
                     >
                       <span>Add+</span>
                     </motion.div>

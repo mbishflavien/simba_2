@@ -136,9 +136,9 @@ export default function Navbar() {
   };
 
   const languages = [
-    { code: 'en', label: 'EN' },
-    { code: 'fr', label: 'FR' },
-    { code: 'rw', label: 'RW' },
+    { code: 'en', label: 'English', short: 'EN' },
+    { code: 'fr', label: 'Français', short: 'FR' },
+    { code: 'rw', label: 'Kinyarwanda', short: 'RW' },
   ];
 
   return (
@@ -285,17 +285,18 @@ export default function Navbar() {
                 </Link>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex gap-3 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-full border border-brand-border dark:border-white/10">
                 {languages.map((lang) => (
                   <button
                     key={lang.code}
                     onClick={() => changeLanguage(lang.code)}
                     className={cn(
-                      "cursor-pointer transition-colors hover:text-brand-primary flex items-center justify-center",
-                      i18n.language === lang.code ? "text-brand-primary italic border-b border-brand-primary" : ""
+                      "cursor-pointer transition-all hover:text-brand-primary flex items-center justify-center text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md",
+                      i18n.language === lang.code ? "bg-brand-primary text-white dark:text-black italic shadow-lg" : "text-zinc-500 hover:bg-black/5"
                     )}
+                    title={lang.label}
                   >
-                    {lang.label}
+                    {lang.short}
                   </button>
                 ))}
               </div>
@@ -578,17 +579,21 @@ export default function Navbar() {
                       {isDark ? <Sun className="h-5 w-5 text-brand-accent" /> : <Moon className="h-5 w-5" />}
                       <span className="text-[9px] font-black uppercase tracking-widest">{isDark ? 'LIGHT' : 'DARK'}</span>
                     </button>
-                    <div className="flex-1 grid grid-cols-3 gap-2">
+                    <div className="flex-1 grid grid-cols-1 gap-2">
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
-                          onClick={() => changeLanguage(lang.code)}
+                          onClick={() => {
+                            changeLanguage(lang.code);
+                            setIsMenuOpen(false);
+                          }}
                           className={cn(
-                            "p-2 rounded-xl text-center font-black italic uppercase tracking-widest text-[10px] flex items-center justify-center",
-                            i18n.language === lang.code ? "bg-brand-primary text-white dark:text-black" : "bg-black/5 dark:bg-white/5 opacity-50"
+                            "p-3 rounded-xl text-left font-black italic uppercase tracking-widest text-[10px] flex items-center justify-between",
+                            i18n.language === lang.code ? "bg-brand-primary text-white dark:text-black shadow-xl" : "bg-black/5 dark:bg-white/5 opacity-80"
                           )}
                         >
-                          {lang.label}
+                          <span>{lang.label}</span>
+                          <span className="opacity-40">{lang.short}</span>
                         </button>
                       ))}
                     </div>

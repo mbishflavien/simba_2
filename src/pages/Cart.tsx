@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi, LogIn, MapPin, Search } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi, LogIn, MapPin, Search, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
@@ -260,37 +260,41 @@ export default function Cart() {
         </div>
         
         {/* Progress Stepper */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 overflow-x-auto pb-4 sm:pb-0 scrollbar-hide">
           {[
-            { step: 'cart' as const, label: t('step_cart') },
-            { step: 'method' as const, label: t('step_details') },
-            { step: 'confirmation' as const, label: t('step_confirm') }
+            { step: 'cart' as const, label: t('step_cart'), icon: ShoppingBag },
+            { step: 'method' as const, label: t('step_details'), icon: MapPin },
+            { step: 'confirmation' as const, label: t('step_confirm'), icon: CheckCircle }
           ].map((s, idx) => {
             const isActive = checkoutStep === s.step || (s.step === 'method' && ['momo', 'card', 'cash', 'waiting'].includes(checkoutStep));
             const isCompleted = (checkoutStep !== 'cart' && s.step === 'cart') || (checkoutStep === 'confirmation' && s.step === 'method');
-            
+            const Icon = s.icon;
+
             return (
               <React.Fragment key={s.step}>
-                <div className="flex flex-col items-center gap-2 group">
+                <div className="flex items-center gap-2 sm:gap-3 group shrink-0">
                   <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 border-2",
-                    isActive ? "bg-brand-primary border-brand-primary text-white" : 
-                    isCompleted ? "bg-green-500 border-green-500 text-white" :
+                    "w-10 h-10 sm:w-12 sm:h-12 rounded-[14px] sm:rounded-[18px] flex items-center justify-center transition-all duration-500 border-2",
+                    isActive ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/30 scale-105 sm:scale-110" : 
+                    isCompleted ? "bg-emerald-500 border-emerald-500 text-white" :
                     "bg-black/5 dark:bg-white/5 border-brand-border text-[var(--brand-text-muted)]"
                   )}>
-                    {isCompleted ? <CheckCircle className="h-5 w-5" /> : <span className="text-[10px] font-black">{idx + 1}</span>}
+                    {isCompleted ? <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6" /> : <Icon className="h-4 w-4 sm:h-5 sm:w-5" />}
                   </div>
-                  <span className={cn(
-                    "hidden sm:block text-[8px] font-black uppercase tracking-widest italic transition-opacity",
-                    isActive ? "opacity-100 text-brand-primary" : "opacity-40"
-                  )}>
-                    {s.label}
-                  </span>
+                  <div className="hidden md:flex flex-col">
+                    <span className={cn(
+                      "text-[8px] sm:text-[9px] font-black uppercase tracking-widest italic leading-none transition-opacity",
+                      isActive ? "opacity-100 text-brand-primary" : "opacity-40"
+                    )}>
+                      {s.label}
+                    </span>
+                    <span className="text-[6px] sm:text-[7px] font-bold opacity-20 uppercase tracking-tighter mt-1">NODE {idx + 1}</span>
+                  </div>
                 </div>
                 {idx < 2 && (
                   <div className={cn(
-                    "h-0.5 w-4 sm:w-12 rounded-full transition-all duration-500",
-                    isCompleted ? "bg-green-500" : "bg-brand-border"
+                    "h-0.5 w-4 sm:w-6 lg:w-16 rounded-full transition-all duration-700 shrink-0",
+                    isCompleted ? "bg-emerald-500" : "bg-brand-border"
                   )} />
                 )}
               </React.Fragment>
@@ -316,45 +320,47 @@ export default function Cart() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="card-gradient p-6 sm:p-8 flex gap-8 items-center group"
+                  className="card-gradient p-4 sm:p-8 flex flex-col sm:flex-row gap-4 sm:gap-8 items-start sm:items-center group"
                 >
-                  <div className="w-24 h-24 sm:w-40 sm:h-40 bg-black/5 dark:bg-black rounded-[30px] overflow-hidden shrink-0 flex items-center justify-center">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-contain p-4 grayscale group-hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                  <div className="w-full sm:w-40 aspect-square sm:h-40 bg-black/5 dark:bg-black rounded-[24px] sm:rounded-[30px] overflow-hidden shrink-0 flex items-center justify-center">
+                    <img src={item.image} alt={item.name} className="w-full sm:w-full h-full object-contain p-4 grayscale group-hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
                   </div>
                   
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 w-full min-w-0">
                     <div className="flex justify-between items-start gap-4 mb-4">
-                      <div>
-                        <p className="micro-label mb-2 uppercase tracking-widest text-[10px] !opacity-60">{item.category}</p>
-                        <h3 className="font-black text-[var(--brand-text)] text-xl sm:text-2xl tracking-tight leading-none truncate italic uppercase">{item.name}</h3>
+                      <div className="min-w-0">
+                        <p className="micro-label mb-1 sm:mb-2 uppercase tracking-widest text-[8px] sm:text-[10px] !opacity-60 truncate">{item.category}</p>
+                        <h3 className="font-black text-[var(--brand-text)] text-lg sm:text-2xl tracking-tight leading-none truncate italic uppercase">{item.name}</h3>
                       </div>
                       <button 
                         onClick={() => removeFromCart(item.id)}
-                        className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 transition-colors"
+                        className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 transition-colors shrink-0"
                       >
-                        <Trash2 className="h-6 w-6" />
+                        <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" />
                       </button>
                     </div>
                     
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-4 bg-black/5 dark:bg-black border border-brand-border dark:border-white/10 rounded-full p-1.5 px-4 font-black">
+                    <div className="flex justify-between items-center mt-2 sm:mt-0">
+                      <div className="flex items-center gap-3 sm:gap-4 bg-black/5 dark:bg-black border border-brand-border dark:border-white/10 rounded-full p-1 sm:p-1.5 px-3 sm:px-4 font-black">
                         <button 
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="opacity-40 hover:opacity-100 transition-opacity"
+                          className="w-6 sm:w-auto opacity-40 hover:opacity-100 transition-opacity text-lg"
                         >
                            -
                         </button>
-                        <span className="text-sm">{item.quantity}</span>
+                        <span className="text-[10px] sm:text-sm min-w-[1rem] text-center">{item.quantity}</span>
                         <button 
                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                           className="opacity-40 hover:opacity-100 transition-opacity"
+                           className="w-6 sm:w-auto opacity-40 hover:opacity-100 transition-opacity text-lg"
                         >
                            +
                         </button>
                       </div>
-                      <p className="text-2xl font-black italic tracking-tighter text-[var(--brand-text)]">
-                        {(item.price * item.quantity).toLocaleString()} <span className="text-[10px] not-italic font-bold opacity-30 tracking-widest uppercase">RWF</span>
-                      </p>
+                      <div className="text-right">
+                        <p className="text-xl sm:text-2xl font-black italic tracking-tighter text-[var(--brand-text)]">
+                          {(item.price * item.quantity).toLocaleString()} <span className="text-[8px] sm:text-[10px] not-italic font-bold opacity-30 tracking-widest uppercase">RWF</span>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -396,38 +402,59 @@ export default function Cart() {
         <div className="lg:col-span-1">
           <div className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 p-10 rounded-[40px] sticky top-32">
             {checkoutStep === 'cart' && (
-              <>
-                <h2 className="text-2xl font-black mb-10 uppercase tracking-tighter italic text-[var(--brand-text)] leading-none">
+              <div className="relative">
+                <div className="absolute -top-6 -right-6 w-32 h-32 bg-brand-primary opacity-5 rounded-full blur-3xl animate-pulse" />
+                <h2 className="text-3xl font-black mb-10 uppercase tracking-tighter italic text-[var(--brand-text)] leading-none relative z-10">
                   {t('checkout')}<span className="text-brand-primary">.</span>
                 </h2>
                 
-                <div className="space-y-6 mb-12">
-                  <div className="flex justify-between micro-label uppercase tracking-widest !opacity-60">
-                    <span>{t('items')}</span>
-                    <span className="text-[var(--brand-text)]">{formatCurrency(totalPrice)}</span>
+                <div className="space-y-6 mb-12 relative z-10">
+                  <div className="p-6 bg-black/5 dark:bg-white/5 rounded-3xl border border-brand-border backdrop-blur-xl">
+                    <div className="flex justify-between micro-label uppercase tracking-widest !opacity-60 mb-2">
+                       <span>{t('items')}</span>
+                       <span className="text-[var(--brand-text)]">{formatCurrency(totalPrice)}</span>
+                    </div>
+                    <div className="flex justify-between micro-label uppercase tracking-widest !opacity-60">
+                       <span>{t('logistics')}</span>
+                       <span className={cn("text-[var(--brand-text)]", totalPrice > 50000 && "text-brand-primary font-black")}>
+                         {totalPrice > 50000 ? "FREE" : formatCurrency(2000)}
+                       </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between micro-label uppercase tracking-widest !opacity-60">
-                    <span>{t('logistics')}</span>
-                    <span className={cn("text-[var(--brand-text)]", totalPrice > 50000 && "text-brand-primary font-black")}>
-                      {totalPrice > 50000 ? "FREE" : formatCurrency(2000)}
-                    </span>
-                  </div>
-                  <div className="pt-6 border-t border-brand-border dark:border-white/10 flex justify-between items-end">
-                    <span className="font-black uppercase tracking-tighter italic text-[var(--brand-text)]">{t('total')}</span>
-                    <span className="text-4xl font-black text-brand-primary tracking-tighter italic">
-                      {(totalPrice + (totalPrice > 50000 ? 0 : 2000)).toLocaleString()}
-                    </span>
+
+                  <div className="relative pt-8 px-6">
+                    <div className="flex justify-between items-end">
+                      <span className="font-black uppercase tracking-tighter italic text-[var(--brand-text)] text-sm opacity-40">{t('total')}</span>
+                      <div className="text-right">
+                         <span className="block text-4xl sm:text-5xl font-black text-brand-primary tracking-tighter italic leading-none">
+                           {(totalPrice + (totalPrice > 50000 ? 0 : 2000)).toLocaleString()}
+                         </span>
+                         <span className="text-[8px] font-black opacity-20 uppercase tracking-[0.4em] italic mt-2 block">Kigali Standard RWF</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <button 
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleCheckout}
-                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-2xl shadow-brand-primary/20 active:scale-95 italic"
+                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-7 rounded-[24px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-4 shadow-2xl shadow-brand-primary/40 italic relative z-10 group"
                 >
-                  <CreditCard className="h-5 w-5 font-black" />
+                  <CreditCard className="h-6 w-6 font-black group-hover:rotate-12 transition-transform" />
                   {t('proceed_to_checkout')}
-                </button>
-              </>
+                </motion.button>
+
+                <div className="mt-8 flex items-center justify-center gap-6 opacity-20">
+                  <div className="h-[1px] flex-1 bg-brand-border" />
+                  <div className="flex gap-4">
+                    <CreditCard className="h-4 w-4" />
+                    <Smartphone className="h-4 w-4" />
+                    <RefreshCcw className="h-4 w-4" />
+                  </div>
+                  <div className="h-[1px] flex-1 bg-brand-border" />
+                </div>
+              </div>
             )}
 
             {checkoutStep === 'method' && (

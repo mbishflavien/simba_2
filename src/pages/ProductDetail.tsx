@@ -140,6 +140,29 @@ export default function ProductDetail() {
     }
   };
 
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    if (!product || !product.category) return;
+    
+    const fetchRelated = async () => {
+      try {
+        const q = query(
+          collection(db, 'products'),
+          where('category', '==', product.category),
+          where('id', '!=', product.id)
+        );
+        const snap = await getDocs(q);
+        const related = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as Product));
+        setRelatedProducts(related.slice(0, 3));
+      } catch (err) {
+        console.error("Error fetching related products:", err);
+      }
+    };
+
+    fetchRelated();
+  }, [product]);
+
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
@@ -256,20 +279,20 @@ export default function ProductDetail() {
 
           {/* Action */}
           <div className="space-y-6 pt-10 border-t border-brand-border dark:border-white/10">
-             <div className="flex flex-wrap items-center gap-6">
+             <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 {cartItem ? (
-                  <div className="flex items-center gap-8 bg-black/5 dark:bg-black border border-brand-border dark:border-white/10 rounded-full p-2 px-6 h-20">
+                  <div className="flex items-center gap-6 sm:gap-8 bg-black/5 dark:bg-black border border-brand-border dark:border-white/10 rounded-full p-2 px-6 h-16 sm:h-20 order-2 sm:order-1">
                     <button 
                       onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
-                      className="w-12 h-12 flex items-center justify-center rounded-full bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 transition-all font-black text-2xl"
+                      className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 transition-all font-black text-xl sm:text-2xl"
                     >
                       -
                     </button>
-                    <span className="text-2xl font-black min-w-[2rem] text-center text-[var(--brand-text)]">{cartItem.quantity}</span>
+                    <span className="text-xl sm:text-2xl font-black min-w-[2rem] text-center text-[var(--brand-text)]">{cartItem.quantity}</span>
                     <button 
                       onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
                       disabled={product.stockCount !== undefined && cartItem.quantity >= product.stockCount}
-                      className="w-12 h-12 flex items-center justify-center rounded-full bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 transition-all font-black text-2xl disabled:opacity-50"
+                      className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 transition-all font-black text-xl sm:text-2xl disabled:opacity-50"
                     >
                       +
                     </button>
@@ -278,7 +301,7 @@ export default function ProductDetail() {
                   <button 
                     onClick={() => addToCart(product)}
                     disabled={!product.inStock || (product.stockCount !== undefined && product.stockCount <= 0)}
-                    className="flex-1 h-20 bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black px-10 rounded-full font-black uppercase tracking-widest transition-all shadow-2xl shadow-brand-primary/20 active:scale-95 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-white/10 italic"
+                    className="flex-1 min-w-[200px] h-16 sm:h-20 bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black px-10 rounded-full font-black uppercase tracking-widest transition-all shadow-2xl shadow-brand-primary/20 active:scale-95 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-white/10 italic text-sm sm:text-base order-2 sm:order-1"
                   >
                     {t('add_to_cart')}
                   </button>
@@ -287,14 +310,14 @@ export default function ProductDetail() {
                   <button 
                     onClick={() => product && toggleWishlist(product)}
                     className={cn(
-                      "w-20 h-20 rounded-full flex items-center justify-center transition-all border-2",
+                      "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all border-2 order-1 sm:order-2",
                       isInWishlist(Number(id)) 
                         ? "bg-rose-500 text-white border-rose-500 shadow-xl shadow-rose-500/20" 
                         : "bg-black/5 dark:bg-white/5 border-brand-border text-[var(--brand-text-muted)] hover:text-rose-500 hover:border-rose-500/50"
                     )}
                     aria-label={isInWishlist(Number(id)) ? "Remove from wishlist" : "Add to wishlist"}
                   >
-                    <Heart className={cn("h-8 w-8", isInWishlist(Number(id)) ? "fill-white" : "fill-none")} />
+                    <Heart className={cn("h-6 w-6 sm:h-8 sm:w-8", isInWishlist(Number(id)) ? "fill-white" : "fill-none")} />
                   </button>
                 )}
              </div>
@@ -323,6 +346,45 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
+
+      {/* Related Products */}
+      {relatedProducts.length > 0 && (
+        <section className="mb-32">
+          <div className="flex items-center justify-between mb-12 px-6 border-l-8 border-brand-primary">
+            <div>
+              <h2 className="text-4xl sm:text-5xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] leading-none">
+                SIMILAR <span className="text-brand-primary">FINDS</span>
+              </h2>
+              <p className="micro-label mt-2 opacity-40 uppercase tracking-widest italic">Curated from the same node</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {relatedProducts.map((p) => (
+              <motion.div
+                key={p.id}
+                whileHover={{ y: -10 }}
+                className="card-gradient group cursor-pointer"
+                onClick={() => {
+                  navigate(`/product/${p.id}`);
+                  window.scrollTo(0, 0);
+                }}
+              >
+                <div className="aspect-square p-12 relative overflow-hidden flex items-center justify-center bg-black/5 dark:bg-black/20 rounded-[32px] mb-6">
+                  <img src={p.image} alt={p.name} className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110" referrerPolicy="no-referrer" />
+                  <div className="absolute top-4 right-4 h-10 w-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+                     <ShoppingCart className="h-4 w-4 text-brand-primary" />
+                  </div>
+                </div>
+                <div className="px-4 pb-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">{p.category}</p>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] leading-none mb-3 truncate">{p.name}</h3>
+                  <p className="text-2xl font-black text-brand-primary italic tracking-tight">{formatCurrency(p.price)}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Reviews Section */}
       <section className="mt-32">

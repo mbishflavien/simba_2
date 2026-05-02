@@ -456,6 +456,22 @@ export default function AdminDashboard() {
           </Link>
 
           <div className="flex items-center gap-4 lg:gap-6">
+            <Link 
+              to="/" 
+              className="flex items-center gap-2 px-6 py-3 bg-black/5 dark:bg-white/5 border border-brand-border rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white dark:hover:text-black transition-all group"
+            >
+              <HomeIcon className="h-4 w-4" />
+              <span className="hidden md:inline">{t('back_to_shop')}</span>
+            </Link>
+
+            <Link 
+              to="/checkout" 
+              className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-zinc-800 border-2 border-brand-primary text-brand-primary rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white transition-all shadow-lg"
+            >
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden md:inline">TEST CHECKOUT</span>
+            </Link>
+
             <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-2xl border border-brand-border">
               <Globe className="h-3.5 w-3.5 text-brand-primary" />
               <select 

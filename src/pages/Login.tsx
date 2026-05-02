@@ -47,21 +47,35 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-white dark:bg-black">
+      {/* Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20 dark:opacity-40">
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], rotate: [0, 5, 0] }}
+          transition={{ duration: 20, repeat: Infinity }}
+          className="absolute -top-[20%] -left-[10%] w-[60%] aspect-square bg-brand-primary rounded-full blur-[120px] opacity-20" 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], rotate: [0, -5, 0] }}
+          transition={{ duration: 25, repeat: Infinity }}
+          className="absolute -bottom-[20%] -right-[10%] w-[60%] aspect-square bg-brand-accent rounded-full blur-[120px] opacity-10" 
+        />
+      </div>
+
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-[40px] border border-brand-border dark:border-white/10 p-8 sm:p-12 shadow-2xl"
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="w-full max-w-md bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl rounded-[48px] border border-brand-border dark:border-white/10 p-8 sm:p-12 shadow-[0_32px_80px_rgba(0,0,0,0.1)] dark:shadow-none relative z-10"
       >
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-primary/10 text-brand-primary mb-6">
-            <LogIn className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] bg-brand-primary text-white mb-8 shadow-xl shadow-brand-primary/20 -rotate-6 scale-110">
+            <LogIn className="w-10 h-10" />
           </div>
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] mb-2">
-            {t('welcome_back')}
+          <h1 className="text-5xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] mb-3 leading-none">
+            WELCOME <br/><span className="text-brand-primary">BACK</span>
           </h1>
-          <p className="text-sm font-bold uppercase tracking-widest text-zinc-500 italic opacity-60">
-            {t('enter_details_to_login')}
+          <p className="micro-label font-black opacity-40 italic tracking-[0.2em]">
+            Access SIMBA Logistics Node 01
           </p>
         </div>
 
