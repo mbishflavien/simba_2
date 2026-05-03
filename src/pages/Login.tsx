@@ -103,7 +103,12 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <label className="micro-label ml-2">{t('password')}</label>
+            <div className="flex justify-between items-center px-2">
+              <label className="micro-label">{t('password')}</label>
+              <Link to="/forgot-password" size="sm" className="micro-label !text-brand-primary hover:opacity-75 transition-opacity underline-offset-4">
+                {t('forgot_password')}
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
               <input 
@@ -148,6 +153,15 @@ export default function Login() {
             {t('signup_here')}
           </Link>
         </p>
+
+        <div className="mt-8 pt-8 border-t border-brand-border dark:border-white/10">
+          <div className="flex gap-3 items-start p-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-brand-border dark:border-white/5">
+            <AlertCircle className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
+            <p className="text-[10px] font-bold uppercase italic tracking-wider opacity-60 leading-relaxed text-[var(--brand-text)]">
+              {t('admin_auth_notice')}
+            </p>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

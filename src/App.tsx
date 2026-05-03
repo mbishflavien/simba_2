@@ -14,6 +14,7 @@ import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
+import ForgotPassword from './pages/ForgotPassword';
 import { ContactSupport, DeliveryTC, MoMoGuide } from './pages/SupportInfo';
 import './i18n';
 
@@ -61,6 +62,7 @@ function AppLayout() {
           <Route path="/about" element={<AboutUs />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/support/contact" element={<ContactSupport />} />
