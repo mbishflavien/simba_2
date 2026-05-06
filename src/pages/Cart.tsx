@@ -357,8 +357,8 @@ export default function Cart() {
                         </button>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl sm:text-2xl font-black italic tracking-tighter text-[var(--brand-text)]">
-                          {(item.price * item.quantity).toLocaleString()} <span className="text-[8px] sm:text-[10px] not-italic font-bold opacity-30 tracking-widest uppercase">RWF</span>
+                        <p className="text-base sm:text-2xl font-black italic tracking-tighter text-[var(--brand-text)]">
+                          {formatCurrency(item.price * item.quantity)}
                         </p>
                       </div>
                     </div>
@@ -426,8 +426,8 @@ export default function Cart() {
                     <div className="flex justify-between items-end">
                       <span className="font-black uppercase tracking-tighter italic text-[var(--brand-text)] text-sm opacity-40">{t('total')}</span>
                       <div className="text-right">
-                         <span className="block text-4xl sm:text-5xl font-black text-brand-primary tracking-tighter italic leading-none">
-                           {(totalPrice + (totalPrice > 50000 ? 0 : 2000)).toLocaleString()}
+                         <span className="block text-2xl sm:text-4xl font-black text-brand-primary tracking-tighter italic leading-none">
+                           {formatCurrency(totalPrice + (totalPrice > 50000 ? 0 : 2000))}
                          </span>
                          <span className="text-[8px] font-black opacity-20 uppercase tracking-[0.4em] italic mt-2 block">Kigali Standard RWF</span>
                       </div>
@@ -628,8 +628,8 @@ export default function Cart() {
                   </div>
                   <div className="pt-4 border-t-2 border-brand-primary/20 flex justify-between items-end px-2">
                     <span className="font-black uppercase tracking-tighter italic text-xl">{t('total')}</span>
-                    <span className="text-4xl font-black text-brand-primary tracking-tighter italic">
-                      {(totalPrice + (paymentMethod === 'cash' || totalPrice > 50000 ? 0 : 2000)).toLocaleString()}
+                    <span className="text-2xl sm:text-3xl font-black text-brand-primary tracking-tighter italic">
+                      {formatCurrency(totalPrice + (paymentMethod === 'cash' || totalPrice > 50000 ? 0 : 2000))}
                     </span>
                   </div>
                 </div>
@@ -765,8 +765,8 @@ export default function Cart() {
                   </div>
                   <div className="pt-4 border-t border-brand-border dark:border-white/10 flex justify-between items-end">
                     <span className="font-black uppercase tracking-tighter italic text-[var(--brand-text)]">{t('total')}</span>
-                    <span className="text-3xl font-black text-brand-primary tracking-tighter italic">
-                      {totalPrice.toLocaleString()}
+                    <span className="text-2xl font-black text-brand-primary tracking-tighter italic">
+                      {formatCurrency(totalPrice)}
                     </span>
                   </div>
                 </div>

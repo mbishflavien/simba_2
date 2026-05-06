@@ -101,9 +101,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           </h3>
         </Link>
 
-        <div className="flex items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-2 sm:gap-4 min-h-[4.5rem]">
-          <div className="flex-1 min-w-0 flex flex-col justify-center">
-            <p className="text-xl sm:text-3xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm truncate">
+        <div className="flex items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-2 sm:gap-4 min-h-[4rem] sm:min-h-[4.5rem]">
+          <div className="flex-1 min-w-0 flex flex-col justify-center relative z-10">
+            <p className="text-base sm:text-2xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm">
               {formatCurrency(product.price)}
             </p>
             {product.stockCount !== undefined && (
@@ -148,7 +148,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
                 }}
                 disabled={!product.inStock}
                 className={cn(
-                  "px-4 sm:px-8 h-10 sm:h-12 rounded-2xl flex items-center justify-center gap-2 sm:gap-3 transition-all duration-500 relative font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] italic text-[9px] sm:text-[10px] shadow-xl whitespace-nowrap",
+                  "px-2 sm:px-8 h-10 sm:h-12 rounded-2xl flex items-center justify-center gap-1 sm:gap-3 transition-all duration-500 relative font-black uppercase tracking-tight sm:tracking-[0.2em] italic text-[8px] sm:text-[10px] shadow-xl whitespace-nowrap",
                   product.inStock
                     ? isAdded 
                       ? "bg-green-500 text-white shadow-green-500/20"

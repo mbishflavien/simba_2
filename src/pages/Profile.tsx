@@ -281,7 +281,7 @@ export default function Profile() {
                               {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
                             </p>
                             <p className="text-xl font-black italic tracking-tighter text-brand-primary">
-                              {order.total.toLocaleString()} <span className="text-[9px] not-italic font-bold opacity-30 tracking-widest text-[var(--brand-text)]">RWF</span>
+                              {formatCurrency(order.total)}
                             </p>
                           </div>
                         </div>

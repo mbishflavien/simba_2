@@ -233,8 +233,8 @@ export default function ProductDetail() {
               {product.name}
             </h1>
             <div className="flex flex-wrap items-center gap-6 mb-8">
-              <span className="text-5xl font-black text-brand-primary italic tracking-tighter">
-                {product.price.toLocaleString()} <span className="text-sm not-italic font-black opacity-30 tracking-widest uppercase">RWF</span>
+              <span className="text-3xl sm:text-5xl font-black text-brand-primary italic tracking-tighter">
+                {formatCurrency(product.price)}
               </span>
               <span className="micro-label border border-brand-border dark:border-white/10 px-4 py-2 rounded-full self-center">
                 {t('per')} {product.unit}

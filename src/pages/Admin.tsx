@@ -651,11 +651,11 @@ export default function AdminDashboard() {
           </div>
           <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl">
              <p className="text-[9px] font-black uppercase text-emerald-500 mb-1">{t('today_sales')}</p>
-             <p className="text-2xl font-black italic text-emerald-500">{stats.todayRevenue.toLocaleString()} <span className="text-[8px] not-italic opacity-40">RWF</span></p>
+             <p className="text-2xl font-black italic text-emerald-500">{formatCurrency(stats.todayRevenue)}</p>
           </div>
           <div className="bg-brand-primary/10 border border-brand-primary/20 p-4 rounded-2xl">
             <p className="text-[9px] font-black uppercase text-brand-primary mb-1">{t('total_revenue')}</p>
-            <p className="text-2xl font-black italic text-brand-primary">{stats.revenue.toLocaleString()} <span className="text-[8px] not-italic opacity-40">RWF</span></p>
+            <p className="text-2xl font-black italic text-brand-primary">{formatCurrency(stats.revenue)}</p>
           </div>
         </div>
       </div>
@@ -774,7 +774,7 @@ export default function AdminDashboard() {
                   <div className="text-center">
                     <p className="micro-label italic mb-2 uppercase">{t('profit_rwf')}</p>
                     <p className="text-5xl font-black italic tracking-tighter text-emerald-500">
-                      {(stats.todayRevenue * 0.28).toLocaleString()}
+                      {formatCurrency(stats.todayRevenue * 0.28)}
                     </p>
                     <div className="flex items-center justify-center gap-2 mt-2">
                        <span className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
