@@ -43,6 +43,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           alt={product.name}
           className="w-full h-full object-contain p-4 transition-transform duration-700"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+          }}
         />
         {!product.inStock && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">

@@ -32,14 +32,26 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-white dark:bg-black">
+      {/* Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20 dark:opacity-40">
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], rotate: [0, 5, 0] }}
+          transition={{ duration: 20, repeat: Infinity }}
+          className="absolute -top-[20%] -left-[10%] w-[60%] aspect-square bg-brand-primary rounded-full blur-[120px] opacity-20" 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], rotate: [0, -5, 0] }}
+          transition={{ duration: 25, repeat: Infinity }}
+          className="absolute -bottom-[20%] -right-[10%] w-[60%] aspect-square bg-brand-accent rounded-full blur-[120px] opacity-10" 
+        />
+      </div>
+
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white dark:bg-zinc-900/50 backdrop-blur-xl p-8 sm:p-12 rounded-[40px] border border-zinc-200 dark:border-white/5 shadow-2xl relative overflow-hidden"
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="w-full max-w-md bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl rounded-[48px] border border-brand-border dark:border-white/10 p-8 sm:p-12 shadow-[0_32px_80px_rgba(0,0,0,0.1)] dark:shadow-none relative z-10"
       >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary opacity-5 rounded-full blur-3xl -mr-16 -mt-16" />
-        
         <Link 
           to="/login"
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest italic opacity-40 hover:opacity-100 transition-all mb-8 group"
@@ -48,11 +60,14 @@ const ForgotPassword = () => {
           {t('back_to_login')}
         </Link>
 
-        <div className="mb-10">
-          <h1 className="text-4xl font-display font-black italic tracking-tighter text-[var(--brand-text)] mb-2 mt-2">
+        <div className="mb-10 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] bg-brand-primary text-white mb-8 shadow-xl shadow-brand-primary/20 -rotate-6 scale-110">
+            <Mail className="w-10 h-10" />
+          </div>
+          <h1 className="text-4xl font-display font-black italic tracking-tighter text-[var(--brand-text)] mb-2 mt-2 leading-none uppercase">
             {t('reset_password_title')}
           </h1>
-          <p className="text-[10px] font-bold uppercase tracking-widest italic opacity-30 text-[var(--brand-text)]">
+          <p className="text-[10px] font-bold uppercase tracking-widest italic opacity-30 text-[var(--brand-text)] mt-4">
             {t('reset_password_desc')}
           </p>
         </div>
@@ -92,7 +107,7 @@ const ForgotPassword = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-16 bg-black/5 dark:bg-black rounded-3xl pl-16 pr-6 font-bold text-sm focus:outline-none focus:ring-4 focus:ring-brand-primary/10 border border-transparent focus:border-brand-primary/20 transition-all text-[var(--brand-text)]"
+                  className="w-full bg-zinc-50 dark:bg-black/20 border-2 border-transparent focus:border-brand-primary rounded-2xl py-4 pl-16 pr-6 outline-none font-bold uppercase italic text-xs tracking-tight transition-all text-[var(--brand-text)] shadow-inner"
                   placeholder="name@example.com"
                 />
               </div>
@@ -112,7 +127,7 @@ const ForgotPassword = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-16 bg-brand-primary text-white dark:text-black rounded-3xl font-black uppercase tracking-[0.2em] italic text-xs shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3 group"
+              className="w-full h-16 bg-brand-primary text-white dark:text-black rounded-3xl font-black uppercase italic tracking-[0.2em] italic text-xs shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3 group"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin" />

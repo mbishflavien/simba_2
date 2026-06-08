@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, Timestamp, addDoc, deleteDoc, setDoc, increment } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -100,7 +100,13 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts'>('overview');
   const [inventorySearch, setInventorySearch] = useState('');
   const [newOrderAlerts, setNewOrderAlerts] = useState<Order[]>([]);
+  const [deliveredAlerts, setDeliveredAlerts] = useState<Order[]>([]);
   const [isEditingProduct, setIsEditingProduct] = useState<Partial<Product> | null>(null);
+
+  const ordersRef = useRef<Order[]>([]);
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -152,6 +158,18 @@ export default function AdminDashboard() {
               setTimeout(() => {
                 removeAlert(newOrder.orderId);
               }, 10000);
+            }
+          } else if (change.type === 'modified') {
+            const updatedOrder = change.doc.data() as Order;
+            const prevOrder = ordersRef.current.find(o => o.orderId === updatedOrder.orderId);
+            if (updatedOrder.status === 'delivered' && (!prevOrder || prevOrder.status !== 'delivered')) {
+              setDeliveredAlerts(prev => [...prev, updatedOrder]);
+              playNotificationSound();
+              
+              // Auto remove after 15 seconds
+              setTimeout(() => {
+                setDeliveredAlerts(prev => prev.filter(o => o.orderId !== updatedOrder.orderId));
+              }, 15000);
             }
           }
         });
@@ -225,6 +243,18 @@ export default function AdminDashboard() {
             });
           });
           await Promise.all(promises);
+
+          // Write a persistent alert to inventoryAlerts
+          const alertRef = collection(db, 'inventoryAlerts');
+          const itemsList = order.items.map(item => `${item.name} (${item.quantity} pcs)`).join(', ');
+          await addDoc(alertRef, {
+            id: `INV-${Date.now()}`,
+            type: 'info',
+            message: `Delivery complete for order #${order.orderId}! Deducted stock counts: ${itemsList}`,
+            severity: 'medium',
+            isRead: false,
+            createdAt: Timestamp.now()
+          });
         }
       }
 
@@ -232,6 +262,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Error updating order:", error);
       alert(t('update_error'));
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }
   };
 
@@ -240,23 +271,66 @@ export default function AdminDashboard() {
     if (!isEditingProduct || isSaving) return;
     setIsSaving(true);
 
+    const targetId = String(isEditingProduct.id || Math.random().toString(36).substr(2, 9));
     try {
-      const productData = {
-        ...isEditingProduct,
-        id: isEditingProduct.id || Math.random().toString(36).substr(2, 9),
-        price: Number(isEditingProduct.price),
-        stockCount: Number(isEditingProduct.stockCount),
-        inStock: Number(isEditingProduct.stockCount) > 0,
+      // Build carefully structured data to ensure absolutely no "undefined" fields are sent to Firestore
+      const rawProductData: any = {
+        name: isEditingProduct.name || '',
+        category: isEditingProduct.category || '',
+        image: isEditingProduct.image || '',
+        price: Number(isEditingProduct.price || 0),
+        unit: isEditingProduct.unit || 'pcs',
+        stockCount: Number(isEditingProduct.stockCount || 0),
+        inStock: Number(isEditingProduct.stockCount || 0) > 0,
+        id: targetId,
         updatedAt: Timestamp.now(),
         createdAt: isEditingProduct.createdAt || Timestamp.now()
       };
 
-      const productRef = doc(db, 'products', productData.id);
-      await setDoc(productRef, productData);
+      // Handle optional properties without passing "undefined" fields or causing validation rule crashes
+      if (isEditingProduct.costPrice !== undefined && !isNaN(Number(isEditingProduct.costPrice))) {
+        rawProductData.costPrice = Number(isEditingProduct.costPrice);
+      } else {
+        // Provide a default costPrice of ~70% if absent, which is great for stats calculations
+        rawProductData.costPrice = Math.round(Number(isEditingProduct.price || 0) * 0.72);
+      }
+
+      if (isEditingProduct.warehouseStockCount !== undefined && !isNaN(Number(isEditingProduct.warehouseStockCount))) {
+        rawProductData.warehouseStockCount = Number(isEditingProduct.warehouseStockCount);
+      } else {
+        rawProductData.warehouseStockCount = Number(isEditingProduct.stockCount || 0);
+      }
+
+      if (isEditingProduct.barcode !== undefined) {
+        rawProductData.barcode = String(isEditingProduct.barcode);
+      }
+
+      if (isEditingProduct.lowStockThreshold !== undefined) {
+        rawProductData.lowStockThreshold = Number(isEditingProduct.lowStockThreshold);
+      } else {
+        rawProductData.lowStockThreshold = 10;
+      }
+
+      if (isEditingProduct.rating !== undefined) {
+        rawProductData.rating = Number(isEditingProduct.rating);
+      }
+      if (isEditingProduct.reviewCount !== undefined) {
+        rawProductData.reviewCount = Number(isEditingProduct.reviewCount);
+      }
+      if (isEditingProduct.supplierId !== undefined) {
+        rawProductData.supplierId = String(isEditingProduct.supplierId);
+      }
+      if (isEditingProduct.expiryDate !== undefined) {
+        rawProductData.expiryDate = isEditingProduct.expiryDate;
+      }
+
+      const productRef = doc(db, 'products', targetId);
+      await setDoc(productRef, rawProductData);
       setIsEditingProduct(null);
     } catch (error) {
       console.error("Error saving product:", error);
       alert(t('save_error'));
+      handleFirestoreError(error, OperationType.WRITE, `products/${targetId}`);
     } finally {
       setIsSaving(false);
     }
@@ -264,11 +338,13 @@ export default function AdminDashboard() {
 
   const handleDeleteProduct = async (id: string | number) => {
     if (!window.confirm(t('delete_confirm'))) return;
+    const targetId = String(id);
     try {
-      await deleteDoc(doc(db, 'products', String(id)));
+      await deleteDoc(doc(db, 'products', targetId));
     } catch (error) {
       console.error("Error deleting product:", error);
       alert(t('delete_error'));
+      handleFirestoreError(error, OperationType.DELETE, `products/${targetId}`);
     }
   };
 
@@ -433,6 +509,35 @@ export default function AdminDashboard() {
     )
   , [products, inventorySearch]);
 
+  const hourlySalesData = useMemo(() => {
+    const today = startOfDay(new Date());
+    const tomorrow = endOfDay(new Date());
+
+    const activeOrders = orders.filter(o => {
+      if (o.status === 'cancelled') return false;
+      const d = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : new Date();
+      return d >= today && d <= tomorrow;
+    });
+
+    return Array.from({ length: 12 }, (_, i) => {
+      const hour = 8 + i;
+      const targetHourStart = new Date();
+      targetHourStart.setHours(hour, 0, 0, 0);
+      const targetHourEnd = new Date();
+      targetHourEnd.setHours(hour, 59, 59, 999);
+
+      const hourOrders = activeOrders.filter(o => {
+        const d = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : new Date();
+        return d >= targetHourStart && d <= targetHourEnd;
+      });
+
+      return {
+        time: `${hour}:00`,
+        revenue: hourOrders.reduce((acc, o) => acc + o.total, 0)
+      };
+    });
+  }, [orders]);
+
   const languages = [
     { code: 'en', name: 'English' },
     { code: 'fr', name: 'Français' },
@@ -532,6 +637,35 @@ export default function AdminDashboard() {
               <button 
                 onClick={() => removeAlert(alert.orderId)}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </motion.div>
+          ))}
+
+          {deliveredAlerts.map((alert) => (
+            <motion.div 
+              key={`delivered-${alert.orderId}`}
+              initial={{ opacity: 0, y: -50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className="pointer-events-auto bg-emerald-600 text-white px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-4 border border-white/20 backdrop-blur-xl min-w-[320px]"
+            >
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center animate-bounce">
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-0.5">Order Delivered (Stock Deducted)</p>
+                <p className="font-black italic uppercase tracking-tighter text-lg leading-none mb-1">#{alert.orderId}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-bold bg-white/20 px-2 py-0.5 rounded-full">{alert.items.length} {alert.items.length === 1 ? 'Item' : 'Items'}</span>
+                  <span className="text-[9px] font-bold">{formatCurrency(alert.total)}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setDeliveredAlerts(prev => prev.filter(o => o.orderId !== alert.orderId))}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Dismiss notification"
               >
                 <XCircle className="h-5 w-5" />
               </button>
@@ -742,10 +876,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={Array.from({ length: 12 }, (_, i) => ({
-                      time: `${8 + i}:00`,
-                      revenue: Math.floor(Math.random() * 500000) + 100000
-                    }))}>
+                    <AreaChart data={hourlySalesData}>
                       <defs>
                         <linearGradient id="colorHourly" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
@@ -823,8 +954,14 @@ export default function AdminDashboard() {
                   {products.filter(p => (p.stockCount || 0) < 20).slice(0, 4).map(p => (
                     <div key={p.id} className="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-2xl group border border-transparent hover:border-brand-primary/30 transition-all">
                       <div className="flex items-center gap-4">
-                         <div className="w-12 h-12 bg-white rounded-xl p-1 border border-brand-border">
-                            <img src={p.image} className="w-full h-full object-contain" />
+                         <div className="w-12 h-12 bg-white rounded-xl p-1 border border-brand-border flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={p.image} 
+                              className="w-full h-full object-contain" 
+                              onError={(e) => {
+                                e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+                              }}
+                            />
                          </div>
                          <div>
                             <p className="text-xs font-black uppercase italic">{p.name}</p>
@@ -974,8 +1111,15 @@ export default function AdminDashboard() {
                         {order.items.map((item, idx) => (
                           <div key={idx} className="flex items-center justify-between gap-4 py-2 border-b border-white/5 last:border-0">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-white/5 rounded-lg overflow-hidden shrink-0">
-                                <img src={item.image} alt={item.name} className="w-full h-full object-contain p-2" />
+                              <div className="w-12 h-12 bg-white rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                                <img 
+                                  src={item.image} 
+                                  alt={item.name} 
+                                  className="w-full h-full object-contain p-2" 
+                                  onError={(e) => {
+                                    e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+                                  }}
+                                />
                               </div>
                               <div>
                                 <p className="text-sm font-black uppercase italic tracking-tight">{item.name}</p>
@@ -1124,7 +1268,7 @@ export default function AdminDashboard() {
                         <div className="relative">
                           <input 
                             required
-                            type="url"
+                            type="text"
                             value={isEditingProduct.image || ''}
                             onChange={e => setIsEditingProduct({...isEditingProduct, image: e.target.value})}
                             placeholder="https://..."
@@ -1204,8 +1348,16 @@ export default function AdminDashboard() {
                     <tr key={product.id} className="hover:bg-brand-primary/5 transition-colors group">
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-white rounded-lg p-1 shrink-0 border border-brand-border">
-                            <img src={product.image} alt={product.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                          <div className="w-12 h-12 bg-white rounded-lg p-1 shrink-0 border border-brand-border flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={product.image} 
+                              alt={product.name} 
+                              className="w-full h-full object-contain" 
+                              referrerPolicy="no-referrer" 
+                              onError={(e) => {
+                                e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+                              }}
+                            />
                           </div>
                           <div>
                             <span className="font-black uppercase italic text-sm tracking-tight group-hover:text-brand-primary transition-colors block">

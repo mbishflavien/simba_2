@@ -33,12 +33,16 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'flavmbish@gmail.com' ||
-        request.auth.token.email == 'flavmbish@icloud.com' ||
-        request.auth.token.email == 'flavien.mbishibishi@a2sv.org' ||
-        request.auth.token.email == 'test.admin@simba.com' ||
+        ('email' in request.auth.token && (
+          request.auth.token.email == 'flavmbish@gmail.com' ||
+          request.auth.token.email == 'flavmbish@icloud.com' ||
+          request.auth.token.email == 'flavien.mbishibishi@a2sv.org' ||
+          request.auth.token.email == 'test.admin@simba.com'
+        )) ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         'isAdmin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
       );
     }
 
@@ -47,9 +51,9 @@ service cloud.firestore {
       function isValidUserProfile(data) {
         return data.userId == userId 
           && data.email is string && data.email.size() <= 256
-          && (data.displayName == null || (data.displayName is string && data.displayName.size() <= 100))
-          && (data.phoneNumber == null || (data.phoneNumber is string && data.phoneNumber.size() <= 20))
-          && (data.address == null || (data.address is string && data.address.size() <= 500))
+          && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 100))
+          && (!('phoneNumber' in data) || data.phoneNumber == null || (data.phoneNumber is string && data.phoneNumber.size() <= 20))
+          && (!('address' in data) || data.address == null || (data.address is string && data.address.size() <= 500))
           && data.createdAt is timestamp
           && data.updatedAt is timestamp;
       }
@@ -107,11 +111,11 @@ service cloud.firestore {
         return data.id is string
           && data.name is string && data.name.size() > 0 && data.name.size() <= 200
           && data.price is number && data.price >= 0
-          && (data.costPrice == null || (data.costPrice is number && data.costPrice >= 0))
+          && (!('costPrice' in data) || data.costPrice == null || (data.costPrice is number && data.costPrice >= 0))
           && data.category is string && data.category.size() <= 100
           && data.stockCount is number
-          && (data.warehouseStockCount == null || data.warehouseStockCount is number)
-          && (data.barcode == null || (data.barcode is string && data.barcode.size() <= 100));
+          && (!('warehouseStockCount' in data) || data.warehouseStockCount == null || data.warehouseStockCount is number)
+          && (!('barcode' in data) || data.barcode == null || (data.barcode is string && data.barcode.size() <= 100));
       }
 
       allow read: if true;

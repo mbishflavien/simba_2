@@ -211,6 +211,9 @@ export default function ProductDetail() {
             alt={product.name} 
             className="w-full h-full object-contain relative z-10 grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+            }}
           />
           <div className="absolute top-10 left-10 z-20">
              <span className="micro-label px-4 py-2 border border-brand-border dark:border-white/10 rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-md">
@@ -370,7 +373,15 @@ export default function ProductDetail() {
                 }}
               >
                 <div className="aspect-square p-12 relative overflow-hidden flex items-center justify-center bg-black/5 dark:bg-black/20 rounded-[32px] mb-6">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110" referrerPolicy="no-referrer" />
+                  <img 
+                    src={p.image} 
+                    alt={p.name} 
+                    className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110" 
+                    referrerPolicy="no-referrer" 
+                    onError={(e) => {
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+                    }}
+                  />
                   <div className="absolute top-4 right-4 h-10 w-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
                      <ShoppingCart className="h-4 w-4 text-brand-primary" />
                   </div>

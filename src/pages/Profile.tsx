@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useWishlist } from '../hooks/useWishlist';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, Timestamp, doc, updateDoc, increment, addDoc } from 'firebase/firestore';
 import { Order, Product } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,6 +49,49 @@ export default function Profile() {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     } finally {
       setIsUpdatingBranch(false);
+    }
+  };
+
+  const handleConfirmDelivery = async (order: Order) => {
+    if (!window.confirm(t('confirm_delivery_prompt', 'Are you sure you want to confirm delivery for this order?'))) {
+      return;
+    }
+    try {
+      // 1. Decrement stock for each item in the order
+      const promises = order.items.map(item => {
+        const productRef = doc(db, 'products', String(item.id));
+        return updateDoc(productRef, {
+          stockCount: increment(-item.quantity),
+          updatedAt: Timestamp.now()
+        });
+      });
+      await Promise.all(promises);
+
+      // 2. Log system/inventory alert
+      const alertRef = collection(db, 'inventoryAlerts');
+      const itemsList = order.items.map(item => `${item.name} (${item.quantity} pcs)`).join(', ');
+      await addDoc(alertRef, {
+        id: `INV-${Date.now()}`,
+        type: 'info',
+        message: `Customer confirmed delivery for order #${order.orderId}! Deducted stock counts: ${itemsList}`,
+        severity: 'medium',
+        isRead: false,
+        createdAt: Timestamp.now()
+      });
+
+      // 3. Update order status to 'delivered'
+      const orderRef = doc(db, 'orders', order.orderId);
+      await updateDoc(orderRef, {
+        status: 'delivered',
+        updatedAt: Timestamp.now()
+      });
+
+      setSelectedOrder(prev => prev ? { ...prev, status: 'delivered' } : null);
+      alert(t('delivery_confirmed_success', 'Delivery confirmed! Thank you.'));
+    } catch (error) {
+      console.error("Error confirming delivery:", error);
+      alert(t('confirm_delivery_error', 'Failed to confirm delivery. Please try again.'));
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${order.orderId}`);
     }
   };
 
@@ -363,12 +406,15 @@ export default function Profile() {
                   <div className="space-y-6 mb-8 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                     {selectedOrder.items.map((item, idx) => (
                       <div key={idx} className="flex gap-4 items-center">
-                        <div className="w-12 h-12 bg-black/5 dark:bg-black rounded-xl overflow-hidden shrink-0">
+                        <div className="w-12 h-12 bg-white rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
                           <img 
                             src={item.image} 
                             alt={item.name} 
                             className="w-full h-full object-contain p-2 grayscale" 
                             referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+                            }}
                           />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -425,6 +471,20 @@ export default function Profile() {
                           {t('pickup_reception_note')}
                         </p>
                       </motion.div>
+                    )}
+
+                    {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                      <motion.button 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleConfirmDelivery(selectedOrder)}
+                        className="mt-6 w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 italic shadow-lg shadow-emerald-600/20"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Confirm Delivery (Received)
+                      </motion.button>
                     )}
                   </div>
                 </motion.div>

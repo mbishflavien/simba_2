@@ -322,8 +322,16 @@ export default function Cart() {
                   exit={{ opacity: 0, x: 20 }}
                   className="card-gradient p-4 sm:p-8 flex flex-col sm:flex-row gap-4 sm:gap-8 items-start sm:items-center group"
                 >
-                  <div className="w-full sm:w-40 aspect-square sm:h-40 bg-black/5 dark:bg-black rounded-[24px] sm:rounded-[30px] overflow-hidden shrink-0 flex items-center justify-center">
-                    <img src={item.image} alt={item.name} className="w-full sm:w-full h-full object-contain p-4 grayscale group-hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
+                  <div className="w-full sm:w-40 aspect-square sm:h-40 bg-white rounded-[24px] sm:rounded-[30px] overflow-hidden shrink-0 flex items-center justify-center">
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      className="w-full sm:w-full h-full object-contain p-4 grayscale group-hover:grayscale-0 transition-all duration-500" 
+                      referrerPolicy="no-referrer" 
+                      onError={(e) => {
+                        e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";
+                      }}
+                    />
                   </div>
                   
                   <div className="flex-1 w-full min-w-0">
