@@ -1333,17 +1333,18 @@ export default function AdminDashboard() {
             </AnimatePresence>
 
             <div className="bg-black/5 dark:bg-white/5 rounded-[48px] overflow-hidden border border-brand-border">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
-                    <th className="px-8 py-6">{t('product_table')}</th>
-                    <th className="px-8 py-6">{t('category_table')}</th>
-                    <th className="px-8 py-6 text-right">{t('price_table')}</th>
-                    <th className="px-8 py-6 text-center">{t('stock_table')}</th>
-                    <th className="px-8 py-6 text-right w-32">{t('actions_table')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-border">
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full min-w-[800px] text-left border-collapse">
+                  <thead>
+                    <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
+                      <th className="px-8 py-6">{t('product_table')}</th>
+                      <th className="px-8 py-6">{t('category_table')}</th>
+                      <th className="px-8 py-6 text-right">{t('price_table')}</th>
+                      <th className="px-8 py-6 text-center">{t('stock_table')}</th>
+                      <th className="px-8 py-6 text-right w-32">{t('actions_table')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border">
                   {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-brand-primary/5 transition-colors group">
                       <td className="px-8 py-6">
@@ -1408,7 +1409,8 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
-          </motion.div>
+          </div>
+        </motion.div>
         ) : activeTab === 'staff' ? (
           <motion.div
             key="staff-tab"
@@ -1541,50 +1543,52 @@ export default function AdminDashboard() {
               </button>
             </div>
             <div className="bg-black/5 dark:bg-white/5 rounded-[48px] overflow-hidden border border-brand-border">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
-                    <th className="px-8 py-6">{t('supplier')}</th>
-                    <th className="px-8 py-6">{t('contact')}</th>
-                    <th className="px-8 py-6">{t('category')}</th>
-                    <th className="px-8 py-6 text-center">{t('status')}</th>
-                    <th className="px-8 py-6 text-right">{t('actions_table')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-border">
-                  {suppliers.map(supplier => (
-                    <tr key={supplier.id} className="hover:bg-brand-primary/5 transition-colors">
-                      <td className="px-8 py-6">
-                        <span className="font-black uppercase italic text-sm">{supplier.name}</span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold">{supplier.contactName}</span>
-                          <span className="text-[9px] opacity-40 uppercase">{supplier.email}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="text-[10px] font-black uppercase tracking-widest bg-zinc-500/10 text-zinc-500 px-3 py-1 rounded-full italic">
-                          {supplier.category}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6 text-center">
-                        <div className={cn(
-                          "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase italic border",
-                          supplier.active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20"
-                        )}>
-                          {supplier.active ? 'Active' : 'Inactive'}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                         <button className="p-3 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary hover:text-white transition-all scale-90">
-                            <Plus className="h-4 w-4" />
-                         </button>
-                      </td>
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full min-w-[800px] text-left border-collapse">
+                  <thead>
+                    <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
+                      <th className="px-8 py-6">{t('supplier')}</th>
+                      <th className="px-8 py-6">{t('contact')}</th>
+                      <th className="px-8 py-6">{t('category')}</th>
+                      <th className="px-8 py-6 text-center">{t('status')}</th>
+                      <th className="px-8 py-6 text-right">{t('actions_table')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border">
+                    {suppliers.map(supplier => (
+                      <tr key={supplier.id} className="hover:bg-brand-primary/5 transition-colors">
+                        <td className="px-8 py-6">
+                          <span className="font-black uppercase italic text-sm">{supplier.name}</span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold">{supplier.contactName}</span>
+                            <span className="text-[9px] opacity-40 uppercase">{supplier.email}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="text-[10px] font-black uppercase tracking-widest bg-zinc-500/10 text-zinc-500 px-3 py-1 rounded-full italic">
+                            {supplier.category}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          <div className={cn(
+                            "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase italic border",
+                            supplier.active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                          )}>
+                            {supplier.active ? 'Active' : 'Inactive'}
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                           <button className="p-3 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary hover:text-white transition-all scale-90">
+                              <Plus className="h-4 w-4" />
+                           </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </motion.div>
         ) : activeTab === 'alerts' ? (

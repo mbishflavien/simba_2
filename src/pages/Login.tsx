@@ -72,10 +72,13 @@ export default function Login() {
             <LogIn className="w-10 h-10" />
           </div>
           <h1 className="text-5xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] mb-3 leading-none">
-            WELCOME <br/><span className="text-brand-primary">BACK</span>
+            {t('welcome_back').split(' ')[0]} <br/>
+            <span className="text-brand-primary">
+              {t('welcome_back').split(' ').slice(1).join(' ') || ''}
+            </span>
           </h1>
           <p className="micro-label font-black opacity-40 italic tracking-[0.2em]">
-            Access SIMBA Logistics Node 01
+            {t('access_simba_logistics', 'Access SIMBA Logistics Node 01')}
           </p>
         </div>
 

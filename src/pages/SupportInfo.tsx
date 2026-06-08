@@ -14,13 +14,18 @@ export function ContactSupport() {
            className="inline-flex items-center gap-2 px-6 py-2 bg-brand-primary/10 rounded-full border border-brand-primary/20 mb-8"
         >
           <div className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary italic">Connected Center</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary italic">
+            {t('connected_center', 'Connected Center')}
+          </span>
         </motion.div>
         <h1 className="massive-header text-[var(--brand-text)] uppercase italic mb-8 sm:text-[120px] leading-[0.85]">
-          GET IN <br /><span className="text-brand-primary">TOUCH</span>
+          {t('get_in_touch_line1', 'GET IN')} <br />
+          <span className="text-brand-primary">
+            {t('get_in_touch_line2', 'TOUCH')}
+          </span>
         </h1>
         <p className="micro-label max-w-xl mx-auto opacity-60 leading-relaxed uppercase italic">
-          Experience Simba's unmatched hospitality and support. Our logistics team is active 24/7 across the Kigali metropolitan zone.
+          {t('contact_support_desc', "Experience Simba's unmatched hospitality and support. Our logistics team is active 24/7 across the Kigali metropolitan zone.")}
         </p>
       </div>
 
@@ -32,9 +37,13 @@ export function ContactSupport() {
           <div className="w-16 h-16 bg-brand-primary/10 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-brand-primary group-transition-colors">
             <Phone className="h-8 w-8 text-brand-primary group-hover:text-white transition-colors" />
           </div>
-          <h3 className="text-2xl font-black uppercase italic mb-4 text-[var(--brand-text)] tracking-tighter">Line Alpha</h3>
+          <h3 className="text-2xl font-black uppercase italic mb-4 text-[var(--brand-text)] tracking-tighter">
+            {t('line_alpha_title', 'Line Alpha')}
+          </h3>
           <p className="text-xl font-display font-black tracking-widest text-brand-primary">+250 788 000 000</p>
-          <p className="text-[10px] uppercase font-bold opacity-40 mt-4 leading-relaxed tracking-widest leading-loose">Primary logistics & delivery coordination. Real-time fleet tracking.</p>
+          <p className="text-[10px] uppercase font-bold opacity-40 mt-4 leading-relaxed tracking-widest leading-loose">
+            {t('line_alpha_desc', 'Primary logistics & delivery coordination. Real-time fleet tracking.')}
+          </p>
         </motion.div>
 
         <motion.div 
@@ -44,9 +53,13 @@ export function ContactSupport() {
           <div className="w-16 h-16 bg-brand-primary/10 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-brand-primary group-transition-colors">
             <Mail className="h-8 w-8 text-brand-primary group-hover:text-white transition-colors" />
           </div>
-          <h3 className="text-2xl font-black uppercase italic mb-4 text-[var(--brand-text)] tracking-tighter">Support Node</h3>
+          <h3 className="text-2xl font-black uppercase italic mb-4 text-[var(--brand-text)] tracking-tighter">
+            {t('support_node_title', 'Support Node')}
+          </h3>
           <p className="text-xl font-display font-black tracking-widest text-brand-primary">care@simba.rw</p>
-          <p className="text-[10px] uppercase font-bold opacity-40 mt-4 leading-relaxed tracking-widest leading-loose">Corporate inquiries, bulk logistics, and vendor partnership support.</p>
+          <p className="text-[10px] uppercase font-bold opacity-40 mt-4 leading-relaxed tracking-widest leading-loose">
+            {t('support_node_desc', 'Corporate inquiries, bulk logistics, and vendor partnership support.')}
+          </p>
         </motion.div>
 
         <motion.div 
@@ -56,11 +69,15 @@ export function ContactSupport() {
           <div className="w-16 h-16 bg-brand-primary/10 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-brand-primary group-transition-colors">
             <MapPin className="h-8 w-8 text-brand-primary group-hover:text-white transition-colors" />
           </div>
-          <h3 className="text-2xl font-black uppercase italic mb-4 text-[var(--brand-text)] tracking-tighter">Command HQ</h3>
+          <h3 className="text-2xl font-black uppercase italic mb-4 text-[var(--brand-text)] tracking-tighter">
+            {t('command_hq_title', 'Command HQ')}
+          </h3>
           <p className="text-[10px] font-black uppercase tracking-widest leading-loose text-zinc-500">
-            KN 34 Street, Kiyovu, Kigali.<br/>U.T.C Building, 5th Floor
+            {t('command_hq_address', 'KN 34 Street, Kiyovu, Kigali. U.T.C Building, 5th Floor')}
           </p>
-          <button className="mt-8 text-[10px] font-black uppercase tracking-widest text-brand-primary hover:underline italic">Open Map Integration →</button>
+          <button className="mt-8 text-[10px] font-black uppercase tracking-widest text-brand-primary hover:underline italic">
+            {t('open_map_integration', 'Open Map Integration →')}
+          </button>
         </motion.div>
       </div>
     </div>
@@ -74,13 +91,18 @@ export function DeliveryTC() {
       <div className="max-w-4xl mb-24 text-left">
         <div className="inline-flex items-center gap-2 px-6 py-2 bg-brand-primary/10 rounded-full border border-brand-primary/20 mb-8">
           <Truck className="h-3 w-3 text-brand-primary" />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary italic">Logistics Matrix</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary italic">
+            {t('logistics_matrix', 'Logistics Matrix')}
+          </span>
         </div>
         <h1 className="massive-header text-[var(--brand-text)] uppercase italic mb-12 sm:text-[120px] leading-[0.85]">
-          KIGALI <br /><span className="text-brand-primary">LOGISTICS</span>
+          {t('kigali_logistics_line1', 'KIGALI')} <br />
+          <span className="text-brand-primary">
+            {t('kigali_logistics_line2', 'LOGISTICS')}
+          </span>
         </h1>
         <p className="micro-label max-w-xl opacity-60 leading-relaxed uppercase italic">
-          Standardized delivery protocols to ensure the integrity of the cold chain and freshness of every single item.
+          {t('kigali_logistics_desc', 'Standardized delivery protocols to ensure the integrity of the cold chain and freshness of every single item.')}
         </p>
       </div>
 
@@ -91,9 +113,11 @@ export function DeliveryTC() {
               <Clock className="h-10 w-10 text-brand-primary group-hover:text-white transition-colors" />
             </div>
             <div>
-              <h3 className="text-3xl font-black uppercase italic text-[var(--brand-text)] tracking-tighter mb-4">30-Min Pulse</h3>
+              <h3 className="text-3xl font-black uppercase italic text-[var(--brand-text)] tracking-tighter mb-4">
+                {t('pulse_30_min', '30-Min Pulse')}
+              </h3>
               <p className="text-sm opacity-50 leading-loose font-bold uppercase tracking-tight italic">
-                Our fleet is decentralized across Kigali's key nodes. We guarantee arrival within 30 minutes for Zone 1/2.
+                {t('pulse_30_min_desc', "Our fleet is decentralized across Kigali's key nodes. We guarantee arrival within 30 minutes for Zone 1/2.")}
               </p>
             </div>
           </div>
@@ -103,9 +127,11 @@ export function DeliveryTC() {
               <ShieldCheck className="h-10 w-10 text-brand-primary group-hover:text-white transition-colors" />
             </div>
             <div>
-              <h3 className="text-3xl font-black uppercase italic text-[var(--brand-text)] tracking-tighter mb-4">Cold-Chain Guard</h3>
+              <h3 className="text-3xl font-black uppercase italic text-[var(--brand-text)] tracking-tighter mb-4">
+                {t('cold_chain_guard', 'Cold-Chain Guard')}
+              </h3>
               <p className="text-sm opacity-50 leading-loose font-bold uppercase tracking-tight italic">
-                All fresh items are transported in temperature-controlled vessels. Relentless quality control since 1997.
+                {t('cold_chain_guard_desc', 'All fresh items are transported in temperature-controlled vessels. Relentless quality control since 1997.')}
               </p>
             </div>
           </div>
@@ -113,19 +139,33 @@ export function DeliveryTC() {
 
         <div className="bg-black/5 dark:bg-white/5 border border-brand-border rounded-[64px] p-16 flex flex-col justify-center">
            <MapPin className="h-12 w-12 text-brand-primary mb-12" />
-           <h4 className="text-2xl font-black uppercase italic mb-6">Zone Awareness</h4>
+           <h4 className="text-2xl font-black uppercase italic mb-6">
+             {t('zone_awareness', 'Zone Awareness')}
+           </h4>
            <div className="space-y-4">
               <div className="flex justify-between items-center py-4 border-b border-brand-border">
-                 <span className="text-xs font-black uppercase italic">Zone 1 (Kigali Core)</span>
-                 <span className="text-[10px] font-black text-brand-primary">30 MINS</span>
+                 <span className="text-xs font-black uppercase italic">
+                   {t('zone_1', 'Zone 1 (Kigali Core)')}
+                 </span>
+                 <span className="text-[10px] font-black text-brand-primary">
+                   {t('duration_30_mins', '30 MINS')}
+                 </span>
               </div>
               <div className="flex justify-between items-center py-4 border-b border-brand-border">
-                 <span className="text-xs font-black uppercase italic">Zone 2 (Outer Kigali)</span>
-                 <span className="text-[10px] font-black text-brand-primary">45 MINS</span>
+                 <span className="text-xs font-black uppercase italic">
+                   {t('zone_2', 'Zone 2 (Outer Kigali)')}
+                 </span>
+                 <span className="text-[10px] font-black text-brand-primary">
+                   {t('duration_45_mins', '45 MINS')}
+                 </span>
               </div>
               <div className="flex justify-between items-center py-4 border-b border-brand-border opacity-30">
-                 <span className="text-xs font-black uppercase italic">Zone 3 (Rural)</span>
-                 <span className="text-[10px] font-black">SCHEDULED</span>
+                 <span className="text-xs font-black uppercase italic">
+                   {t('zone_3', 'Zone 3 (Rural)')}
+                 </span>
+                 <span className="text-[10px] font-black">
+                   {t('duration_scheduled', 'SCHEDULED')}
+                 </span>
               </div>
            </div>
         </div>
@@ -141,10 +181,15 @@ export function MoMoGuide() {
       <div className="max-w-4xl mx-auto text-center mb-24">
         <div className="inline-flex items-center gap-2 px-6 py-2 bg-brand-primary/10 rounded-full border border-brand-primary/20 mb-8">
           <Smartphone className="h-3 w-3 text-brand-primary" />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary italic">Financial Protocol</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary italic">
+            {t('financial_protocol', 'Financial Protocol')}
+          </span>
         </div>
         <h1 className="massive-header text-[var(--brand-text)] uppercase italic mb-12 sm:text-[120px] leading-[0.85]">
-          MOMO <br /><span className="text-brand-primary">MATRIX</span>
+          {t('momo_matrix_line1', 'MOMO')} <br />
+          <span className="text-brand-primary">
+            {t('momo_matrix_line2', 'MATRIX')}
+          </span>
         </h1>
       </div>
 
@@ -155,33 +200,42 @@ export function MoMoGuide() {
           className="bg-brand-primary p-12 sm:p-20 rounded-[80px] text-white flex flex-col justify-center relative overflow-hidden"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full translate-x-1/2 -translate-y-1/2" />
-          <h3 className="text-3xl font-black uppercase italic mb-12 relative z-10 leading-none">MERCHANT <br/>CODE</h3>
+          <h3 className="text-3xl font-black uppercase italic mb-12 relative z-10 leading-none">
+            {t('merchant_title_line1', 'MERCHANT')} <br/>
+            {t('merchant_title_line2', 'CODE')}
+          </h3>
           <p className="text-8xl sm:text-[140px] font-display font-black tracking-[-0.05em] leading-none mb-8 relative z-10 italic">
             123456
           </p>
           <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/20 rounded-full backdrop-blur-xl w-fit relative z-10">
             <ShieldCheck className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest italic">Verified Simba Merchant</span>
+            <span className="text-[10px] font-black uppercase tracking-widest italic">
+              {t('verified_merchant', 'Verified Simba Merchant')}
+            </span>
           </div>
         </motion.div>
 
         <div className="flex flex-col justify-center space-y-12 px-8">
           <div className="space-y-4 border-l-4 border-brand-primary pl-10">
-            <h3 className="text-2xl font-black uppercase italic text-[var(--brand-text)]">Instant Flow</h3>
+            <h3 className="text-2xl font-black uppercase italic text-[var(--brand-text)]">
+              {t('instant_flow', 'Instant Flow')}
+            </h3>
             <p className="text-sm opacity-50 font-bold uppercase tracking-widest leading-loose italic">
-              Our system is directly integrated with MTN API. As soon as you enter your PIN, the order shifts to 'Processing' automatically.
+              {t('instant_flow_desc', "Our system is directly integrated with MTN API. As soon as you enter your PIN, the order shifts to 'Processing' automatically.")}
             </p>
           </div>
           
           <div className="space-y-4 border-l-4 border-zinc-200 dark:border-white/10 pl-10">
-            <h3 className="text-2xl font-black uppercase italic text-[var(--brand-text)]">Safety First</h3>
+            <h3 className="text-2xl font-black uppercase italic text-[var(--brand-text)]">
+              {t('safety_first', 'Safety First')}
+            </h3>
             <p className="text-sm opacity-50 font-bold uppercase tracking-widest leading-loose italic">
-              All transactions are encrypted. We never see your PIN. Mobile Money is the pulse of the digital nation.
+              {t('safety_first_desc', 'All transactions are encrypted. We never see your PIN. Mobile Money is the pulse of the digital nation.')}
             </p>
           </div>
 
           <Link to="/cart" className="w-fit px-12 py-6 bg-black dark:bg-white text-white dark:text-black rounded-full font-black uppercase tracking-widest text-[10px] hover:scale-105 transition-transform shadow-2xl">
-            Test Checkout Ready →
+            {t('test_checkout_ready', 'Test Checkout Ready →')}
           </Link>
         </div>
       </div>
