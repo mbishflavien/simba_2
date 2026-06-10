@@ -78,7 +78,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
         <div className="flex justify-between items-start mb-0.5">
           <div className="flex items-center gap-2">
             <span className="micro-label">
-              {product.category ? t(`cat_${product.category.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_')}`) : t('cat_other')}
+              {product.category && typeof product.category === 'string' ? t(`cat_${product.category.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_')}`) : t('cat_other')}
             </span>
             {product.price > 100000 && (
               <span className="text-[8px] font-black bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded-md uppercase tracking-widest italic animate-pulse">
@@ -91,7 +91,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
               </span>
             )}
           </div>
-          {product.rating && (
+          {product.rating !== undefined && product.rating > 0 && product.reviewCount !== undefined && product.reviewCount > 0 && (
             <div className="flex items-center gap-1" aria-label={`Rating: ${product.rating} stars, ${product.reviewCount} reviews`}>
               <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
               <span className="text-[10px] font-black italic text-[var(--brand-text)] opacity-80">{product.rating}</span>

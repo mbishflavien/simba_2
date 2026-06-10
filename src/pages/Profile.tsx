@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useWishlist } from '../hooks/useWishlist';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -32,6 +32,7 @@ export default function Profile() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState<'orders' | 'wishlist'>('orders');
@@ -42,6 +43,39 @@ export default function Profile() {
   const [profileRatingComment, setProfileRatingComment] = useState<string>('');
   const [profileRatingSubmitted, setProfileRatingSubmitted] = useState<boolean>(false);
   const [profileRatingSubmitting, setProfileRatingSubmitting] = useState<boolean>(false);
+
+  useEffect(() => {
+    const q = query(collection(db, 'productReviews'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setReviewsList(snapshot.docs.map(doc => doc.data()));
+    }, () => {});
+    return () => unsubscribe();
+  }, []);
+
+  const reviewsMap = useMemo(() => {
+    const map: Record<string, { sum: number; count: number }> = {};
+    reviewsList.forEach(r => {
+      if (!r.productId) return;
+      if (!map[r.productId]) {
+        map[r.productId] = { sum: Number(r.rating) || 0, count: 1 };
+      } else {
+        map[r.productId].sum += Number(r.rating) || 0;
+        map[r.productId].count += 1;
+      }
+    });
+    return map;
+  }, [reviewsList]);
+
+  const enrichedWishlistProducts = useMemo(() => {
+    return wishlistProducts.map(p => {
+      const stats = reviewsMap[p.id];
+      return {
+        ...p,
+        rating: stats ? Number((stats.sum / stats.count).toFixed(1)) : 0,
+        reviewCount: stats ? stats.count : 0
+      };
+    });
+  }, [wishlistProducts, reviewsMap]);
 
   useEffect(() => {
     setProfileRatingScore(0);
@@ -173,7 +207,7 @@ export default function Profile() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
+      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setWishlistProducts(prods);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products_wishlist');
@@ -397,7 +431,7 @@ export default function Profile() {
                       <div key={i} className="aspect-[4/5] bg-black/5 dark:bg-white/5 rounded-[40px] animate-pulse" />
                     ))}
                   </div>
-                ) : wishlistProducts.length === 0 ? (
+                ) : enrichedWishlistProducts.length === 0 ? (
                   <div className="text-center py-32 bg-black/5 dark:bg-white/5 rounded-[64px] border border-dashed border-brand-border px-8">
                     <Heart className="h-16 w-16 text-rose-500 mx-auto mb-8 opacity-20" />
                     <p className="text-xl font-black uppercase italic opacity-40 leading-tight max-w-xs mx-auto mb-10">
@@ -409,7 +443,7 @@ export default function Profile() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-12">
-                    {wishlistProducts.map((product) => (
+                    {enrichedWishlistProducts.map((product) => (
                       <ProductCard key={product.id} product={product} />
                     ))}
                   </div>

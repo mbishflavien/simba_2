@@ -17,6 +17,8 @@ export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   
@@ -28,7 +30,7 @@ export default function Home() {
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
+      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(prods);
       setIsLoading(false);
     }, (error) => {
@@ -38,10 +40,60 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const q = query(collection(db, 'productReviews'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setReviewsList(snapshot.docs.map(doc => doc.data()));
+    }, (error) => {
+      console.error("Non-blocking error listening to productReviews:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'categories'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const cats = snapshot.docs.map(doc => doc.data().name as string);
+        setCategoriesList(cats);
+      }
+    }, (error) => {
+      console.error("Non-blocking error listening to categories:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const reviewsMap = useMemo(() => {
+    const map: Record<string, { sum: number; count: number }> = {};
+    reviewsList.forEach(r => {
+      if (!r.productId) return;
+      if (!map[r.productId]) {
+        map[r.productId] = { sum: Number(r.rating) || 0, count: 1 };
+      } else {
+        map[r.productId].sum += Number(r.rating) || 0;
+        map[r.productId].count += 1;
+      }
+    });
+    return map;
+  }, [reviewsList]);
+
+  const enrichedProducts = useMemo(() => {
+    return products.map(p => {
+      const stats = reviewsMap[p.id];
+      const prodPrice = typeof p.price === 'number' ? p.price : Number(p.price) || 0;
+      return {
+        ...p,
+        price: prodPrice,
+        rating: stats ? Number((stats.sum / stats.count).toFixed(1)) : 0,
+        reviewCount: stats ? stats.count : 0
+      };
+    });
+  }, [products, reviewsMap]);
+
   const allCategories = useMemo(() => {
     // Deduplicate and normalize categories
-    return Array.from(new Set(products.map(p => {
-      const cat = p.category?.trim();
+    const derived = products.map(p => {
+      const cat = typeof p.category === 'string' ? p.category.trim() : null;
       if (!cat) return null;
       // Normalize common synonyms to avoid duplicates
       if (cat === 'Alcohol') return 'Alcoholic Drinks';
@@ -50,8 +102,11 @@ export default function Home() {
       if (cat === 'Baby & Kids') return 'Baby Products';
       if (cat === 'Food & Groceries') return 'Food Products';
       return cat;
-    }).filter(Boolean))).sort() as string[];
-  }, [products]);
+    }).filter(Boolean);
+
+    const combined = Array.from(new Set([...categoriesList, ...derived]));
+    return combined.sort() as string[];
+  }, [products, categoriesList]);
 
   const handleAiSearch = (intent: AiSearchIntent) => {
     // Apply filters from AI - resetting properties if they aren't part of the current intent to prevent stale filters
@@ -84,7 +139,7 @@ export default function Home() {
   , [searchParams]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+    return enrichedProducts.filter(product => {
       if (selectedCategory && product.category !== selectedCategory) return false;
       
       if (searchQuery) {
@@ -255,7 +310,7 @@ export default function Home() {
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10">
-              {products.slice(0, 4).map((product, idx) => (
+              {enrichedProducts.slice(0, 4).map((product, idx) => (
                 <motion.div
                   key={`best-${product.id}`}
                   initial={{ opacity: 0, scale: 0.95 }}

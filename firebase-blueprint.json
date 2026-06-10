@@ -177,9 +177,45 @@
         "addedAt": { "type": "string", "format": "date-time", "description": "When the item was added to the wishlist" }
       },
       "required": ["productId", "userId", "addedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Store category or aisle for classifying products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique category identifier normalized from name" },
+        "name": { "type": "string", "description": "Display name of the category" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the category was created" }
+      },
+      "required": ["id", "name", "createdAt"]
+    },
+    "EmailLog": {
+      "title": "Email Log",
+      "description": "System and customer email copy tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the email copy" },
+        "to": { "type": "string", "description": "Destination email address" },
+        "recipientName": { "type": "string", "description": "Recipient name" },
+        "subject": { "type": "string", "description": "Subject of the email" },
+        "body": { "type": "string", "description": "Fully processed and styled HTML email body" },
+        "type": { "type": "string", "enum": ["order_confirmation", "order_shipped", "order_delivered", "supplier_demand", "promotion_broadcast", "supplier_shipment", "supplier_goods_received"], "description": "Type of event triggering this email" },
+        "status": { "type": "string", "enum": ["sent", "pending", "failed"], "description": "Current transmission status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the email copy was generated and logged" },
+        "metadata": { "type": "object", "description": "Contextual references like orderId or supplierId" }
+      },
+      "required": ["id", "to", "recipientName", "subject", "body", "type", "status", "createdAt"]
     }
   },
   "firestore": {
+    "/emails/{emailId}": {
+      "schema": "EmailLog",
+      "description": "Logs and rendered templates of all customer and supplier communications"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Supermarket product categories"
+    },
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Individual user profile documents"

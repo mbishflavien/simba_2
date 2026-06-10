@@ -59,6 +59,7 @@ service cloud.firestore {
       }
 
       allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) 
         && isValidUserProfile(incoming())
         && incoming().userId == request.auth.uid
@@ -203,6 +204,12 @@ service cloud.firestore {
     }
     match /inventoryAlerts/{alertId} {
       allow read, write: if isAdmin();
+    }
+
+    // 8. Categories Rules
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

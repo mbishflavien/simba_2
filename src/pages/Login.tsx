@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { LogIn, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
@@ -37,7 +38,28 @@ export default function Login() {
     setError(null);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+      
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        const adminEmails = ['flavmbish@gmail.com', 'flavmbish@icloud.com', 'flavien.mbishibishi@a2sv.org', 'test.admin@simba.com'];
+        const email = user.email || '';
+        const isAdmin = adminEmails.includes(email.toLowerCase());
+        await setDoc(userRef, {
+          userId: user.uid,
+          email,
+          displayName: user.displayName || 'Unnamed User',
+          phoneNumber: null,
+          address: null,
+          isAdmin,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
       navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.message);

@@ -57,6 +57,7 @@ service cloud.firestore {
       }
 
       allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) 
         && isValidUserProfile(incoming())
         && incoming().userId == request.auth.uid
@@ -166,6 +167,12 @@ service cloud.firestore {
         && incoming().productId == existing().productId
         && incoming().createdAt == existing().createdAt
       ));
+    }
+
+    // 8. Categories Rules
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

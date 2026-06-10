@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, Timestamp, addDoc, deleteDoc, setDoc, increment } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, Timestamp, addDoc, deleteDoc, setDoc, increment, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../components/AuthProvider';
 import { Order, Product, Supplier, PurchaseOrder, Promotion, StaffMember, InventoryAlert } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
+import { sendOrderShipping, sendOrderDelivery, sendSupplierDemand, sendSupplierShipmentConfirm, sendSupplierGoodsReceived, sendPromotionEmail } from '../lib/emailService';
 import { subDays, subHours, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { 
   BarChart, 
@@ -131,11 +132,20 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts' | 'communications'>('overview');
   const [inventorySearch, setInventorySearch] = useState('');
   const [newOrderAlerts, setNewOrderAlerts] = useState<Order[]>([]);
   const [deliveredAlerts, setDeliveredAlerts] = useState<Order[]>([]);
   const [isEditingProduct, setIsEditingProduct] = useState<Partial<Product> | null>(null);
+
+  // New Category & Transfer Management State
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [transferSource, setTransferSource] = useState('');
+  const [transferTarget, setTransferTarget] = useState('');
+  const [transferSelectedProducts, setTransferSelectedProducts] = useState<string[]>([]);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
   const ordersRef = useRef<Order[]>([]);
   useEffect(() => {
@@ -157,6 +167,7 @@ export default function AdminDashboard() {
   }, []);
   const [isSaving, setIsSaving] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isResettingRatings, setIsResettingRatings] = useState(false);
 
   // New Management State
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -164,6 +175,7 @@ export default function AdminDashboard() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [alerts, setAlerts] = useState<InventoryAlert[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [emails, setEmails] = useState<any[]>([]);
   
   // Promotion refinement states
   const [isEditingPromo, setIsEditingPromo] = useState<any | null>(null);
@@ -172,9 +184,114 @@ export default function AdminDashboard() {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailBlastStatus, setEmailBlastStatus] = useState<string | null>(null);
 
+  // New states for Purchase Orders (Supplier Demands) and Emails logs
+  const [activeCommunicationsSubTab, setActiveCommunicationsSubTab] = useState<'po' | 'history' | 'campaign'>('po');
+  const [isCreatingPO, setIsCreatingPO] = useState(false);
+  const [selectedPOSupplierId, setSelectedPOSupplierId] = useState('');
+  const [poLineItems, setPoLineItems] = useState<{ productId: string; quantity: number; wholesaleCost: number }[]>([]);
+  const [poExpectedDelivery, setPoExpectedDelivery] = useState('');
+  const [viewingEmail, setViewingEmail] = useState<any | null>(null);
+
   const handleLogout = async () => {
     await auth.signOut();
     navigate('/');
+  };
+
+  // Realtime Category Subscription & Auto-seeding
+  useEffect(() => {
+    if (!profile?.isAdmin) return;
+    const q = query(collection(db, 'categories'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (snapshot.empty) {
+        const defaults = [
+          'Food Products',
+          'Household',
+          'Alcoholic Drinks',
+          'Cosmetics & Personal Care',
+          'Baby Products',
+          'Kitchenware & Electronics',
+          'Sports & Wellness',
+          'Pet Care',
+          'Office Supplies'
+        ];
+        try {
+          const promises = defaults.map(name => {
+            const id = name.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_');
+            return setDoc(doc(db, 'categories', id), { name, id, createdAt: Timestamp.now() });
+          });
+          await Promise.all(promises);
+        } catch (err) {
+          console.error("Non-blocking error seeding default categories:", err);
+        }
+      } else {
+        const cats = snapshot.docs.map(doc => doc.data().name as string);
+        setCategoriesList(cats);
+      }
+    }, (error) => {
+      console.error("Error listening to categories in admin:", error);
+    });
+    return () => unsubscribe();
+  }, [profile?.isAdmin]);
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim() || isCreatingCategory) return;
+    setIsCreatingCategory(true);
+    try {
+      const name = newCategoryName.trim();
+      const id = name.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_');
+      
+      const categoryRef = doc(db, 'categories', id);
+      await setDoc(categoryRef, {
+        name,
+        id,
+        createdAt: Timestamp.now()
+      });
+      
+      setNewCategoryName('');
+      alert(`Category "${name}" created successfully!`);
+    } catch (error) {
+      console.error("Error creating category:", error);
+      alert("Failed to create category. Please try again.");
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
+
+  const handleTransferProducts = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferSource || !transferTarget || transferSelectedProducts.length === 0 || isTransferring) {
+      alert("Please select a source category, select some products, and choose a target category.");
+      return;
+    }
+    if (transferSource === transferTarget) {
+      alert("Source and target categories must be different!");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to transfer ${transferSelectedProducts.length} product(s) from "${transferSource}" to "${transferTarget}"?`)) {
+      return;
+    }
+
+    setIsTransferring(true);
+    try {
+      const dbPromises = transferSelectedProducts.map(prodId => {
+        const productRef = doc(db, 'products', prodId);
+        return updateDoc(productRef, {
+          category: transferTarget,
+          updatedAt: Timestamp.now()
+        });
+      });
+
+      await Promise.all(dbPromises);
+      setTransferSelectedProducts([]);
+      alert(`Successfully transferred ${dbPromises.length} products to "${transferTarget}"!`);
+    } catch (error) {
+      console.error("Error transferring products:", error);
+      alert("Failed to transfer products. Please try again.");
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   useEffect(() => {
@@ -224,7 +341,7 @@ export default function AdminDashboard() {
     // Fetch Products
     const productsQ = query(collection(db, 'products'), orderBy('name', 'asc'));
     const unsubscribeProducts = onSnapshot(productsQ, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ ...doc.data() } as Product));
+      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(prods);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
@@ -265,6 +382,20 @@ export default function AdminDashboard() {
       handleFirestoreError(error, OperationType.LIST, 'inventoryAlerts');
     });
 
+    // Fetch Purchase Orders (Supplier Demands)
+    const unsubscribePurchaseOrders = onSnapshot(query(collection(db, 'purchaseOrders'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setPurchaseOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PurchaseOrder)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'purchaseOrders');
+    });
+
+    // Fetch Emails log list
+    const unsubscribeEmails = onSnapshot(query(collection(db, 'emails'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setEmails(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'emails');
+    });
+
     return () => {
       unsubscribeOrders();
       unsubscribeProducts();
@@ -273,6 +404,8 @@ export default function AdminDashboard() {
       unsubscribePromos();
       unsubscribeUsers();
       unsubscribeAlerts();
+      unsubscribePurchaseOrders();
+      unsubscribeEmails();
     };
   }, [profile?.isAdmin]);
 
@@ -308,10 +441,158 @@ export default function AdminDashboard() {
       }
 
       await updateDoc(orderRef, { status: newStatus });
+
+      // Trigger Email Notification for status transitions (non-blocking)
+      const clickedOrder = orders.find(o => o.orderId === orderId);
+      if (clickedOrder && (newStatus === 'shipped' || newStatus === 'delivered')) {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', clickedOrder.userId));
+          if (userSnap.exists()) {
+            const uData = userSnap.data();
+            const emailAddr = uData.email || '';
+            const dispName = uData.displayName || 'Simba Valued Customer';
+            if (emailAddr) {
+              if (newStatus === 'shipped') {
+                sendOrderShipping(clickedOrder, emailAddr, dispName).catch(e => console.error(e));
+              } else if (newStatus === 'delivered') {
+                sendOrderDelivery(clickedOrder, emailAddr, dispName).catch(e => console.error(e));
+              }
+            }
+          }
+        } catch (emailErr) {
+          console.error("Non-blocking order update email issue:", emailErr);
+        }
+      }
     } catch (error) {
       console.error("Error updating order:", error);
       alert(t('update_error'));
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+    }
+  };
+
+  const handleCreatePurchaseOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPOSupplierId || poLineItems.length === 0 || !poExpectedDelivery) {
+      alert("Please specify supplier, items to order, and delivery SLA target.");
+      return;
+    }
+
+    try {
+      const targetSupplier = suppliers.find(s => s.id === selectedPOSupplierId);
+      if (!targetSupplier) {
+        alert("Selected supplier invalid.");
+        return;
+      }
+
+      // Compute totals
+      const compiledItems = poLineItems.map(lineItem => {
+        const prod = products.find(p => p.id === lineItem.productId);
+        return {
+          id: lineItem.productId,
+          name: prod ? prod.name : "Unknown Item",
+          quantity: lineItem.quantity,
+          cost: lineItem.wholesaleCost
+        };
+      });
+
+      const totalCost = compiledItems.reduce((acc, current) => acc + (current.cost * current.quantity), 0);
+      const poId = `PO-${Date.now()}`;
+
+      const newPO: PurchaseOrder = {
+        id: poId,
+        supplierId: selectedPOSupplierId,
+        items: compiledItems,
+        totalCost,
+        status: 'ordered',
+        expectedDelivery: poExpectedDelivery,
+        createdAt: Timestamp.now()
+      };
+
+      // 1. Write to firestore purchaseOrders
+      await setDoc(doc(db, 'purchaseOrders', poId), {
+        ...newPO,
+        createdAt: Timestamp.now()
+      });
+
+      // 2. Trigger automated restock email logs (supplier + internal copy)
+      await sendSupplierDemand(newPO, targetSupplier, compiledItems);
+
+      // 3. Clear states
+      setIsCreatingPO(false);
+      setPoLineItems([]);
+      setSelectedPOSupplierId('');
+      setPoExpectedDelivery('');
+      alert(`Success! Purchase Order ${poId} launched. Automated supply demand logs transmitted!`);
+    } catch (err) {
+      console.error("Failed to construct restock PO demand:", err);
+      alert("Encountered exception generating PO.");
+    }
+  };
+
+  const handleMarkPOShipped = async (po: PurchaseOrder) => {
+    try {
+      const supplierObj = suppliers.find(s => s.id === po.supplierId);
+      if (!supplierObj) {
+        alert("Supplier not found.");
+        return;
+      }
+
+      await updateDoc(doc(db, 'purchaseOrders', po.id), {
+        status: 'shipped',
+        updatedAt: Timestamp.now()
+      });
+
+      await sendSupplierShipmentConfirm(po, supplierObj);
+      alert(`Purchase Order ${po.id} marked in transit. Courier tracking notification dispatched!`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to confirm supplier shipment.");
+    }
+  };
+
+  const handleConfirmPOReceived = async (po: PurchaseOrder) => {
+    try {
+      const supplierObj = suppliers.find(s => s.id === po.supplierId);
+      if (!supplierObj) {
+        alert("Supplier reference error.");
+        return;
+      }
+
+      // 1. Increment inventory levels for each product in the PO
+      const promises = po.items.map((item: any) => {
+        const productRef = doc(db, 'products', String(item.id));
+        return updateDoc(productRef, {
+          stockCount: increment(Number(item.quantity)),
+          warehouseStockCount: increment(Number(item.quantity)),
+          updatedAt: Timestamp.now()
+        });
+      });
+      await Promise.all(promises);
+
+      // 2. Update status to received
+      await updateDoc(doc(db, 'purchaseOrders', po.id), {
+        status: 'received',
+        updatedAt: Timestamp.now()
+      });
+
+      // 3. Trigger receipt confirmation logs
+      await sendSupplierGoodsReceived(po, supplierObj);
+
+      // 4. Create an inventory log notification alert
+      const alertRef = collection(db, 'inventoryAlerts');
+      await addDoc(alertRef, {
+        id: `INV-${Date.now()}`,
+        type: 'low_stock',
+        message: `Restock received for Order #${po.id}! Added bulk supply counts from ${supplierObj.name} to central warehouse.`,
+        severity: 'low',
+        isRead: false,
+        createdAt: Timestamp.now()
+      });
+
+      alert(`Success! Goods for Purchase Order ${po.id} received and checked in. Inventory balances updated.`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to confirm goods check-in.");
     }
   };
 
@@ -360,12 +641,8 @@ export default function AdminDashboard() {
         rawProductData.lowStockThreshold = 10;
       }
 
-      if (isEditingProduct.rating !== undefined) {
-        rawProductData.rating = Number(isEditingProduct.rating);
-      }
-      if (isEditingProduct.reviewCount !== undefined) {
-        rawProductData.reviewCount = Number(isEditingProduct.reviewCount);
-      }
+      rawProductData.rating = isEditingProduct.rating !== undefined ? Number(isEditingProduct.rating) : 0;
+      rawProductData.reviewCount = isEditingProduct.reviewCount !== undefined ? Number(isEditingProduct.reviewCount) : 0;
       if (isEditingProduct.supplierId !== undefined) {
         rawProductData.supplierId = String(isEditingProduct.supplierId);
       }
@@ -445,52 +722,30 @@ export default function AdminDashboard() {
   const handleSendPromotionEmail = async (promo: Promotion) => {
     if (!promo || isSendingEmail) return;
     setIsSendingEmail(true);
-    setEmailBlastStatus("Initializing SMTP connection...");
+    setEmailBlastStatus("Initializing SMTP connections...");
 
     try {
-      // Simulate real SMTP delay and delivery sequence
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setEmailBlastStatus(`Preparing dynamic email body for ${customerUsers.length} customers...`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setEmailBlastStatus(`Generating gorgeous brand HTML templates for ${customerUsers.length > 0 ? customerUsers.length : 1} customers...`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const maxUsers = customerUsers.length > 0 ? customerUsers : [{ displayName: "Test Customer", email: "flavmbish@gmail.com" }];
       
-      const emailTitle = promo.name;
-      const emailType = promo.type;
-      const emailVal = promo.value;
-      const promoStart = format(promo.startDate?.toDate?.() || new Date(), 'MMM d');
-      const promoEnd = format(promo.endDate?.toDate?.() || new Date(), 'MMM d, yyyy');
+      // Dispatch real email rendering and persistence in Firestore 'emails'
+      setEmailBlastStatus("Transmitting and logging secure campaign letters in Firestore database...");
+      const count = await sendPromotionEmail(promo, maxUsers);
 
-      let promoDetails = "";
-      if (emailType === 'percentage') {
-        promoDetails = `${emailVal}% OFF everything!`;
-      } else if (emailType === 'fixed') {
-        promoDetails = `Save ${formatCurrency(emailVal)} on your order!`;
-      } else {
-        promoDetails = `Buy 1 Get 1 FREE Special!`;
-      }
-
-      // Loop over customers to simulate transmission logs
-      const maxUsers = customerUsers.length > 0 ? customerUsers : [{ displayName: "Test Customer", email: "customer@simba.com" }];
-      for (let i = 0; i < maxUsers.length; i++) {
-        const cust = maxUsers[i];
-        setEmailBlastStatus(`Transmitting to ${cust.displayName || 'Customer'} (${cust.email})... [${i+1}/${maxUsers.length}]`);
-        await new Promise(resolve => setTimeout(resolve, Math.max(250, 1500 / maxUsers.length)));
-      }
-
-      setEmailBlastStatus("All emails transmitted. Saving broadcast logs in Firebase...");
-      
-      // Save notification/alert of promo broadcast
       const alertRef = collection(db, 'inventoryAlerts');
       await addDoc(alertRef, {
         id: `PROMO-${Date.now()}`,
         type: 'info',
-        message: `Email alert sent successfully! Broadcast for "Simba: ${promo.name} (${promoDetails})" delivered to ${maxUsers.length} registered customer(s).`,
+        message: `Promotion broadcast for "${promo.name}" logged and dispatched to ${count} customers.`,
         severity: 'low',
         isRead: false,
         createdAt: Timestamp.now()
       });
 
-      await new Promise(resolve => setTimeout(resolve, 600));
-      alert(`Promotion broadcast dispatched successfully! ${maxUsers.length} customer(s) notified via MTN/Simba logistics gateway.`);
+      alert(`Success! Promotion broadcast dispatched successfully! ${count} email logs written.`);
       setSendingPromoEmail(null);
     } catch (error) {
       console.error("Error sending promo emails:", error);
@@ -501,15 +756,61 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleResetReviewsAndRatings = async () => {
+    if (!window.confirm("Are you sure you want to delete all customer reviews and reset all product ratings to 0?")) return;
+    setIsResettingRatings(true);
+    try {
+      // 1. Delete all documents in productReviews
+      const reviewsSnapshot = await getDocs(collection(db, 'productReviews'));
+      if (!reviewsSnapshot.empty) {
+        const deletePromises = reviewsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+      }
+
+      // 2. Fetch all products and update them to rating 0, reviewCount 0
+      const productsSnapshot = await getDocs(collection(db, 'products'));
+      if (!productsSnapshot.empty) {
+        const productPromises = productsSnapshot.docs.map(doc => 
+          updateDoc(doc.ref, {
+            rating: 0,
+            reviewCount: 0
+          })
+        );
+        await Promise.all(productPromises);
+      }
+
+      alert("All reviews have been successfully removed and product ratings have been reset to 0!");
+    } catch (error) {
+      console.error("Error resetting reviews and ratings:", error);
+      alert("Failed to reset reviews and ratings. Please try again.");
+    } finally {
+      setIsResettingRatings(false);
+    }
+  };
+
   const handleSeedData = async () => {
     if (!window.confirm(t('confirm_seed'))) return;
     setIsSeeding(true);
     try {
+      // Clear all existing product reviews (removes fake/old reviews)
+      try {
+        const reviewsSnapshot = await getDocs(collection(db, 'productReviews'));
+        if (!reviewsSnapshot.empty) {
+          const deletePromises = reviewsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+          await Promise.all(deletePromises);
+        }
+      } catch (revErr) {
+        console.error("Non-blocking error clearing product reviews:", revErr);
+      }
+
       // Seed Products
       const productPromises = initialProducts.products.map((p: any) => {
         const productRef = doc(db, 'products', String(p.id));
+        const { rating, reviewCount, ...prodWithoutRating } = p;
         return setDoc(productRef, {
-          ...p,
+          ...prodWithoutRating,
+          rating: 0,
+          reviewCount: 0,
           id: String(p.id),
           stockCount: p.stockCount || Math.floor(Math.random() * 100),
           lowStockThreshold: 10,
@@ -570,16 +871,6 @@ export default function AdminDashboard() {
       setIsSeeding(false);
     }
   };
-
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <RefreshCcw className="h-8 w-8 animate-spin text-brand-primary" />
-    </div>
-  );
-
-  if (!profile?.isAdmin) {
-    return <Navigate to="/" replace />;
-  }
 
   const stats = useMemo(() => {
     const deliveredOrders = orders.filter(o => o.status === 'delivered');
@@ -691,6 +982,16 @@ export default function AdminDashboard() {
     });
   }, [orders]);
 
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <RefreshCcw className="h-8 w-8 animate-spin text-brand-primary" />
+    </div>
+  );
+
+  if (!profile?.isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
   const languages = [
     { code: 'en', name: 'English' },
     { code: 'fr', name: 'Français' },
@@ -744,14 +1045,25 @@ export default function AdminDashboard() {
             </div>
 
             {profile?.isAdmin && (
-              <button 
-                onClick={handleSeedData}
-                disabled={isSeeding}
-                className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white dark:text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-brand-primary/20 disabled:opacity-50"
-              >
-                {isSeeding ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                <span className="hidden md:inline">{t('seed_catalog')}</span>
-              </button>
+              <>
+                <button 
+                  onClick={handleSeedData}
+                  disabled={isSeeding || isResettingRatings}
+                  className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white dark:text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-brand-primary/20 disabled:opacity-50"
+                >
+                  {isSeeding ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                  <span className="hidden md:inline">{t('seed_catalog')}</span>
+                </button>
+                <button 
+                  onClick={handleResetReviewsAndRatings}
+                  disabled={isSeeding || isResettingRatings}
+                  className="flex items-center gap-2 px-6 py-3 bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20 disabled:opacity-50"
+                  title="Delete all reviews and reset ratings to 0"
+                >
+                  {isResettingRatings ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  <span className="hidden md:inline">CLEAR REVIEWS / RATINGS</span>
+                </button>
+              </>
             )}
             <button 
               onClick={handleLogout}
@@ -924,6 +1236,18 @@ export default function AdminDashboard() {
                 </span>
               )}
             </button>
+            <button 
+              onClick={() => setActiveTab('communications')}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
+                activeTab === 'communications' 
+                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
+                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+              )}
+            >
+              <Mail className="h-4 w-4" />
+              COMMUNICATIONS
+            </button>
           </div>
         </div>
         
@@ -1028,7 +1352,7 @@ export default function AdminDashboard() {
                   <span className="text-[9px] font-black uppercase tracking-widest opacity-40">{format(new Date(), 'EEEE, MMM do')}</span>
                 </div>
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={hourlySalesData}>
                       <defs>
                         <linearGradient id="colorHourly" x1="0" y1="0" x2="0" y2="1">
@@ -1151,7 +1475,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-center">
                   <div className="h-[200px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <PieChart>
                         <Pie
                           data={categoryData}
@@ -1341,6 +1665,129 @@ export default function AdminDashboard() {
             exit={{ opacity: 0, x: 20 }}
             className="space-y-8"
           >
+            {/* Category Management Block */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-black/5 dark:bg-zinc-900/40 p-8 sm:p-10 rounded-[48px] border border-brand-border">
+              {/* Card 1: Create Category */}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tighter text-brand-primary">Create New Categories</h3>
+                  <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-1">Add custom inventory classification aisles</p>
+                </div>
+                
+                <form onSubmit={handleCreateCategory} className="flex gap-4">
+                  <input 
+                    type="text"
+                    required
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                    placeholder="e.g. Wines & Spirits"
+                    className="flex-1 bg-white dark:bg-black border border-brand-border rounded-xl p-4 text-xs font-bold"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={isCreatingCategory}
+                    className="px-8 bg-brand-primary text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-orange-600 transition-all flex items-center gap-2 italic"
+                  >
+                    {isCreatingCategory ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Create
+                  </button>
+                </form>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest opacity-40">Active Store Categories ({categoriesList.length})</label>
+                  <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto p-4 bg-white/50 dark:bg-black/50 border border-brand-border rounded-2xl custom-scrollbar">
+                    {categoriesList.map(cat => (
+                      <span key={cat} className="text-[8px] font-black uppercase tracking-widest bg-zinc-500/10 border border-zinc-500/15 p-2 py-1 rounded-md italic">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Bulk Transfer Category */}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tighter text-brand-primary">Aisle Transfer Tool</h3>
+                  <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-1">Re-classify and transfer products between categories</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40">Source Category</label>
+                    <select
+                      value={transferSource}
+                      onChange={e => {
+                        setTransferSource(e.target.value);
+                        setTransferSelectedProducts([]);
+                      }}
+                      className="w-full bg-white dark:bg-black border border-brand-border rounded-xl p-3 text-xs font-bold text-zinc-800 dark:text-zinc-200"
+                    >
+                      <option value="">Select Source</option>
+                      {categoriesList.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40">Target Category</label>
+                    <select
+                      value={transferTarget}
+                      onChange={e => setTransferTarget(e.target.value)}
+                      className="w-full bg-white dark:bg-black border border-brand-border rounded-xl p-3 text-xs font-bold text-zinc-800 dark:text-zinc-200"
+                    >
+                      <option value="">Select Target</option>
+                      {categoriesList.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {transferSource && (
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-40">Select Units to Transfer ({products.filter(p => p.category === transferSource).length} Available)</label>
+                    <div className="max-h-[120px] overflow-y-auto p-4 bg-white/50 dark:bg-black/50 border border-brand-border rounded-2xl space-y-2 custom-scrollbar">
+                      {products.filter(p => p.category === transferSource).map(prod => {
+                        const isChecked = transferSelectedProducts.includes(prod.id);
+                        return (
+                          <label key={prod.id} className="flex items-center gap-3 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 p-1 rounded-lg transition-colors">
+                            <input 
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setTransferSelectedProducts(prev => prev.filter(id => id !== prod.id));
+                                } else {
+                                  setTransferSelectedProducts(prev => [...prev, prod.id]);
+                                }
+                              }}
+                              className="accent-brand-primary rounded"
+                            />
+                            <span className="text-[10px] font-bold uppercase tracking-wide truncate">{prod.name}</span>
+                          </label>
+                        );
+                      })}
+                      {products.filter(p => p.category === transferSource).length === 0 && (
+                        <p className="text-[9px] font-bold opacity-30 text-center uppercase py-4">No products in this category</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleTransferProducts}
+                  disabled={isTransferring || !transferSource || !transferTarget || transferSelectedProducts.length === 0}
+                  className="w-full py-4 bg-brand-primary text-white dark:text-black font-black uppercase tracking-widest text-[9px] rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition-all disabled:opacity-30 italic cursor-pointer"
+                >
+                  {isTransferring ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+                  Transfer {transferSelectedProducts.length > 0 ? `${transferSelectedProducts.length} ` : ''}Selected Units
+                </button>
+              </div>
+            </div>
+
             {/* Inventory Controls */}
             <div className="flex flex-col sm:flex-row gap-4 items-center">
               <div className="relative flex-1 group w-full">
@@ -1402,18 +1849,13 @@ export default function AdminDashboard() {
                           required
                           value={isEditingProduct.category || ''}
                           onChange={e => setIsEditingProduct({...isEditingProduct, category: e.target.value})}
-                          className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 font-bold appearance-none"
+                          className="w-full bg-black/5 dark:bg-black border border-brand-border rounded-xl p-4 font-bold appearance-none text-xs sm:text-sm uppercase tracking-wider"
                         >
                           <option value="">Select Category</option>
-                          <option value="Food & Groceries">Food & Groceries</option>
-                          <option value="Household">Household</option>
-                          <option value="Alcoholic Drinks">Alcoholic Drinks</option>
-                          <option value="Personal Care">Personal Care</option>
-                          <option value="Baby & Kids">Baby & Kids</option>
-                          <option value="Kitchenware">Kitchenware</option>
-                          <option value="Pet Care">Pet Care</option>
-                          <option value="Office Supplies">Office Supplies</option>
-                          <option value="Other">Other</option>
+                          {categoriesList.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          <option value="Other">{t('cat_other')}</option>
                         </select>
                       </div>
                       <div className="space-y-2">
@@ -1845,6 +2287,274 @@ export default function AdminDashboard() {
               )}
             </div>
           </motion.div>
+        ) : activeTab === 'communications' ? (
+          <motion.div
+            key="communications-tab"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-8 text-neutral-800 dark:text-neutral-100"
+          >
+            {/* Nav & Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+              <div>
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-900 dark:text-white">Simba Communications & Supplies</h3>
+                <p className="text-xs font-bold text-zinc-500 uppercase">Manage transactional notifications, restocking purchase orders, and promo broadcasts</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setActiveCommunicationsSubTab('po')}
+                  className={cn(
+                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                    activeCommunicationsSubTab === 'po'
+                      ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                      : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                  )}
+                >
+                  Supplier Demands (POs)
+                </button>
+                <button
+                  onClick={() => setActiveCommunicationsSubTab('history')}
+                  className={cn(
+                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                    activeCommunicationsSubTab === 'history'
+                      ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                      : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                  )}
+                >
+                  Transactional Transmissions
+                </button>
+                <button
+                  onClick={() => setActiveCommunicationsSubTab('campaign')}
+                  className={cn(
+                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                    activeCommunicationsSubTab === 'campaign'
+                      ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                      : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                  )}
+                >
+                  Interactive Campaigns
+                </button>
+              </div>
+            </div>
+
+            {/* Subtab Contents — PO */}
+            {activeCommunicationsSubTab === 'po' && (
+              <div className="space-y-6">
+                {/* Stats Panel */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/5">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Issued Demands</p>
+                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">{purchaseOrders.length} Orders</p>
+                  </div>
+                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/5">
+                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Awaiting Deliveries (Open)</p>
+                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">
+                      {purchaseOrders.filter(po => po.status === 'ordered' || po.status === 'shipped').length} Open
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/5">
+                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Goods Checked In (Restocked)</p>
+                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">
+                      {purchaseOrders.filter(po => po.status === 'received').length} Completed
+                    </p>
+                  </div>
+                </div>
+
+                {/* Main section */}
+                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
+                  <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+                    <div>
+                      <h4 className="text-lg font-black uppercase italic tracking-tight">Supply restock requests</h4>
+                      <p className="text-xs text-zinc-500">Demanded replenishment items linked directly to premium Kigali suppliers</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setPoLineItems([{ productId: products[0]?.id || '', quantity: 200, wholesaleCost: Math.floor((products[0]?.price || 1000) * 0.7) }]);
+                        setIsCreatingPO(true);
+                      }}
+                      className="px-5 py-3 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic transform transition-transform hover:scale-102"
+                    >
+                      <Plus className="h-4 w-4" /> Create PO restock demand
+                    </button>
+                  </div>
+
+                  {/* Purchase order items */}
+                  <div className="space-y-4">
+                    {purchaseOrders.map((po) => {
+                      const supplierOfPO = suppliers.find(s => s.id === po.supplierId);
+                      return (
+                        <div key={po.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                          <div className="space-y-3 flex-1 w-full">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="font-mono text-zinc-400 font-bold block select-all text-xs">{po.id}</span>
+                              <span className="text-zinc-500 dark:text-zinc-400 font-black uppercase italic tracking-wide text-sm">• {supplierOfPO ? supplierOfPO.name : `Supplier ID ${po.supplierId}`}</span>
+                              <span className={cn(
+                                "text-[9px] font-black uppercase px-2.5 py-1 rounded-full border tracking-wider",
+                                po.status === 'received' 
+                                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/10" 
+                                  : po.status === 'shipped'
+                                  ? "bg-orange-500/10 text-orange-500 border-orange-500/10 animate-pulse"
+                                  : "bg-amber-500/10 text-amber-500 border-amber-500/10 animate-pulse"
+                              )}>
+                                {po.status}
+                              </span>
+                            </div>
+
+                            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 max-w-xl">
+                              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Requested Goods:</p>
+                              <div className="flex flex-col gap-1">
+                                {po.items && po.items.map((line: any, lIdx: number) => (
+                                  <div key={lIdx} className="text-xs flex justify-between">
+                                    <span className="text-zinc-700 dark:text-zinc-300">• {line.name} <strong className="opacity-60 text-[10px] font-mono">x{line.quantity}</strong></span>
+                                    <span className="font-mono text-zinc-500">{formatCurrency(line.cost)}/ea</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-4 text-xs font-semibold text-zinc-500 flex-wrap">
+                              <span>SLA target: <strong className="text-zinc-700 dark:text-zinc-350">{po.expectedDelivery}</strong></span>
+                              <span>Total Quote: <strong className="text-zinc-900 dark:text-white font-black">{formatCurrency(po.totalCost)}</strong></span>
+                            </div>
+                          </div>
+
+                          {/* Action panel triggers */}
+                          <div className="flex gap-2 self-stretch md:self-auto flex-col w-full md:w-auto shrink-0">
+                            {po.status === 'ordered' && (
+                              <>
+                                <button
+                                  onClick={() => handleMarkPOShipped(po)}
+                                  className="px-5 py-3 text-white bg-orange-500 hover:bg-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2"
+                                >
+                                  <Truck className="h-4 w-4" /> MARK SHIPPED 🚚
+                                </button>
+                                <button
+                                  onClick={() => handleConfirmPOReceived(po)}
+                                  className="px-5 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2"
+                                >
+                                  <CheckCircle className="h-4 w-4" /> VERIFY & RECEIVE ✔
+                                </button>
+                              </>
+                            )}
+                            {po.status === 'shipped' && (
+                              <button
+                                onClick={() => handleConfirmPOReceived(po)}
+                                className="px-5 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2"
+                              >
+                                <CheckCircle className="h-4 w-4" /> VERIFY & RECEIVE ✔
+                              </button>
+                            )}
+                            {po.status === 'received' && (
+                              <div className="text-[10px] font-black text-emerald-500 border border-emerald-500/20 bg-emerald-500/5 p-3 rounded-xl uppercase tracking-widest text-center">
+                                Checked In & Restocked
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {purchaseOrders.length === 0 && (
+                      <div className="py-20 text-center text-zinc-500 italic opacity-40 uppercase font-black">
+                        No purchase restock orders filed yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Subtab Contents — TRANSACTIONAL LOGS */}
+            {activeCommunicationsSubTab === 'history' && (
+              <div className="space-y-6">
+                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
+                  <div className="mb-6">
+                    <h4 className="text-lg font-black uppercase italic tracking-tight">Transactional Notification Journal</h4>
+                    <p className="text-xs text-zinc-500">Full SMTP log capturing of all system-issued order receipts, courier alerts, and supply demands</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {emails.map((email) => (
+                      <div key={email.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div className="space-y-2 flex-1 w-full">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-zinc-400 font-bold block text-xs">{email.id}</span>
+                            <span className="text-[10px] font-black uppercase italic text-zinc-500">• {email.type ? email.type.replace('_', ' ') : 'notification'}</span>
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse ml-2" />
+                            <span className="text-[10px] font-black text-emerald-500 uppercase">TRANSMITTED</span>
+                          </div>
+
+                          <h5 className="font-black text-base uppercase italic text-zinc-950 dark:text-white select-all">{email.subject}</h5>
+
+                          <div className="flex gap-4 text-xs font-semibold text-zinc-500 flex-wrap">
+                            <span>To: <strong className="text-zinc-700 dark:text-zinc-300 select-all">{email.recipientName} &lt;{email.to}&gt;</strong></span>
+                            <span>On: <strong>{email.createdAt?.toDate ? email.createdAt.toDate().toLocaleString() : new Date(email.createdAt).toLocaleString()}</strong></span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setViewingEmail(email)}
+                          className="px-5 py-3 text-white bg-zinc-900 border border-zinc-800 dark:bg-zinc-900 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-zinc-850 dark:hover:bg-zinc-805 transition-colors flex items-center gap-2 italic self-stretch md:self-auto text-center justify-center shrink-0"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" /> View Template Layout
+                        </button>
+                      </div>
+                    ))}
+
+                    {emails.length === 0 && (
+                      <div className="py-24 text-center text-zinc-500 italic opacity-40 uppercase font-black">
+                        No transactional transmissions logged yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Subtab Contents — INTERACTIVE CAMPAIGNS */}
+            {activeCommunicationsSubTab === 'campaign' && (
+              <div className="space-y-6">
+                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
+                  <div className="mb-6">
+                    <h4 className="text-lg font-black uppercase italic tracking-tight">Active Promotion Broadcasts</h4>
+                    <p className="text-xs text-zinc-500">Deliver exquisite, styled digital checkout codes directly to the email of registered customers</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {promotions.map((promo) => (
+                      <div key={promo.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col justify-between gap-6">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-full text-brand-primary bg-brand-primary/10 border border-brand-primary/25">
+                              {promo.type === 'percentage' ? `${promo.value}% discount` : `value RWF ${promo.value}`}
+                            </span>
+                            <span className="font-mono text-zinc-500 text-[10px]">#{promo.id}</span>
+                          </div>
+
+                          <h5 className="font-black text-lg text-zinc-900 dark:text-white uppercase italic tracking-tight">{promo.name}</h5>
+                          <p className="text-xs text-zinc-500 leading-relaxed">Runs from {promo.startDate ? (promo.startDate.toDate ? promo.startDate.toDate().toLocaleDateString() : new Date(promo.startDate).toLocaleDateString()) : ''} to {promo.endDate ? (promo.endDate.toDate ? promo.endDate.toDate().toLocaleDateString() : new Date(promo.endDate).toLocaleDateString()) : ''}. Applicable on select premium Kigali merchandise stores.</p>
+                        </div>
+
+                        <button
+                          onClick={() => setSendingPromoEmail(promo)}
+                          className="w-full py-4 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest text-center flex items-center justify-center gap-2 italic transform transition-transform hover:scale-102"
+                        >
+                          <Megaphone className="h-4 w-4" /> Broadcast campaign via email
+                        </button>
+                      </div>
+                    ))}
+
+                    {promotions.length === 0 && (
+                      <div className="col-span-1 md:col-span-2 py-20 text-center text-zinc-500 italic opacity-40 uppercase font-black">
+                        Configure a Promotion before initiating broadcasts
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
         ) : (
           <div />
         )}
@@ -2094,6 +2804,230 @@ export default function AdminDashboard() {
                   )}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Email Log Visualizer Modal */}
+      <AnimatePresence>
+        {viewingEmail && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            id="email-preview-modal"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-neutral-900 border border-[#27272a] w-full max-w-3xl rounded-[40px] p-6 shadow-2xl relative text-white"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tighter">Simba Mail Log Visualizer</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase">Interactive SMTP HTML Sandbox</p>
+                </div>
+                <button
+                  onClick={() => setViewingEmail(null)}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-full text-[10px] font-bold uppercase tracking-wider"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="bg-[#141414] border border-[#27272a] rounded-2xl overflow-hidden p-4 mb-4 font-mono text-zinc-400 text-xs">
+                <p className="mb-1"><strong>To:</strong> {viewingEmail.to}</p>
+                <p className="mb-1"><strong>Subject:</strong> {viewingEmail.subject}</p>
+                <p><strong>Type:</strong> <span className="text-brand-primary font-bold uppercase">{viewingEmail.type}</span></p>
+              </div>
+
+              {/* Structured HTML iframe sandboxing to display perfect design! */}
+              <div className="w-full bg-white rounded-2xl overflow-hidden shadow-inner border border-zinc-800" style={{ height: "450px" }}>
+                <iframe
+                  srcDoc={viewingEmail.body}
+                  title="Rendered Email Preview"
+                  className="w-full h-full border-none"
+                  sandbox="allow-popups"
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Purchase Order Modal */}
+      <AnimatePresence>
+        {isCreatingPO && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto"
+            id="create-po-modal"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-neutral-900 border border-brand-primary/20 w-full max-w-2xl rounded-[40px] p-6 md:p-8 shadow-2xl relative text-white"
+            >
+              <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
+                <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tighter">Draft restock purchase order</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase">Construct bulk replenishment demand slips</p>
+                </div>
+                <button
+                  onClick={() => setIsCreatingPO(false)}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-full text-[10px] font-bold uppercase"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <form onSubmit={handleCreatePurchaseOrder} className="space-y-6">
+                {/* Supplier Selector */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] block mb-2">Select Restock Supplier Partner</label>
+                  <select
+                    value={selectedPOSupplierId}
+                    onChange={(e) => {
+                      setSelectedPOSupplierId(e.target.value);
+                      const chosenCategory = suppliers.find(s => s.id === e.target.value)?.category;
+                      const matchingProds = products.filter(p => !chosenCategory || p.category.toLowerCase() === chosenCategory.toLowerCase());
+                      const defaultProdId = matchingProds[0]?.id || products[0]?.id || '';
+                      const defaultProdPrice = matchingProds[0]?.price || products[0]?.price || 1500;
+                      setPoLineItems([{ productId: defaultProdId, quantity: 200, wholesaleCost: Math.floor(defaultProdPrice * 0.7) }]);
+                    }}
+                    required
+                    className="w-full px-5 py-3.5 bg-black/40 border border-[#2d2d2d] rounded-2xl text-xs font-bold text-white uppercase"
+                  >
+                    <option value="" className="text-zinc-500">-- SELECT SUPPLIER --</option>
+                    {suppliers.filter(s => s.active).map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Expected delivery Target */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] block mb-2">Expected Logistics SLA Delivery Date</label>
+                  <input
+                    type="date"
+                    value={poExpectedDelivery}
+                    onChange={(e) => setPoExpectedDelivery(e.target.value)}
+                    required
+                    className="w-full px-5 py-3.5 bg-black/40 border border-[#2d2d2d] rounded-2xl text-xs font-bold text-white uppercase"
+                  />
+                </div>
+
+                {/* Dynamic List Items */}
+                {selectedPOSupplierId && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] block text-left">Quantity & Wholesale cost Line Details</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPoLineItems([...poLineItems, { productId: products[0]?.id || '', quantity: 100, wholesaleCost: 1000 }]);
+                        }}
+                        className="text-[9px] font-black uppercase tracking-wider text-brand-primary h-8 px-3 border border-brand-primary/20 rounded-lg hover:bg-brand-primary/5 transition-all text-center"
+                      >
+                        + Add items line
+                      </button>
+                    </div>
+
+                    {poLineItems.map((item, idx) => (
+                      <div key={idx} className="flex gap-2 items-center flex-wrap md:flex-nowrap">
+                        {/* Product spec */}
+                        <select
+                          value={item.productId}
+                          onChange={(e) => {
+                            const newItems = [...poLineItems];
+                            newItems[idx].productId = e.target.value;
+                            const prod = products.find(p => p.id === e.target.value);
+                            if (prod) {
+                              newItems[idx].wholesaleCost = Math.floor(prod.price * 0.7);
+                            }
+                            setPoLineItems(newItems);
+                          }}
+                          className="bg-black/40 border border-[#2d2d2d] px-3 py-2.5 rounded-xl text-xs text-white max-w-full md:flex-1"
+                        >
+                          {products.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.price)})</option>
+                          ))}
+                        </select>
+
+                        {/* Qty count */}
+                        <div className="w-24">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            min={1}
+                            placeholder="Qty"
+                            onChange={(e) => {
+                              const newItems = [...poLineItems];
+                              newItems[idx].quantity = Number(e.target.value);
+                              setPoLineItems(newItems);
+                            }}
+                            required
+                            className="w-full bg-black/40 border border-[#2d2d2d] px-3 py-2.5 rounded-xl text-xs text-white uppercase"
+                          />
+                        </div>
+
+                        {/* Wholesale spec */}
+                        <div className="w-32">
+                          <input
+                            type="number"
+                            value={item.wholesaleCost}
+                            min={0}
+                            placeholder="Cost (RWF)"
+                            onChange={(e) => {
+                              const newItems = [...poLineItems];
+                              newItems[idx].wholesaleCost = Number(e.target.value);
+                              setPoLineItems(newItems);
+                            }}
+                            required
+                            className="w-full bg-black/40 border border-[#2d2d2d] px-3 py-2.5 rounded-xl text-xs text-white uppercase"
+                          />
+                        </div>
+
+                        {/* Remove button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newItems = poLineItems.filter((_, i) => i !== idx);
+                            setPoLineItems(newItems);
+                          }}
+                          className="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl transition-all h-10 w-10 flex items-center justify-center shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quote Total Summary section */}
+                {selectedPOSupplierId && poLineItems.length > 0 && (
+                  <div className="bg-[#17181c] p-4 rounded-2xl border border-zinc-800 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-[#9a9a9a] uppercase">Calculated wholesale Quote Total</span>
+                    <span className="text-base font-black italic text-brand-primary font-mono">
+                      {formatCurrency(poLineItems.reduce((acc, current) => acc + (current.wholesaleCost * current.quantity), 0))}
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!selectedPOSupplierId || poLineItems.length === 0}
+                  className="w-full py-4 bg-brand-primary hover:bg-orange-600 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest italic tracking-wider transition-colors"
+                >
+                  Submit Slips & Broadcast Restock Demands via SMTP
+                </button>
+              </form>
             </motion.div>
           </motion.div>
         )}

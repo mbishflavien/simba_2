@@ -26,7 +26,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { addToCart, cart, updateQuantity } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { t } = useTranslation();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -118,7 +118,7 @@ export default function ProductDetail() {
         transaction.set(newReviewDoc, {
           productId: id,
           userId: user.uid,
-          userName: user.displayName || 'Kigali Shopper',
+          userName: profile?.displayName || user.displayName || user.email?.split('@')[0] || 'Kigali Shopper',
           rating: newRating,
           comment: newComment,
           createdAt: serverTimestamp()
@@ -188,6 +188,11 @@ export default function ProductDetail() {
 
   const cartItem = cart.find(item => item.id === product.id);
 
+  const reviewsCount = reviews.length;
+  const averageRating = reviewsCount > 0 
+    ? Number((reviews.reduce((acc, rev) => acc + rev.rating, 0) / reviewsCount).toFixed(1)) 
+    : 0;
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
       <button 
@@ -217,7 +222,7 @@ export default function ProductDetail() {
           />
           <div className="absolute top-10 left-10 z-20">
              <span className="micro-label px-4 py-2 border border-brand-border dark:border-white/10 rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-md">
-               {product.category}
+                {product.category}
              </span>
           </div>
           {(!product.inStock || (product.stockCount !== undefined && product.stockCount <= 0)) && (
@@ -253,7 +258,7 @@ export default function ProductDetail() {
               )}
             </div>
             
-            {(product.rating !== undefined) && (
+            {averageRating > 0 && reviewsCount > 0 ? (
               <div className="flex items-center gap-4 mb-8">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
@@ -261,7 +266,7 @@ export default function ProductDetail() {
                       key={i} 
                       className={cn(
                         "h-5 w-5",
-                        i < Math.floor(product.rating || 0) 
+                        i < Math.floor(averageRating) 
                           ? "fill-amber-400 text-amber-400" 
                           : "fill-zinc-200 text-zinc-200 dark:fill-zinc-800 dark:text-zinc-800"
                       )} 
@@ -269,9 +274,13 @@ export default function ProductDetail() {
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xl font-black italic text-[var(--brand-text)]">{product.rating || '0.0'}</span>
-                  <span className="text-xs font-bold opacity-40 text-[var(--brand-text)] uppercase tracking-widest">/ {product.reviewCount || 0} {t('reviews')}</span>
+                  <span className="text-xl font-black italic text-[var(--brand-text)]">{averageRating}</span>
+                  <span className="text-xs font-bold opacity-40 text-[var(--brand-text)] uppercase tracking-widest">/ {reviewsCount} {t('reviews')}</span>
                 </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mb-8 bg-zinc-500/5 border border-zinc-500/10 rounded-xl px-4 py-2 w-fit">
+                <span className="text-xs font-bold opacity-60 text-[var(--brand-text)] uppercase tracking-widest">{t('no_reviews_yet', 'No reviews yet')}</span>
               </div>
             )}
             
@@ -468,8 +477,13 @@ export default function ProductDetail() {
               </form>
             ) : (
               <div className="bg-zinc-500/10 border border-zinc-500/20 rounded-[40px] p-10 text-center sticky top-32">
-                 <p className="text-[var(--brand-text)] font-black uppercase italic tracking-widest">{t('login_to_review')}</p>
-                 <button onClick={() => navigate('/login')} className="mt-4 text-brand-primary font-black uppercase tracking-widest text-xs hover:underline">LOGIN NOW →</button>
+                 <p className="text-[var(--brand-text)] font-black uppercase italic tracking-widest">{t('login_to_review', 'Please log in to write a review')}</p>
+                 <button 
+                   onClick={() => navigate('/login', { state: { from: `/product/${id}` } })} 
+                   className="mt-4 text-brand-primary font-black uppercase tracking-widest text-xs hover:underline cursor-pointer"
+                 >
+                   LOGIN NOW →
+                 </button>
               </div>
             )}
           </div>

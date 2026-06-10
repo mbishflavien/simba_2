@@ -8,9 +8,10 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import BranchMap, { SIMBA_BRANCHES } from '../components/BranchMap';
 
-import { collection, doc, setDoc, serverTimestamp, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc, updateDoc, increment, Timestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { OrderItem } from '../types';
+import { Order, OrderItem } from '../types';
+import { sendOrderConfirmation } from '../lib/emailService';
 
 const NEIGHBORHOODS: Record<string, { lat: number; lng: number }> = {
   'nyarutarama': { lat: -1.9197, lng: 30.0927 },
@@ -135,6 +136,7 @@ export default function Cart() {
     }));
 
     try {
+      const orderAddress = paymentMethod === 'cash' ? `Pickup at ${SIMBA_BRANCHES.find(b => b.id === selectedBranch)?.name}` : address;
       // 1. Save the order
       await setDoc(doc(db, 'orders', orderId), {
         orderId,
@@ -143,10 +145,32 @@ export default function Cart() {
         total: totalPrice + (paymentMethod === 'cash' ? 0 : (totalPrice > 50000 ? 0 : 2000)),
         status: 'pending',
         paymentMethod,
-        address: paymentMethod === 'cash' ? `Pickup at ${SIMBA_BRANCHES.find(b => b.id === selectedBranch)?.name}` : address,
+        address: orderAddress,
         pickupBranch: paymentMethod === 'cash' ? selectedBranch : null,
         createdAt: serverTimestamp()
       });
+
+      // 2. Transmit Confirmation Email (non-blocking)
+      const orderObj: Order = {
+        orderId,
+        userId: user.uid,
+        items: orderItems,
+        total: totalPrice + (paymentMethod === 'cash' ? 0 : (totalPrice > 50000 ? 0 : 2000)),
+        status: 'pending',
+        paymentMethod,
+        address: orderAddress,
+        pickupBranch: paymentMethod === 'cash' ? selectedBranch : undefined,
+        createdAt: Timestamp.now()
+      };
+      
+      const emailVal = user?.email || '';
+      const nameVal = profile?.displayName || user?.email?.split('@')[0] || 'Simba Valued Customer';
+      
+      if (emailVal) {
+        sendOrderConfirmation(orderObj, emailVal, nameVal).catch(err => {
+          console.error("Non-blocking order email confirm error:", err);
+        });
+      }
 
       return orderId;
     } catch (error) {

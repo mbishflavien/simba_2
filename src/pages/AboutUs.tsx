@@ -22,7 +22,7 @@ interface BranchReview {
 export default function AboutUs() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   
   const [selectedBranchId, setSelectedBranchId] = useState<string>(SIMBA_BRANCHES[0].id);
   const [reviews, setReviews] = useState<BranchReview[]>([]);
@@ -62,16 +62,19 @@ export default function AboutUs() {
     return () => unsubscribe();
   }, [selectedBranchId]);
 
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newComment.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
+    setReviewError(null);
     try {
       await addDoc(collection(db, 'branchReviews'), {
         branchId: selectedBranchId,
         userId: user.uid,
-        userName: user.displayName || 'Kigali Shopper',
+        userName: profile?.displayName || user.displayName || user.email?.split('@')[0] || 'Kigali Shopper',
         rating: newRating,
         comment: newComment,
         createdAt: serverTimestamp()
@@ -80,7 +83,7 @@ export default function AboutUs() {
       setNewRating(5);
     } catch (err) {
       console.error("Error adding review:", err);
-      alert("Failed to post review. Please ensure you are logged in.");
+      setReviewError("Failed to post review. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -224,7 +227,7 @@ export default function AboutUs() {
                <form onSubmit={handleSubmitReview} className="bg-black/5 dark:bg-white/5 border border-brand-border rounded-[40px] p-8 sm:p-12">
                   <div className="flex items-center gap-6 mb-8">
                     <div className="w-16 h-16 bg-brand-primary rounded-full flex items-center justify-center text-white text-2xl font-black uppercase italic">
-                      {user.displayName?.[0] || 'K'}
+                      {(profile?.displayName || user.displayName || user.email?.split('@')[0] || 'K')[0]}
                     </div>
                     <div>
                       <h4 className="font-black italic uppercase tracking-tighter text-xl">{t('review_title')}</h4>
@@ -242,6 +245,13 @@ export default function AboutUs() {
                       </div>
                     </div>
                   </div>
+                  
+                  {reviewError && (
+                    <div className="p-4 mb-6 text-xs font-bold uppercase italic tracking-wider bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl">
+                      {reviewError}
+                    </div>
+                  )}
+
                   <textarea
                     required
                     value={newComment}
@@ -266,7 +276,13 @@ export default function AboutUs() {
                </form>
             ) : (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-[40px] p-10 text-center">
-                 <p className="text-[var(--brand-text)] font-black uppercase italic tracking-widest">{t('login_to_review')}</p>
+                 <p className="text-[var(--brand-text)] font-black uppercase italic tracking-widest">{t('login_to_review', 'Please log in to write a review')}</p>
+                 <button 
+                   onClick={() => navigate('/login', { state: { from: '/about' } })} 
+                   className="mt-4 text-brand-primary font-black uppercase tracking-widest text-xs hover:underline cursor-pointer"
+                 >
+                   LOGIN NOW →
+                 </button>
               </div>
             )}
 
