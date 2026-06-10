@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi, LogIn, MapPin, Search, ShoppingBag } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi, LogIn, MapPin, Search, ShoppingBag, Star, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
@@ -42,6 +42,13 @@ export default function Cart() {
   const [cardType, setCardType] = useState<'visa' | 'mastercard'>('visa');
   const [cardData, setCardData] = useState({ number: '', expiry: '', cvv: '' });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const [placedOrderId, setPlacedOrderId] = useState<string>('');
+  const [serviceRating, setServiceRating] = useState<number>(0);
+  const [hoveredRating, setHoveredRating] = useState<number>(0);
+  const [serviceFeedback, setServiceFeedback] = useState<string>('');
+  const [ratingSubmitted, setRatingSubmitted] = useState<boolean>(false);
+  const [ratingSubmitting, setRatingSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     if (profile?.address && !address) {
@@ -156,7 +163,8 @@ export default function Cart() {
     try {
       // Simulate waiting for MoMo confirmation
       await new Promise(resolve => setTimeout(resolve, 4500));
-      await saveOrder();
+      const orderId = await saveOrder();
+      if (orderId) setPlacedOrderId(orderId);
       setIsProcessing(false);
       setIsSuccess(true);
       clearCart();
@@ -173,7 +181,8 @@ export default function Cart() {
     
     try {
       await new Promise(resolve => setTimeout(resolve, 3000));
-      await saveOrder();
+      const orderId = await saveOrder();
+      if (orderId) setPlacedOrderId(orderId);
       setIsProcessing(false);
       setIsSuccess(true);
       clearCart();
@@ -191,7 +200,8 @@ export default function Cart() {
     }
     setIsProcessing(true);
     try {
-      await saveOrder();
+      const orderId = await saveOrder();
+      if (orderId) setPlacedOrderId(orderId);
       setIsProcessing(false);
       setIsSuccess(true);
       clearCart();
@@ -201,13 +211,34 @@ export default function Cart() {
     }
   };
 
+  const handleRatingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!placedOrderId || serviceRating === 0) return;
+    setRatingSubmitting(true);
+    
+    try {
+      const orderRef = doc(db, 'orders', placedOrderId);
+      await updateDoc(orderRef, {
+        serviceRating,
+        serviceFeedback,
+        ratedAt: serverTimestamp()
+      });
+      setRatingSubmitted(true);
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      alert("Failed to submit rating. Please try again from your order history.");
+    } finally {
+      setRatingSubmitting(false);
+    }
+  };
+
   if (isSuccess) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-32 text-center text-[var(--brand-text)]">
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center text-[var(--brand-text)] animate-fade-in">
         <motion.div 
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-24 h-24 bg-brand-primary rounded-full flex items-center justify-center mx-auto mb-8"
+          className="w-24 h-24 bg-brand-primary rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl shadow-brand-primary/20"
         >
           {paymentMethod === 'cash' ? (
             <MapPin className="h-10 w-10 text-white dark:text-black" />
@@ -215,12 +246,82 @@ export default function Cart() {
             <CreditCard className="h-10 w-10 text-white dark:text-black" />
           )}
         </motion.div>
-        <h2 className="massive-header mb-8 tracking-widest leading-none text-[var(--brand-text)]">
+        <h2 className="massive-header mb-4 tracking-widest leading-none text-[var(--brand-text)]">
           {paymentMethod === 'cash' ? t('pickup_confirmed') : `${t('order_received')}!`}
         </h2>
-        <p className="opacity-60 mb-10 text-lg font-black uppercase tracking-widest italic text-[var(--brand-text)]">
+        <p className="opacity-60 mb-6 text-sm font-black uppercase tracking-widest italic text-[var(--brand-text)]">
           {paymentMethod === 'cash' ? t('pickup_reception_note') : t('kigali_delivery') + '.'}
         </p>
+
+        {/* Improved Service Review & Feedback Section */}
+        <div className="my-12 p-8 border border-brand-border bg-black/5 dark:bg-zinc-900/50 rounded-[40px] text-left max-w-lg mx-auto shadow-2xl">
+          {!ratingSubmitted ? (
+            <form onSubmit={handleRatingSubmit} className="space-y-6">
+              <h3 className="text-lg font-black italic uppercase tracking-tighter text-[var(--brand-text)] flex items-center gap-2">
+                <Star className="h-5 w-5 text-brand-primary fill-brand-primary" />
+                Rate your purchase & delivery service
+              </h3>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight leading-normal">
+                Help Mr. Teklay Teame and the Simba Kigali team strive for excellence by reviewing your experience today! 🦁🇷🇼
+              </p>
+              
+              <div className="flex justify-center gap-3 py-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setServiceRating(star)}
+                    onMouseEnter={() => setHoveredRating(star)}
+                    onMouseLeave={() => setHoveredRating(0)}
+                    className="p-1 hover:scale-125 active:scale-95 transition-all text-neutral-300 dark:text-zinc-800"
+                  >
+                    <Star
+                      className={cn(
+                        "h-9 w-9 transition-colors",
+                        star <= (hoveredRating || serviceRating)
+                          ? "text-amber-400 fill-amber-400 opacity-100"
+                          : "text-zinc-500 opacity-30"
+                      )}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">How can we improve? (Optional)</label>
+                <textarea
+                  value={serviceFeedback}
+                  onChange={(e) => setServiceFeedback(e.target.value)}
+                  placeholder="E.g., Delivery was quick, or suggest a new product selection..."
+                  className="w-full bg-white dark:bg-zinc-950 border border-brand-border rounded-2xl p-4 text-xs font-bold focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all h-24"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={serviceRating === 0 || ratingSubmitting}
+                className="w-full bg-brand-primary text-white dark:text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 disabled:opacity-30 transition-all shadow-lg shadow-brand-primary/20 cursor-pointer"
+              >
+                {ratingSubmitting ? "Submitting..." : "Submit Rating & Feedback"}
+              </button>
+            </form>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-6 space-y-4"
+            >
+              <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
+                <Check className="h-6 w-6" />
+              </div>
+              <p className="text-base font-black italic uppercase text-emerald-500 leading-none">Thank you for your rating! 🦁</p>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-relaxed">
+                We review every customer rating in Kigali diligently so we can keep striving for excellence!
+              </p>
+            </motion.div>
+          )}
+        </div>
+
         <Link 
           to="/profile" 
           className="inline-flex items-center gap-2 bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 transition-colors shadow-2xl shadow-brand-primary/20"

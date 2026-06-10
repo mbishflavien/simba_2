@@ -54,10 +54,10 @@ export default function Home() {
   }, [products]);
 
   const handleAiSearch = (intent: AiSearchIntent) => {
-    // Apply filters from AI
-    if (intent.category) setSelectedCategory(intent.category);
-    if (intent.minPrice !== null) setMinPrice(intent.minPrice);
-    if (intent.maxPrice !== null) setMaxPrice(intent.maxPrice);
+    // Apply filters from AI - resetting properties if they aren't part of the current intent to prevent stale filters
+    setSelectedCategory(intent.category);
+    setMinPrice(intent.minPrice !== null ? intent.minPrice : '');
+    setMaxPrice(intent.maxPrice !== null ? intent.maxPrice : '');
     
     // Update URL for the search query
     const newParams = new URLSearchParams(searchParams);
@@ -68,9 +68,11 @@ export default function Home() {
     }
     setSearchParams(newParams);
     
-    // Open filter panel if we have price filters to show the user what happened
+    // Open filter panel if we have price filters to show the user what happened, otherwise close it
     if (intent.minPrice !== null || intent.maxPrice !== null) {
       setIsFilterOpen(true);
+    } else {
+      setIsFilterOpen(false);
     }
 
     // Scroll to results
@@ -86,19 +88,32 @@ export default function Home() {
       if (selectedCategory && product.category !== selectedCategory) return false;
       
       if (searchQuery) {
-        const keywords = searchQuery.split(/\s+/).filter(k => k.length > 0);
+        // Split on whitespace, commas, or semicolons
+        const keywords = searchQuery.split(/[\s,;]+/).map(k => k.trim()).filter(k => k.length > 0);
         const name = product.name?.toLowerCase() || '';
         const category = product.category?.toLowerCase() || '';
         
-        // Expand keywords with synonyms
+        // Expand keywords with synonyms and thematic expansions
         const expandedKeywords = keywords.flatMap(k => {
-          if (k === 'liquor' || k === 'wine' || k === 'beer' || k === 'whiskey') return [k, 'alcohol'];
-          if (k === 'food' || k === 'grocery') return [k, 'groceries'];
-          if (k === 'gym' || k === 'fitness') return [k, 'sports', 'wellness'];
+          if (k === 'liquor' || k === 'wine' || k === 'beer' || k === 'whiskey') return [k, 'alcohol', 'alcoholic'];
+          if (k === 'food' || k === 'grocery' || k === 'groceries') return [k, 'groceries', 'food'];
+          if (k === 'gym' || k === 'fitness' || k === 'workout') return [k, 'sports', 'wellness', 'fitness'];
+          if (k === 'breakfast' || k === 'morning') return [k, 'milk', 'bread', 'egg', 'cereal', 'butter', 'coffee', 'tea', 'yogurt', 'jam', 'juice', 'banana', 'croissant', 'lactogen', 'inyange', 'mukamira', 'sandwich'];
+          if (k === 'bbq' || k === 'barbecue' || k === 'braai') return [k, 'sausage', 'beef', 'chicken', 'meat', 'pork', 'charcoal', 'wings', 'beer'];
+          if (k === 'baking' || k === 'baking ingredients') return [k, 'flour', 'sugar', 'egg', 'butter', 'vanilla', 'baking powder', 'baking soda', 'cream', 'milk', 'chocolate'];
+          if (k === 'skincare' || k === 'cosmetics') return [k, 'lotion', 'soap', 'cream', 'shampoo', 'wash', 'beauty', 'cleanser', 'perfume'];
+          if (k === 'baby' || k === 'babies') return [k, 'diapers', 'baby', 'kid', 'toy', 'milk', 'wipe', 'powder', 'lactogen'];
+          if (k === 'cleaning' || k === 'laundry' || k === 'wash') return [k, 'liquid', 'soap', 'detergent', 'powder', 'cleaner', 'bleach', 'sanitizer'];
           return [k];
         });
 
-        const matchesAny = expandedKeywords.some(keyword => name.includes(keyword) || category.includes(keyword));
+        const matchesAny = expandedKeywords.some(keyword => {
+          // Escape regex characters
+          const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          // Match only at word boundaries (e.g. "tea" does not match "steamed")
+          const regex = new RegExp(`\\b${escaped}`, 'i');
+          return regex.test(name) || regex.test(category);
+        });
         if (!matchesAny) return false;
       }
       

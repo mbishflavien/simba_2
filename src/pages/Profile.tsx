@@ -21,7 +21,8 @@ import {
   Mail,
   Calendar,
   Settings,
-  Heart
+  Heart,
+  Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -35,6 +36,45 @@ export default function Profile() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState<'orders' | 'wishlist'>('orders');
   const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
+
+  const [profileRatingScore, setProfileRatingScore] = useState<number>(0);
+  const [profileRatingHover, setProfileRatingHover] = useState<number>(0);
+  const [profileRatingComment, setProfileRatingComment] = useState<string>('');
+  const [profileRatingSubmitted, setProfileRatingSubmitted] = useState<boolean>(false);
+  const [profileRatingSubmitting, setProfileRatingSubmitting] = useState<boolean>(false);
+
+  useEffect(() => {
+    setProfileRatingScore(0);
+    setProfileRatingHover(0);
+    setProfileRatingComment('');
+    setProfileRatingSubmitted(false);
+    setProfileRatingSubmitting(false);
+  }, [selectedOrder?.orderId]);
+
+  const handleProfileRatingSubmit = async (orderId: string) => {
+    if (profileRatingScore === 0) return;
+    setProfileRatingSubmitting(true);
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      await updateDoc(orderRef, {
+        serviceRating: profileRatingScore,
+        serviceFeedback: profileRatingComment,
+        ratedAt: Timestamp.now()
+      });
+      setProfileRatingSubmitted(true);
+      setSelectedOrder(prev => prev && prev.orderId === orderId ? {
+        ...prev,
+        serviceRating: profileRatingScore,
+        serviceFeedback: profileRatingComment,
+        ratedAt: Timestamp.now()
+      } : prev);
+    } catch (error) {
+      console.error("Error submitting profile order rating:", error);
+      alert("Failed to save rating. Please try again.");
+    } finally {
+      setProfileRatingSubmitting(false);
+    }
+  };
 
   const handleBranchChange = async (branchId: string) => {
     if (!user) return;
@@ -486,6 +526,92 @@ export default function Profile() {
                         Confirm Delivery (Received)
                       </motion.button>
                     )}
+
+                    {/* ENHANCEMENT: SERVICE RATING STAGE */}
+                    <div className="mt-8 pt-6 border-t border-brand-border">
+                      {selectedOrder.serviceRating ? (
+                        <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#d97706] dark:text-amber-400">YOUR SERVICE RATING</span>
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={cn(
+                                    "h-3.5 w-3.5",
+                                    star <= (selectedOrder.serviceRating || 0)
+                                      ? "text-amber-400 fill-amber-400"
+                                      : "text-zinc-600 opacity-20"
+                                  )}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {selectedOrder.serviceFeedback && (
+                            <p className="text-xs font-bold text-[var(--brand-text)] italic opacity-85 select-text">
+                              "{selectedOrder.serviceFeedback}"
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-brand-border space-y-4">
+                          {!profileRatingSubmitting && !profileRatingSubmitted ? (
+                            <div className="space-y-3">
+                              <h4 className="text-xs font-black uppercase tracking-widest text-[var(--brand-text)] flex items-center gap-1.5 leading-none">
+                                <Star className="h-3.5 w-3.5 text-brand-primary fill-brand-primary" />
+                                Rate your order & service experience
+                              </h4>
+                              <p className="text-[9px] text-zinc-500 font-bold uppercase leading-tight">
+                                Let Teklay and the Simba team know how we did! 🦁
+                              </p>
+                              <div className="flex gap-2 py-1 justify-center animate-fade-in">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setProfileRatingScore(star)}
+                                    onMouseEnter={() => setProfileRatingHover(star)}
+                                    onMouseLeave={() => setProfileRatingHover(0)}
+                                    className="p-1 hover:scale-125 transition-transform text-neutral-300 dark:text-zinc-800"
+                                  >
+                                    <Star
+                                      className={cn(
+                                        "h-6 w-6 transition-colors",
+                                        star <= (profileRatingHover || profileRatingScore)
+                                          ? "text-amber-400 fill-amber-400 opacity-100"
+                                          : "text-zinc-500 opacity-30"
+                                      )}
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                              <textarea
+                                value={profileRatingComment}
+                                onChange={(e) => setProfileRatingComment(e.target.value)}
+                                placeholder="E.g. Friendly contact, prompt delivery!"
+                                className="w-full bg-white dark:bg-zinc-950 border border-brand-border rounded-xl p-3 text-xs font-bold focus:border-brand-primary outline-none transition-all h-20"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleProfileRatingSubmit(selectedOrder.orderId)}
+                                disabled={profileRatingScore === 0}
+                                className="w-full bg-brand-primary hover:bg-orange-600 text-white dark:text-black dark:hover:bg-orange-400 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-40"
+                              >
+                                Submit Rating
+                              </button>
+                            </div>
+                          ) : profileRatingSubmitted ? (
+                            <div className="text-center py-2 animate-pulse">
+                              <p className="text-[10px] font-black uppercase text-emerald-500">Thank you for your rating! 🦁</p>
+                            </div>
+                          ) : (
+                            <div className="text-center py-2">
+                              <p className="text-[10px] font-bold text-zinc-500 animate-pulse">Submitting...</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               ) : (

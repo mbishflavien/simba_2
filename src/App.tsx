@@ -47,6 +47,16 @@ function AppLayout() {
   const isAdmin = profile?.isAdmin;
   const isAdminPage = pathname === '/admin';
 
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    const isDark = saved ? saved === 'dark' : true;
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   // Admin pages should have a focused UI, but admins can still browse the shop
   const hideGlobalUI = isAdminPage;
 

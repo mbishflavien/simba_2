@@ -49,18 +49,35 @@ export async function chatWithAi(messages: { role: 'user' | 'assistant'; content
     If the user is looking for products, you MUST parse their request into search filters.
     Available Categories: ${CATEGORIES.join(', ')}.
     
-    Mapping synonyms: 
-    - "liquor", "wine", "beer", "whiskey", "beverages", "drinks" -> Category: Alcoholic Drinks.
-    - "snacks", "groceries", "food", "ingredients", "spices" -> Category: Food Products.
-    - "babies", "kids", "diapers", "toys" -> Category: Baby Products.
-    - "skincare", "soap", "shampoo", "beauty", "cosmetics" -> Category: Cosmetics & Personal Care.
-    - "gym", "fitness", "health", "massage" -> Category: Sports & Wellness.
-    - "appliances", "electronic", "pans", "pots", "kitchen" -> Category: Kitchenware & Electronics.
+    Mapping synonyms (BE VERY CAREFUL to prevent false positive matches):
+    - "liquor", "wine", "beer", "whiskey", "gin", "vodka", "cider", "alcohol", "alcoholic" -> Category: Alcoholic Drinks.
+    - "snacks", "groceries", "food", "ingredients", "spices", "beverages", "drinks", "soda", "juice", "tea", "coffee", "water", "milk", "bread", "meal", "breakfast", "dinner", "lunch" -> Category: Food Products.
+    - "babies", "kids", "diapers", "toys", "infant" -> Category: Baby Products.
+    - "skincare", "soap", "shampoo", "beauty", "cosmetics", "lotion", "perfume", "cream" -> Category: Cosmetics & Personal Care.
+    - "gym", "fitness", "health", "massage", "workout" -> Category: Sports & Wellness.
+    - "appliances", "electronic", "pans", "pots", "kitchen", "blender", "kettle" -> Category: Kitchenware & Electronics.
+
+    CONVERSATION MEMORY & LONG DIALOG RULES (CRITICAL):
+    - You must determine search intent based primarily on the user's LATEST message.
+    - Avoid context bleeding or repeating the same results. If the user shifts the topic to a new food or category (e.g., they ask for "diapers" after previously discussing "breakfast"), you MUST completely discard the previous search parameters (searchQuery, category, minPrice, maxPrice) and only search for the new topic (diapers).
+    - If the user asks a general non-search question (e.g., "how long does delivery take?" or "tell me about Simba history"), return { "isSearch": false, "searchQuery": "", "category": null, "minPrice": null, "maxPrice": null, "assistantResponse": "[Your answer]" }. Do not carry over the previous query parameters.
+    - If the user asks to "clear search", "reset filters", "show everything", "show all products", or "done", you MUST return { "isSearch": true, "searchQuery": "", "category": null, "minPrice": null, "maxPrice": null, "assistantResponse": "I have cleared the search filters for you! Let me know what else you're looking for. 🦁" }.
+
+    SEMANTIC & THEMATIC EXPANSION (CRITICAL FOR THEME QUERIES):
+    If the user requests items for a specific theme, occasion, meal, or intent rather than a specific product name (e.g. "something for breakfast", "dinner", "braai/BBQ", "baby shower", "healthy snack", "skincare routine", "baking ingredients", "house cleaning"), you MUST expand this theme into a comma-separated list of highly common and specific target product items representing that theme.
+    
+    Examples:
+    - User: "i need something for breakfast"
+      Response JSON matches: { "isSearch": true, "searchQuery": "milk, bread, tea, coffee, juice, egg, butter, croissant, honey", "category": "Food Products", "assistantResponse": "I'll find you some delicious breakfast options like Inyange milk, fresh Simba bread, and tea/coffee from our bakery and grocery sections! 🥯🍳☕" }
+    - User: "baking ingredients"
+      Response JSON matches: { "isSearch": true, "searchQuery": "flour, sugar, egg, butter, vanilla, baking powder, cream, milk", "category": "Food Products", "assistantResponse": "I've loaded a list of essential baking ingredients like flour, sugar, butter, and milk so we can get baking! 🍰" }
+    - User: "skincare routine items"
+      Response JSON matches: { "isSearch": true, "searchQuery": "soap, cream, lotion, shampoo, wash, body oil, sanitizer", "category": "Cosmetics & Personal Care", "assistantResponse": "Here are excellent personal care and cosmetics products for your skin! 🧴✨" }
 
     OUTPUT FORMAT:
     You MUST return a JSON object with:
     - isSearch: boolean (true if the user is asking to find products, false for general conversation).
-    - searchQuery: a string containing 1-2 generic keywords if isSearch is true, otherwise empty string.
+    - searchQuery: a string containing 1-2 generic keywords OR a list of comma-separated expanded keywords if isSearch is true, otherwise empty string.
     - category: one of the EXACT categories above or null if isSearch is false or not clear.
     - minPrice: number or null.
     - maxPrice: number or null.
@@ -80,7 +97,7 @@ export async function chatWithAi(messages: { role: 'user' | 'assistant'; content
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash",
       contents: [...history, { role: 'user', parts: [{ text: messages[messages.length - 1].content }] }],
       config: {
         systemInstruction,

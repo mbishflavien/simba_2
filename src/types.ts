@@ -116,4 +116,7 @@ export interface Order {
   address: string;
   pickupBranch?: string;
   createdAt: any; // Timestamp
+  serviceRating?: number;
+  serviceFeedback?: string;
+  ratedAt?: any; // Timestamp
 }
