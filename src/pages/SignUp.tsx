@@ -59,12 +59,19 @@ export default function SignUp() {
     const provider = new GoogleAuthProvider();
     try {
       const userCredential = await signInWithPopup(auth, provider);
-      // Check if profile exists would be better, but setDoc with merge or just setDoc is fine for simple profile
-      await createProfile(
-        userCredential.user.uid, 
-        userCredential.user.email!, 
-        userCredential.user.displayName || 'Unnamed User'
-      );
+      const user = userCredential.user;
+      
+      const { doc, getDoc } = await import('firebase/firestore');
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        await createProfile(
+          user.uid, 
+          user.email!, 
+          user.displayName || 'Unnamed User'
+        );
+      }
       navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.message);

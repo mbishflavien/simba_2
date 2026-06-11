@@ -2,5 +2,5 @@
   "name": "Simba Supermarket",
   "description": "A modern, fast e-commerce experience for Rwanda's favorite supermarket.",
   "requestFramePermissions": ["geolocation"],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

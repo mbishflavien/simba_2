@@ -23,26 +23,54 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return user ? `simba-cart-${user.uid}` : 'simba-cart-guest';
   }, [user]);
 
-  // Load cart when user changes or key changes
+  // Load cart when user changes or key changes, merging guest cart if transitioning to authenticated user
   useEffect(() => {
     if (!initialized) return;
     
+    const savedGuestCart = localStorage.getItem('simba-cart-guest');
+    let guestItems: CartItem[] = [];
+    if (savedGuestCart) {
+      try {
+        guestItems = JSON.parse(savedGuestCart);
+      } catch (e) {
+        console.error("Failed to parse guest cart", e);
+      }
+    }
+
     const savedCart = localStorage.getItem(cartKey);
+    let loadedCart: CartItem[] = [];
     if (savedCart) {
       try {
-        setCart(JSON.parse(savedCart));
+        loadedCart = JSON.parse(savedCart);
       } catch (e) {
         console.error("Failed to parse cart", e);
-        setCart([]);
       }
-    } else {
-      setCart([]);
     }
-  }, [cartKey, initialized]);
+
+    if (user && guestItems.length > 0) {
+      // Merge guest items into loaded user cart
+      const mergedCart = [...loadedCart];
+      guestItems.forEach(guestItem => {
+        const existingIdx = mergedCart.findIndex(item => item.id === guestItem.id);
+        if (existingIdx > -1) {
+          mergedCart[existingIdx].quantity += guestItem.quantity;
+        } else {
+          mergedCart.push(guestItem);
+        }
+      });
+      
+      setCart(mergedCart);
+      localStorage.setItem(cartKey, JSON.stringify(mergedCart));
+      localStorage.removeItem('simba-cart-guest');
+    } else {
+      setCart(loadedCart);
+    }
+  }, [cartKey, initialized, user]);
 
   // Save cart whenever it changes
   useEffect(() => {
     if (!initialized) return;
+    // Don't save empty cart during transient states if there are saved contents
     localStorage.setItem(cartKey, JSON.stringify(cart));
   }, [cart, cartKey, initialized]);
 

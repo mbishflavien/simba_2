@@ -8,6 +8,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Welcome from './pages/Welcome';
+import FloatingCartBar from './components/FloatingCartBar';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import AboutUs from './pages/AboutUs';
@@ -66,7 +67,7 @@ function AppLayout() {
       {!hideGlobalUI && <Navbar />}
       <div className="flex-grow">
         <Routes>
-          <Route path="/" element={<Welcome />} />
+          <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Home />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Cart />} />
@@ -83,6 +84,7 @@ function AppLayout() {
         </Routes>
       </div>
       {!hideGlobalUI && <Footer />}
+      {!hideGlobalUI && <FloatingCartBar />}
     </div>
   );
 }
