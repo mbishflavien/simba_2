@@ -31,8 +31,12 @@ export default function Home() {
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setProducts(prods);
+      const prodsMap = new Map<string | number, Product>();
+      snapshot.docs.forEach(doc => {
+        const prod = { id: doc.id, ...doc.data() } as Product;
+        prodsMap.set(prod.id, prod);
+      });
+      setProducts(Array.from(prodsMap.values()));
       setIsLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');

@@ -108,16 +108,28 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const productIds = wishlistIds.map(id => Number(id));
+    const queryIds = wishlistIds.map(id => String(id));
+    const queryIdsWithNumbers: (string | number)[] = [...queryIds];
+    queryIds.forEach(id => {
+      const num = Number(id);
+      if (!isNaN(num)) {
+        queryIdsWithNumbers.push(num);
+      }
+    });
+
     // Firestore 'in' query has a limit of 30 items
     const q = query(
       collection(db, 'products'),
-      where('id', 'in', productIds.slice(0, 30))
+      where('id', 'in', queryIdsWithNumbers.slice(0, 30))
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setWishlistProducts(prods);
+      const prodsMap = new Map<string | number, Product>();
+      snapshot.docs.forEach(doc => {
+        const prod = { id: doc.id, ...doc.data() } as Product;
+        prodsMap.set(prod.id, prod);
+      });
+      setWishlistProducts(Array.from(prodsMap.values()));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products_wishlist_sync');
     });

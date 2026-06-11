@@ -200,15 +200,27 @@ export default function Profile() {
 
     // Fetch products that are in the wishlist
     // Note: 'in' query limited to 30 items
-    const productIds = wishlistIds.map(id => Number(id));
+    const queryIds = wishlistIds.map(id => String(id));
+    const queryIdsWithNumbers: (string | number)[] = [...queryIds];
+    queryIds.forEach(id => {
+      const num = Number(id);
+      if (!isNaN(num)) {
+        queryIdsWithNumbers.push(num);
+      }
+    });
+
     const q = query(
       collection(db, 'products'),
-      where('id', 'in', productIds.slice(0, 30))
+      where('id', 'in', queryIdsWithNumbers.slice(0, 30))
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setWishlistProducts(prods);
+      const prodsMap = new Map<string | number, Product>();
+      snapshot.docs.forEach(doc => {
+        const prod = { id: doc.id, ...doc.data() } as Product;
+        prodsMap.set(prod.id, prod);
+      });
+      setWishlistProducts(Array.from(prodsMap.values()));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products_wishlist');
     });

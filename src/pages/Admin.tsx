@@ -364,8 +364,12 @@ export default function AdminDashboard() {
     // Fetch Products
     const productsQ = query(collection(db, 'products'), orderBy('name', 'asc'));
     const unsubscribeProducts = onSnapshot(productsQ, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setProducts(prods);
+      const prodsMap = new Map<string | number, Product>();
+      snapshot.docs.forEach(doc => {
+        const prod = { id: doc.id, ...doc.data() } as Product;
+        prodsMap.set(prod.id, prod);
+      });
+      setProducts(Array.from(prodsMap.values()));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
     });
