@@ -11,7 +11,7 @@ export default function Welcome() {
   return (
     <div className="min-h-screen flex flex-col relative bg-neutral-50 dark:bg-zinc-950 overflow-hidden w-full" id="welcome-page">
       {/* Dynamic Background Image Section - High quality, completely crisp and unblurred */}
-      <div className="absolute inset-0 z-0 h-[60vh] lg:h-full lg:w-1/2 lg:right-0 lg:left-auto">
+      <div className="absolute inset-0 z-0 h-[45vh] md:h-full md:w-1/2 md:right-0 md:left-auto">
         <img 
           src={landingHero} 
           alt="Simba Supermarket Premium Storefront" 
@@ -19,13 +19,13 @@ export default function Welcome() {
           referrerPolicy="no-referrer"
         />
         {/* Crisp Gradient Transition overlays to handle high-contrast text rendering */}
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-50 via-neutral-50/70 to-transparent dark:from-zinc-950 dark:via-zinc-950/75 lg:hidden" />
-        <div className="absolute inset-0 bg-gradient-to-r from-neutral-50 via-neutral-50/10 to-transparent dark:from-zinc-950 dark:via-zinc-950/20 hidden lg:block" />
+        <div className="absolute inset-0 bg-gradient-to-t from-neutral-50 via-neutral-50/80 to-transparent dark:from-zinc-950 dark:via-zinc-950/85 md:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-50 via-neutral-50/10 to-transparent dark:from-zinc-950 dark:via-zinc-950/20 hidden md:block" />
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 flex items-center pt-24 pb-16 sm:py-32">
-        <div className="w-full lg:w-1/2 flex flex-col justify-center text-left space-y-8 sm:space-y-12">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 z-10 flex items-center pt-[50vh] md:pt-32 pb-16 sm:pb-32">
+        <div className="w-full md:w-[48%] flex flex-col justify-center text-left space-y-6 sm:space-y-10">
           
           {/* Welcome Badge */}
           <motion.div 

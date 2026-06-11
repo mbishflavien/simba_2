@@ -121,3 +121,18 @@
   0%, 100% { opacity: 0.05; }
   50% { opacity: 0.08; }
 }
+
+/* Custom Drawer Scrollbar */
+.drawer-scrollbar::-webkit-scrollbar {
+  width: 6px !important;
+  display: block !important;
+}
+.drawer-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-radius: 9999px !important;
+}
+.drawer-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #f97316 !important;
+  border-radius: 9999px !important;
+  border: 1px solid transparent !important;
+}

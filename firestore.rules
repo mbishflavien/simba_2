@@ -64,7 +64,15 @@ service cloud.firestore {
         && isValidUserProfile(incoming())
         && incoming().userId == request.auth.uid
         && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time;
+        && incoming().updatedAt == request.time
+        && (!('isAdmin' in incoming()) || incoming().isAdmin == false || (
+             incoming().isAdmin == true && (
+               incoming().email == 'flavmbish@gmail.com' ||
+               incoming().email == 'flavmbish@icloud.com' ||
+               incoming().email == 'flavien.mbishibishi@a2sv.org' ||
+               incoming().email == 'test.admin@simba.com'
+             )
+           ));
       
       allow update: if (isOwner(userId)
         && isValidUserProfile(incoming())

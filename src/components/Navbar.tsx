@@ -331,12 +331,12 @@ export default function Navbar() {
           <div className="flex lg:hidden items-center gap-2 sm:gap-4">
             <button 
               onClick={() => setIsSearchOpen(true)} 
-              className="p-2 sm:p-3 text-[var(--brand-text)] bg-black/5 dark:bg-white/5 rounded-full hover:scale-110 active:scale-95 transition-all"
+              className="p-2 sm:p-3 text-zinc-800 dark:text-white bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md"
               aria-label="Search"
             >
               <Search className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
-            <Link to="/cart" className="relative text-[var(--brand-text)] bg-black/5 dark:bg-white/5 p-2 sm:p-3 rounded-full hover:scale-110 active:scale-95 transition-all">
+            <Link to="/cart" className="relative text-zinc-800 dark:text-white bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 p-2 sm:p-3 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md flex items-center justify-center">
               <motion.div
                 key={totalItems}
                 initial={{ scale: 1 }}
@@ -353,7 +353,7 @@ export default function Navbar() {
                     key={`badge-${totalItems}`}
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 bg-brand-primary text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-[var(--brand-bg)] shadow-lg"
+                    className="absolute -top-1 -right-1 bg-brand-primary text-white text-[9px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-zinc-100 dark:border-zinc-900 shadow-md"
                   >
                     {totalItems}
                   </motion.span>
@@ -362,7 +362,7 @@ export default function Navbar() {
             </Link>
             <button 
               onClick={() => setIsMenuOpen(true)} 
-              className="p-2 sm:p-3 text-[var(--brand-text)] bg-black/5 dark:bg-white/5 rounded-full hover:scale-110 active:scale-95 transition-all"
+              className="p-2 sm:p-3 text-brand-primary bg-zinc-100/95 dark:bg-zinc-900/95 border-2 border-brand-primary hover:border-brand-primary/80 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md"
               aria-label="Menu"
             >
               <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -459,19 +459,22 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col"
+              className="absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col overflow-hidden"
             >
-              <div className="p-8 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800">
+              <div className="py-4 px-6 sm:py-6 sm:px-8 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                 <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-xl bg-brand-primary flex items-center justify-center text-white dark:text-black font-black italic">S</div>
-                   <span className="font-black italic uppercase tracking-tighter text-xl text-zinc-900 dark:text-white">MENU</span>
+                   <div className="w-10 h-10 rounded-xl bg-brand-primary flex items-center justify-center text-white dark:text-black font-black italic shadow-md">S</div>
+                   <span className="font-display font-black italic uppercase tracking-tighter text-xl text-zinc-900 dark:text-white">MENU</span>
                 </div>
-                <button onClick={() => setIsMenuOpen(false)} className="p-3 bg-black/5 dark:bg-white/5 rounded-full">
-                  <X className="h-6 w-6 text-zinc-500" />
+                <button onClick={() => setIsMenuOpen(false)} className="p-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-full transition-all hover:scale-105 active:scale-95 flex items-center justify-center">
+                  <X className="h-5 w-5 text-zinc-500" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-8 py-10 space-y-12">
+              <div className="flex-1 overflow-y-auto drawer-scrollbar px-6 sm:px-8 py-6 sm:py-10 space-y-10 relative">
+                {/* Scroll continue hint mask */}
+                <div className="sticky bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white dark:from-zinc-950 to-transparent pointer-events-none z-10 -mx-8 -my-10" />
+                
                 {/* Profile Section */}
                 <div className="space-y-6">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 italic mb-4">{t('account')}</h3>
