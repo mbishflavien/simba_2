@@ -6,6 +6,7 @@ const resources = {
   en: {
     translation: {
       "categories": "Categories",
+      "shop": "Shop",
       "search_placeholder": "Search for products...",
       "add_to_cart": "Add to Cart",
       "cart": "Cart",
@@ -370,6 +371,7 @@ const resources = {
   fr: {
     translation: {
       "categories": "Catégories",
+      "shop": "Boutique",
       "search_placeholder": "Rechercher des produits...",
       "add_to_cart": "Ajouter au panier",
       "cart": "Panier",
@@ -733,6 +735,7 @@ const resources = {
   rw: {
     translation: {
       "categories": "Ibyiciro",
+      "shop": "Iduka",
       "search_placeholder": "Shaka ibicuruzwa...",
       "add_to_cart": "Shyira mu gitebo",
       "cart": "Igitebo",

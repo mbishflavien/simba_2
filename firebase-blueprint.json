@@ -205,9 +205,49 @@
         "metadata": { "type": "object", "description": "Contextual references like orderId or supplierId" }
       },
       "required": ["id", "to", "recipientName", "subject", "body", "type", "status", "createdAt"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "A scheduled employee duty period",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "timeSlot": { "type": "string", "enum": ["morning", "afternoon", "night"] },
+        "role": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "active", "completed", "absent"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "staffId", "staffName", "date", "timeSlot", "status", "createdAt"]
+    },
+    "StaffNotification": {
+      "title": "Staff Notification",
+      "description": "An announcement, alert or roster instruction sent to team members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["general", "shift_change", "announcement", "alert"] },
+        "sentBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "staffId", "staffName", "title", "message", "type", "sentBy", "createdAt"]
     }
   },
   "firestore": {
+    "/shifts/{shiftId}": {
+      "schema": "Shift",
+      "description": "Employee shift schedule and attendance roster"
+    },
+    "/staffNotifications/{notificationId}": {
+      "schema": "StaffNotification",
+      "description": "Employee alerts, memos, shift dispatch, and general notifications"
+    },
     "/emails/{emailId}": {
       "schema": "EmailLog",
       "description": "Logs and rendered templates of all customer and supplier communications"

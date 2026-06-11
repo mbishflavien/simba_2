@@ -11,6 +11,7 @@ import { Search, ShoppingBag, Sliders, Filter, CheckCircle2, PackageSearch } fro
 import { motion, AnimatePresence } from 'motion/react';
 import AiAssistant from '../components/AiAssistant';
 import { AiSearchIntent } from '../services/aiService';
+import landingHero from '../assets/images/landing_hero_1781164991277.png';
 
 export default function Home() {
   const { t, i18n } = useTranslation();
@@ -213,9 +214,9 @@ export default function Home() {
           {/* Background Image with Overlay */}
           <div className="absolute inset-0 z-0">
             <img 
-              src="https://ecommercenews.eu/wp-content/uploads/2021/06/groceries_supermarket_food.jpg" 
-              alt="Supermarket" 
-              className="w-full h-full object-cover grayscale-[30%] opacity-40 scale-105"
+              src={landingHero} 
+              alt="Kigali Premium Supermarket" 
+              className="w-full h-full object-cover opacity-85 object-center"
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--brand-bg)]/80 to-[var(--brand-bg)]" />
@@ -305,7 +306,7 @@ export default function Home() {
                   <p className="micro-label !opacity-30 uppercase tracking-[0.4em] italic mt-2 ml-1">Premium items highly sought after</p>
                 </div>
               </div>
-              <Link to="/?search=best" className="group text-[10px] font-black uppercase tracking-widest text-brand-primary flex items-center gap-3 italic">
+              <Link to="/shop?search=best" className="group text-[10px] font-black uppercase tracking-widest text-brand-primary flex items-center gap-3 italic">
                 {t('view_more')} <span className="group-hover:translate-x-2 transition-transform duration-300">→</span>
               </Link>
             </div>

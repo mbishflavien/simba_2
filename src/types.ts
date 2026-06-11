@@ -65,6 +65,28 @@ export interface StaffMember {
   performanceScore?: number;
 }
 
+export interface Shift {
+  id: string;
+  staffId: string;
+  staffName: string;
+  date: string;
+  timeSlot: 'morning' | 'afternoon' | 'night';
+  role: string;
+  status: 'scheduled' | 'active' | 'completed' | 'absent';
+  createdAt: any;
+}
+
+export interface StaffNotification {
+  id: string;
+  staffId: string;
+  staffName: string;
+  title: string;
+  message: string;
+  type: 'general' | 'shift_change' | 'announcement' | 'alert';
+  sentBy: string;
+  createdAt: any;
+}
+
 export interface InventoryAlert {
   id: string;
   type: 'low_stock' | 'near_expiry' | 'anomaly';

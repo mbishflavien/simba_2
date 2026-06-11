@@ -198,6 +198,15 @@ service cloud.firestore {
     match /staff/{staffId} {
       allow read, write: if isAdmin();
     }
+    match /shifts/{shiftId} {
+      allow read, write: if isAdmin();
+    }
+    match /staffNotifications/{notificationId} {
+      allow read, write: if isAdmin();
+    }
+    match /emails/{emailId} {
+      allow read, write: if isAdmin();
+    }
     match /promotions/{promoId} {
       allow read: if true;
       allow write: if isAdmin();

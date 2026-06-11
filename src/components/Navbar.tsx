@@ -83,7 +83,7 @@ export default function Navbar() {
       if (s) {
         setSearchQuery(s.value);
         setShowSuggestions(false);
-        navigate(`/?search=${s.value}`);
+        navigate(`/shop?search=${s.value}`);
       }
     }
   };
@@ -126,7 +126,7 @@ export default function Navbar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/?search=${searchQuery}`);
+      navigate(`/shop?search=${searchQuery}`);
       setIsSearchOpen(false);
     }
   };
@@ -166,7 +166,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-2 lg:gap-8 min-w-0">
+          <div className="hidden lg:flex items-center gap-2 lg:gap-8 min-w-0">
             <form onSubmit={handleSearch} className="relative group flex items-center flex-1 max-w-[200px] lg:max-w-xs transition-all">
               <Search className="absolute left-6 h-5 w-5 text-zinc-500 dark:text-white/30 group-focus-within:text-brand-primary transition-colors" />
               <input
@@ -187,7 +187,7 @@ export default function Navbar() {
                   onClick={() => {
                     setSearchQuery('');
                     setShowSuggestions(false);
-                    navigate('/');
+                    navigate('/shop');
                   }}
                   className="absolute right-12 top-1/2 -translate-y-1/2 text-black/50 dark:text-white/30 hover:text-brand-primary transition-colors p-2"
                 >
@@ -215,7 +215,7 @@ export default function Navbar() {
                         onClick={() => {
                           setSearchQuery(s.value);
                           setShowSuggestions(false);
-                          navigate(`/?search=${s.value}`);
+                          navigate(`/shop?search=${s.value}`);
                         }}
                         onMouseEnter={() => setActiveIndex(idx)}
                         className={cn(
@@ -250,7 +250,8 @@ export default function Navbar() {
             </button>
 
             <div className="flex items-center gap-3 lg:gap-8 micro-label">
-              <Link to="/about" className="hover:text-brand-primary transition-colors text-[var(--brand-text)] opacity-60 font-black tracking-widest">{t('about_us')}</Link>
+              <Link to="/shop" className="hover:text-brand-primary transition-colors text-zinc-800 dark:text-zinc-200 font-black tracking-widest uppercase">{t('shop') || 'Shop'}</Link>
+              <Link to="/about" className="hover:text-brand-primary transition-colors text-zinc-850 dark:text-zinc-200 font-black tracking-widest uppercase">{t('about_us')}</Link>
               
               {profile?.isAdmin && (
                 <Link 
@@ -327,7 +328,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Buttons */}
-          <div className="flex md:hidden items-center gap-2 sm:gap-4">
+          <div className="flex lg:hidden items-center gap-2 sm:gap-4">
             <button 
               onClick={() => setIsSearchOpen(true)} 
               className="p-2 sm:p-3 text-[var(--brand-text)] bg-black/5 dark:bg-white/5 rounded-full hover:scale-110 active:scale-95 transition-all"
@@ -377,7 +378,7 @@ export default function Navbar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md md:hidden"
+            className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md lg:hidden"
           >
             <motion.div
               initial={{ y: -50 }}
@@ -420,7 +421,7 @@ export default function Navbar() {
                         setSearchQuery(s.value);
                         setShowSuggestions(false);
                         setIsSearchOpen(false);
-                        navigate(`/?search=${s.value}`);
+                        navigate(`/shop?search=${s.value}`);
                       }}
                       className="w-full text-left p-4 rounded-2xl bg-black/5 dark:bg-white/5 flex justify-between items-center group active:scale-[0.98] transition-all"
                     >
@@ -442,7 +443,7 @@ export default function Navbar() {
       {/* Mobile Right Slide-in Drawer */}
       <AnimatePresence>
         {isMenuOpen && (
-          <div className="fixed inset-0 z-[200] md:hidden">
+          <div className="fixed inset-0 z-[200] lg:hidden">
             {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
@@ -458,12 +459,12 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[85%] max-w-sm bg-[var(--brand-card)] shadow-2xl flex flex-col"
+              className="absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col"
             >
-              <div className="p-8 flex justify-between items-center border-b border-brand-border">
+              <div className="p-8 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-center gap-3">
                    <div className="w-10 h-10 rounded-xl bg-brand-primary flex items-center justify-center text-white dark:text-black font-black italic">S</div>
-                   <span className="font-black italic uppercase tracking-tighter text-xl text-[var(--brand-text)]">MENU</span>
+                   <span className="font-black italic uppercase tracking-tighter text-xl text-zinc-900 dark:text-white">MENU</span>
                 </div>
                 <button onClick={() => setIsMenuOpen(false)} className="p-3 bg-black/5 dark:bg-white/5 rounded-full">
                   <X className="h-6 w-6 text-zinc-500" />
@@ -485,7 +486,7 @@ export default function Navbar() {
                           {(profile?.displayName || user.email || '?')[0].toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-black italic text-xl uppercase tracking-tighter text-[var(--brand-text)] truncate">{profile?.displayName || user.email?.split('@')[0]}</p>
+                          <p className="font-black italic text-xl uppercase tracking-tighter text-zinc-900 dark:text-white truncate">{profile?.displayName || user.email?.split('@')[0]}</p>
                           <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{user.email}</p>
                         </div>
                       </Link>
@@ -534,15 +535,23 @@ export default function Navbar() {
                     <Link 
                       to="/" 
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] hover:text-brand-primary transition-all group"
+                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
                     >
                       {t('home')}
                       <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
                     </Link>
                     <Link 
+                      to="/shop" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
+                    >
+                      {t('shop') || 'Shop'}
+                      <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
+                    </Link>
+                    <Link 
                       to="/about" 
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] hover:text-brand-primary transition-all group"
+                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
                     >
                       {t('about_us')}
                       <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
@@ -550,7 +559,7 @@ export default function Navbar() {
                     <Link 
                       to="/cart" 
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] hover:text-brand-primary transition-all group"
+                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
                     >
                       {t('my_cart')}
                       <span className="text-brand-primary text-lg ml-2">({totalItems})</span>

@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, Timestamp, addDoc, deleteDoc, setDoc, increment, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../components/AuthProvider';
-import { Order, Product, Supplier, PurchaseOrder, Promotion, StaffMember, InventoryAlert } from '../types';
+import { Order, Product, Supplier, PurchaseOrder, Promotion, StaffMember, InventoryAlert, Shift, StaffNotification } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { sendOrderShipping, sendOrderDelivery, sendSupplierDemand, sendSupplierShipmentConfirm, sendSupplierGoodsReceived, sendPromotionEmail } from '../lib/emailService';
+import { sendOrderShipping, sendOrderDelivery, sendSupplierDemand, sendSupplierShipmentConfirm, sendSupplierGoodsReceived, sendPromotionEmail, buildEmailHtml } from '../lib/emailService';
 import { subDays, subHours, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { 
   BarChart, 
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts' | 'communications'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts'>('overview');
   const [inventorySearch, setInventorySearch] = useState('');
   const [newOrderAlerts, setNewOrderAlerts] = useState<Order[]>([]);
   const [deliveredAlerts, setDeliveredAlerts] = useState<Order[]>([]);
@@ -172,10 +172,33 @@ export default function AdminDashboard() {
   // New Management State
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [staffNotifications, setStaffNotifications] = useState<StaffNotification[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [alerts, setAlerts] = useState<InventoryAlert[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [emails, setEmails] = useState<any[]>([]);
+
+  // Sub tabs state
+  const [activeSupplierTab, setActiveSupplierTab] = useState<'directory' | 'po' | 'messages'>('directory');
+  const [activeStaffTab, setActiveStaffTab] = useState<'directory' | 'shifts' | 'messages'>('directory');
+  
+  // Adding / Editing entities
+  const [isEditingSupplier, setIsEditingSupplier] = useState<Partial<Supplier> | null>(null);
+  const [isEditingStaff, setIsEditingStaff] = useState<Partial<StaffMember> | null>(null);
+
+  // Shift Schedule state
+  const [isCreatingShift, setIsCreatingShift] = useState(false);
+  const [shiftStaffId, setShiftStaffId] = useState('');
+  const [shiftDate, setShiftDate] = useState(new Date().toISOString().split('T')[0]);
+  const [shiftTimeSlot, setShiftTimeSlot] = useState<'morning' | 'afternoon' | 'night'>('morning');
+
+  // Staff Message/Memo dispatch states
+  const [isCreatingStaffMemo, setIsCreatingStaffMemo] = useState(false);
+  const [memoStaffId, setMemoStaffId] = useState('all');
+  const [memoTitle, setMemoTitle] = useState('');
+  const [memoMessage, setMemoMessage] = useState('');
+  const [memoType, setMemoType] = useState<'general' | 'shift_change' | 'announcement' | 'alert'>('general');
   
   // Promotion refinement states
   const [isEditingPromo, setIsEditingPromo] = useState<any | null>(null);
@@ -396,11 +419,27 @@ export default function AdminDashboard() {
       handleFirestoreError(error, OperationType.LIST, 'emails');
     });
 
+    // Fetch Shifts
+    const unsubscribeShifts = onSnapshot(query(collection(db, 'shifts'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setShifts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+    }, (error) => {
+      console.error("error fetching shifts", error);
+    });
+
+    // Fetch Staff Notifications
+    const unsubscribeStaffNotifications = onSnapshot(query(collection(db, 'staffNotifications'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setStaffNotifications(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+    }, (error) => {
+      console.error("error fetching staff notifications", error);
+    });
+
     return () => {
       unsubscribeOrders();
       unsubscribeProducts();
       unsubscribeSuppliers();
       unsubscribeStaff();
+      unsubscribeShifts();
+      unsubscribeStaffNotifications();
       unsubscribePromos();
       unsubscribeUsers();
       unsubscribeAlerts();
@@ -408,6 +447,135 @@ export default function AdminDashboard() {
       unsubscribeEmails();
     };
   }, [profile?.isAdmin]);
+
+  const handleCreateStaffMemo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memoTitle || !memoMessage) return;
+
+    try {
+      const selectedStaff = staff.find(s => s.id === memoStaffId);
+      const recipientName = memoStaffId === 'all' ? 'All Staff Members' : (selectedStaff?.name || 'Unknown Staff');
+      
+      const newMemo: StaffNotification = {
+        id: `MEMO-${Date.now()}`.toUpperCase(),
+        staffId: memoStaffId,
+        staffName: recipientName,
+        title: memoTitle,
+        message: memoMessage,
+        type: memoType,
+        sentBy: profile?.displayName || profile?.email || 'System Administrator',
+        createdAt: Timestamp.now()
+      };
+
+      // Save to Firestore
+      await setDoc(doc(db, 'staffNotifications', newMemo.id), newMemo);
+
+      // Create simulated transactional email record in emails list log
+      const emailId = `EML-${Date.now()}`.toUpperCase();
+      const emailHtml = buildEmailHtml(
+        `📌 [${memoType.toUpperCase()}] SIMBA TEAM DIRECTIVE: ${memoTitle}`,
+        `
+        <p>Dear ${recipientName},</p>
+        <p>This is an official administrative directive broadcasted on behalf of the Simba Logistics Operations Board.</p>
+        <div style="background-color: #f5f5f5; border-left: 4px solid #f97316; padding: 15px; margin: 15px 0; font-family: monospace;">
+          <strong>Subject:</strong> ${memoTitle}<br/>
+          <strong>Message:</strong><br/>
+          ${memoMessage}
+        </div>
+        <p>This notification is logged persistently in your staff ledger. Please sign off on your roster portal immediately.</p>
+        `,
+        "Open Staff Roster Portal",
+        "/admin"
+      );
+
+      await setDoc(doc(db, 'emails', emailId), {
+        id: emailId,
+        recipient: memoStaffId === 'all' ? 'staff-broadcast@simba.com' : (selectedStaff?.phone || 'staff-member@simba.com'),
+        recipientName: recipientName,
+        subject: `📌 [${memoType.toUpperCase()}] Simba Duty Memo: ${memoTitle}`,
+        body: emailHtml,
+        type: 'staff_broadcast',
+        referenceId: newMemo.id,
+        createdAt: Timestamp.now()
+      });
+
+      // Clear state
+      setMemoTitle('');
+      setMemoMessage('');
+      setIsCreatingStaffMemo(false);
+      alert("Memo successfully transmitted to staff and logged in communication channels!");
+    } catch (error) {
+      console.error("Error broadcasting staff memo:", error);
+      alert("Broadcast failed, please check your network connection.");
+    }
+  };
+
+  const handleCreateShift = async (sId: string, sDate: string, sSlot: 'morning' | 'afternoon' | 'night') => {
+    const selectedStaff = staff.find(s => s.id === sId);
+    if (!selectedStaff) return;
+
+    try {
+      const shiftId = `SHF-${Date.now()}`.toUpperCase();
+      const newShift: Shift = {
+        id: shiftId,
+        staffId: sId,
+        staffName: selectedStaff.name,
+        role: selectedStaff.role,
+        date: sDate,
+        timeSlot: sSlot,
+        status: 'scheduled',
+        createdAt: Timestamp.now()
+      };
+
+      await setDoc(doc(db, 'shifts', shiftId), newShift);
+
+      // Send automated transactional notification
+      const dispatchId = `MEMO-SHF-${Date.now()}`.toUpperCase();
+      const autoMemo: StaffNotification = {
+        id: dispatchId,
+        staffId: sId,
+        staffName: selectedStaff.name,
+        title: "⚡ Duty Shift Assigned",
+        message: `You have been allocated a new duty shift:\n- Date: ${sDate}\n- Timeslot: ${sSlot.toUpperCase()} shift.\n\nPlease log in to check in.`,
+        type: 'shift_change',
+        sentBy: 'Simba Auto-Scheduler',
+        createdAt: Timestamp.now()
+      };
+      await setDoc(doc(db, 'staffNotifications', dispatchId), autoMemo);
+
+      // Save email entry as transaction record
+      const emailId = `EML-${Date.now()}`.toUpperCase();
+      const emailHtml = buildEmailHtml(
+        `📅 Duty Shift Roster Notice - Simba Operations`,
+        `
+        <p>Hello ${selectedStaff.name},</p>
+        <p>A new shift has been scheduled for you on the Simba duties roster calendar.</p>
+        <ul>
+          <li><strong>Shift Date:</strong> ${sDate}</li>
+          <li><strong>Allocated Timeslot:</strong> ${sSlot.toUpperCase()}</li>
+          <li><strong>Current Role:</strong> ${selectedStaff.role}</li>
+        </ul>
+        <p>Please double-check your calendar and sign-off on your duty checkins.</p>
+        `,
+        "View Schedule",
+        "/admin"
+      );
+      await setDoc(doc(db, 'emails', emailId), {
+        id: emailId,
+        recipient: selectedStaff.phone || 'staff@simba.com',
+        recipientName: selectedStaff.name,
+        subject: `📅 Duty Shift Assigned: ${sDate} (${sSlot.toUpperCase()})`,
+        body: emailHtml,
+        type: 'staff_shift',
+        referenceId: shiftId,
+        createdAt: Timestamp.now()
+      });
+
+      alert("Shift successfully scheduled and assigned!");
+    } catch (err) {
+      console.error("error creating shift", err);
+    }
+  };
 
   const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
     try {
@@ -703,6 +871,69 @@ export default function AdminDashboard() {
       console.error("Error saving promotion:", error);
       alert("Failed to save promotion");
       handleFirestoreError(error, OperationType.WRITE, `promotions/${isEditingPromo?.id || 'new'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEditingSupplier || isSaving) return;
+    setIsSaving(true);
+
+    try {
+      const isNew = !isEditingSupplier.id;
+      const targetId = isNew ? `SUP-${Date.now()}`.toUpperCase() : isEditingSupplier.id;
+      const supplierRef = doc(db, 'suppliers', targetId);
+
+      const rawSupplierData = {
+        id: targetId,
+        name: isEditingSupplier.name || '',
+        contactName: isEditingSupplier.contactName || '',
+        email: isEditingSupplier.email || '',
+        phone: isEditingSupplier.phone || '',
+        category: isEditingSupplier.category || 'General',
+        active: isEditingSupplier.active !== undefined ? isEditingSupplier.active : true
+      };
+
+      await setDoc(supplierRef, rawSupplierData);
+      setIsEditingSupplier(null);
+      alert("Supplier profile successfully saved!");
+    } catch (error) {
+      console.error("Error saving supplier:", error);
+      alert("Failed to save supplier profile");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEditingStaff || isSaving) return;
+    setIsSaving(true);
+
+    try {
+      const isNew = !isEditingStaff.id;
+      const targetId = isNew ? `STF-${Date.now()}`.toUpperCase() : isEditingStaff.id;
+      const staffRef = doc(db, 'staff', targetId);
+
+      const rawStaffData = {
+        id: targetId,
+        name: isEditingStaff.name || '',
+        role: isEditingStaff.role || 'Cashier',
+        phone: isEditingStaff.phone || '',
+        active: isEditingStaff.active !== undefined ? isEditingStaff.active : true,
+        salary: Number(isEditingStaff.salary || 450000),
+        tasksCompleted: Number(isEditingStaff.tasksCompleted || 0),
+        rating: Number(isEditingStaff.rating || 5.0)
+      };
+
+      await setDoc(staffRef, rawStaffData);
+      setIsEditingStaff(null);
+      alert("Staff profile successfully updated!");
+    } catch (error) {
+      console.error("Error saving staff:", error);
+      alert("Failed to save staff profile");
     } finally {
       setIsSaving(false);
     }
@@ -1235,18 +1466,6 @@ export default function AdminDashboard() {
                   {alerts.filter(a => !a.isRead).length}
                 </span>
               )}
-            </button>
-            <button 
-              onClick={() => setActiveTab('communications')}
-              className={cn(
-                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
-                activeTab === 'communications' 
-                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
-                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
-              )}
-            >
-              <Mail className="h-4 w-4" />
-              COMMUNICATIONS
             </button>
           </div>
         </div>
@@ -2014,55 +2233,378 @@ export default function AdminDashboard() {
             exit={{ opacity: 0, x: 20 }}
             className="space-y-8"
           >
-            <div className="flex justify-between items-center">
-              <h3 className="text-2xl font-black uppercase italic tracking-tighter">{t('portal_staff')}</h3>
-              <button className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
-                <Plus className="h-4 w-4" /> {t('add_staff')}
+            {/* Staff & Roster Section Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-900 dark:text-white">{t('portal_staff')} & Shifts</h3>
+                <p className="text-xs text-zinc-500 font-bold uppercase">Schedule staff rosters, toggle operational shift statuses, and dispatch alerts</p>
+              </div>
+              <div className="flex gap-2">
+                {activeStaffTab === 'directory' && (
+                  <button 
+                    onClick={() => setIsEditingStaff({ name: '', role: 'cashier', phone: '', shiftStatus: 'off_duty', performanceScore: 92 })}
+                    className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic hover:scale-105 transition-all shadow-lg shadow-brand-primary/10"
+                  >
+                    <Plus className="h-4 w-4" /> {t('add_staff')}
+                  </button>
+                )}
+                {activeStaffTab === 'shifts' && (
+                  <button 
+                    onClick={() => {
+                      if (staff.length > 0) {
+                        setShiftStaffId(staff[0]?.id || '');
+                        setIsCreatingShift(true);
+                      } else {
+                        alert("Please register at least one staff member first!");
+                      }
+                    }}
+                    className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic hover:scale-105 transition-all shadow-lg shadow-brand-primary/10"
+                  >
+                    <Plus className="h-4 w-4" /> Assign New Shift
+                  </button>
+                )}
+                {activeStaffTab === 'messages' && (
+                  <button 
+                    onClick={() => setIsCreatingStaffMemo(true)}
+                    className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic hover:scale-105 transition-all shadow-lg shadow-brand-primary/10"
+                  >
+                    <Megaphone className="h-4 w-4" /> Dispatch Alert Memo
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Sub Tabs Selection */}
+            <div className="flex border-b border-brand-border pb-1 gap-2 flex-wrap">
+              <button
+                onClick={() => setActiveStaffTab('directory')}
+                className={cn(
+                  "px-5 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                  activeStaffTab === 'directory'
+                    ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                    : "bg-black/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                )}
+              >
+                Team Directory
+              </button>
+              <button
+                onClick={() => setActiveStaffTab('shifts')}
+                className={cn(
+                  "px-5 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                  activeStaffTab === 'shifts'
+                    ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                    : "bg-black/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                )}
+              >
+                Duty Shifts Planner ({shifts.length})
+              </button>
+              <button
+                onClick={() => setActiveStaffTab('messages')}
+                className={cn(
+                  "px-5 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                  activeStaffTab === 'messages'
+                    ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                    : "bg-black/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                )}
+              >
+                Memos & Logs ({staffNotifications.length})
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {staff.map(member => (
-                <div key={member.id} className="bg-white dark:bg-black/20 border border-brand-border p-6 rounded-[32px] group hover:border-brand-primary/50 transition-all">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="w-16 h-16 bg-black/5 dark:bg-white/5 rounded-2xl flex items-center justify-center font-black text-2xl italic text-brand-primary">
-                      {member.name.charAt(0)}
+
+            {/* Tab contents (1) TEAM DIRECTORY */}
+            {activeStaffTab === 'directory' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {staff.map(member => (
+                  <div key={member.id} className="bg-white dark:bg-black/20 border border-brand-border p-6 rounded-[32px] group hover:border-brand-primary/50 transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="w-16 h-16 bg-black/5 dark:bg-white/5 rounded-2xl flex items-center justify-center font-black text-2xl italic text-brand-primary">
+                          {member.name.charAt(0)}
+                        </div>
+                        <button
+                          onClick={async () => {
+                            const newStatus = member.shiftStatus === 'on_duty' ? 'off_duty' : 'on_duty';
+                            await updateDoc(doc(db, 'staff', member.id), { shiftStatus: newStatus });
+                          }}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[8px] font-black uppercase italic border transition-all cursor-pointer hover:scale-102",
+                            member.shiftStatus === 'on_duty' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-black/5 text-zinc-500 border-black/10 text-neutral-500"
+                          )}
+                          title="Toggle duty status"
+                        >
+                          {t(member.shiftStatus)}
+                        </button>
+                      </div>
+                      <h4 className="text-lg font-black uppercase italic tracking-tight">{member.name}</h4>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">{t(member.role)}</p>
+                      {member.phone && <p className="font-mono text-xs text-zinc-400 mb-4">{member.phone}</p>}
+                      
+                      <div className="space-y-2 mb-6">
+                        <div className="flex justify-between text-[9px] font-bold uppercase italic opacity-60">
+                          <span>{t('attendance')}</span>
+                          <span>{member.performanceScore || 90}% Score</span>
+                        </div>
+                        <div className="w-full bg-black/5 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-brand-primary h-full" style={{ width: `${member.performanceScore || 90}%` }} />
+                        </div>
+                      </div>
                     </div>
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[8px] font-black uppercase italic border",
-                      member.shiftStatus === 'on_duty' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-black/5 text-zinc-500 border-black/10"
-                    )}>
-                      {t(member.shiftStatus)}
-                    </span>
+
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setShiftStaffId(member.id);
+                          setShiftDate(new Date().toISOString().split('T')[0]);
+                          setIsCreatingShift(true);
+                        }}
+                        className="flex-1 py-3 bg-black/5 dark:bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white transition-all italic text-center"
+                      >
+                        {t('schedule')}
+                      </button>
+                      <button 
+                        onClick={() => setIsEditingStaff(member)}
+                        className="p-3 bg-black/5 dark:bg-white/5 rounded-xl text-[var(--brand-text)] hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all"
+                        title="Edit profile"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          if (window.confirm(`Are you sure you want to delete ${member.name}?`)) {
+                            await deleteDoc(doc(db, 'staff', member.id));
+                          }
+                        }}
+                        className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all"
+                        title="Delete staff member"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                  <h4 className="text-lg font-black uppercase italic tracking-tight">{member.name}</h4>
-                  <p className="text-[10px] font-black uppercase opacity-40 mb-4">{t(member.role)}</p>
-                  
-                  <div className="space-y-2 mb-6">
-                    <div className="flex justify-between text-[9px] font-bold uppercase italic opacity-60">
-                      <span>{t('attendance')}</span>
-                      <span>98%</span>
+                ))}
+                {staff.length === 0 && (
+                  <div className="col-span-full py-24 text-center opacity-20 italic font-black uppercase">
+                    {t('no_staff_recorded')}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab contents (2) SHIFTS SCHEDULER */}
+            {activeStaffTab === 'shifts' && (
+              <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
+                <div className="mb-6">
+                  <h4 className="text-lg font-black uppercase italic tracking-tight">Assigned Duty Shift Planner</h4>
+                  <p className="text-xs text-zinc-500">Live roster capturing all team schedules, timeslots, and attendance coverage</p>
+                </div>
+
+                <div className="space-y-4">
+                  {shifts.map((sh) => (
+                    <div key={sh.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-mono text-[10px] text-zinc-400 font-bold uppercase">{sh.id}</span>
+                          <span className="text-xs font-black uppercase tracking-widest bg-brand-primary/10 text-brand-primary px-2.5 py-0.5 rounded-full border border-brand-primary/15">{sh.timeSlot} shift</span>
+                          <span className={cn(
+                            "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
+                            sh.status === 'completed' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                            sh.status === 'active' ? "bg-amber-500/15 text-amber-500 border-amber-500/20 animate-pulse" :
+                            sh.status === 'absent' ? "bg-rose-500/10 text-rose-500 border-rose-500/20" :
+                            "bg-blue-500/10 text-blue-500 border-blue-500/25"
+                          )}>
+                            {sh.status}
+                          </span>
+                        </div>
+                        <h5 className="font-black text-base uppercase italic tracking-tight dark:text-white truncate">{sh.staffName}</h5>
+                        <p className="text-xs text-zinc-400 font-bold uppercase">Role: {t(sh.role || 'cashier')} • Assigned Date: {sh.date}</p>
+                      </div>
+
+                      <div className="flex gap-2 self-stretch md:self-auto shrink-0 flex-wrap">
+                        {sh.status === 'scheduled' && (
+                          <>
+                            <button
+                              onClick={async () => {
+                                await updateDoc(doc(db, 'shifts', sh.id), { status: 'active' });
+                                // Toggle actual shift status under staff
+                                await updateDoc(doc(db, 'staff', sh.staffId), { shiftStatus: 'on_duty' });
+                              }}
+                              className="px-4 py-2.5 text-zinc-800 dark:text-zinc-200 bg-amber-500/10 hover:bg-amber-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-colors"
+                            >
+                              START SHIFT
+                            </button>
+                            <button
+                              onClick={async () => {
+                                await updateDoc(doc(db, 'shifts', sh.id), { status: 'absent' });
+                                await updateDoc(doc(db, 'staff', sh.staffId), { shiftStatus: 'off_duty' });
+                              }}
+                              className="px-4 py-2.5 text-rose-600 bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                            >
+                              MARK ABSENT
+                            </button>
+                          </>
+                        )}
+                        {sh.status === 'active' && (
+                          <button
+                            onClick={async () => {
+                              await updateDoc(doc(db, 'shifts', sh.id), { status: 'completed' });
+                              await updateDoc(doc(db, 'staff', sh.staffId), { shiftStatus: 'off_duty' });
+                            }}
+                            className="px-4 py-2.5 text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                          >
+                            COMPLETE SHIFT ✔
+                          </button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (window.confirm("Delete this shift schedule entry?")) {
+                              await deleteDoc(doc(db, 'shifts', sh.id));
+                            }
+                          }}
+                          className="p-2.5 text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-xl transition-all"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="w-full bg-black/5 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-brand-primary h-full w-[98%]" />
+                  ))}
+
+                  {shifts.length === 0 && (
+                    <div className="py-20 text-center text-zinc-500 italic opacity-40 uppercase font-black">
+                      No team shifts allocated or active on custom roster.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tab contents (3) STAFF MESSAGES & DISPATCH */}
+            {activeStaffTab === 'messages' && (
+              <div className="space-y-6">
+                {/* Draft Outbox Compose Form */}
+                <div className="bg-white dark:bg-zinc-950 p-6 md:p-8 rounded-[40px] border border-brand-border shadow-xl shadow-zinc-100/5 select-text">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-brand-primary/10 rounded-xl flex items-center justify-center">
+                      <Megaphone className="h-5 w-5 text-brand-primary" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black uppercase italic tracking-tight">Staff Memo Broadcast terminal</h4>
+                      <p className="text-[10px] text-zinc-400 font-bold uppercase">Send internal directives, rules, or safety bulletins instantly</p>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button className="flex-1 py-3 bg-black/5 dark:bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white transition-all italic">
-                      {t('schedule')}
-                    </button>
-                    <button className="p-3 bg-black/5 dark:bg-white/5 rounded-xl hover:bg-rose-500 hover:text-white transition-all">
-                      <Edit className="h-4 w-4" />
-                    </button>
+                  <form onSubmit={handleCreateStaffMemo} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Target Audience</label>
+                        <select
+                          value={memoStaffId}
+                          onChange={e => setMemoStaffId(e.target.value)}
+                          className="w-full bg-black/5 dark:bg-black/30 border border-brand-border rounded-xl px-4 py-3.5 text-xs text-[var(--brand-text)] focus:outline-none focus:border-brand-primary italic font-bold uppercase"
+                        >
+                          <option value="all">All Registree Staff</option>
+                          {staff.map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({t(s.role)})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Directive Severity Type</label>
+                        <select
+                          value={memoType}
+                          onChange={e => setMemoType(e.target.value as any)}
+                          className="w-full bg-black/5 dark:bg-black/30 border border-brand-border rounded-xl px-4 py-3.5 text-xs text-[var(--brand-text)] focus:outline-none focus:border-brand-primary italic font-bold uppercase"
+                        >
+                          <option value="general">Regular Directive Memo</option>
+                          <option value="shift_change">Shift Scheduling Notification</option>
+                          <option value="announcement">New Store Policy / Announcement</option>
+                          <option value="alert">🚨 High Alert Urgent Directive</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Memo Header Summary</label>
+                        <input
+                          type="text"
+                          required
+                          value={memoTitle}
+                          onChange={e => setMemoTitle(e.target.value)}
+                          placeholder="e.g. Safety procedure review, System maintenance alert"
+                          className="w-full bg-black/5 dark:bg-black/30 border border-brand-border rounded-xl px-4 py-3 text-xs text-[var(--brand-text)] focus:outline-none focus:border-brand-primary font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Message Body Content</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={memoMessage}
+                        onChange={e => setMemoMessage(e.target.value)}
+                        placeholder="Type standard email or SMS text to dispatch..."
+                        className="w-full bg-black/5 dark:bg-black/30 border border-brand-border rounded-2xl px-4 py-3 text-xs text-[var(--brand-text)] focus:outline-none focus:border-brand-primary"
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        className="px-6 py-4 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest italic flex items-center gap-2 shadow-lg shadow-brand-primary/20 transform hover:scale-101 transition-all"
+                      >
+                        <Send className="h-4 w-4" /> TRANSMIT DISPATCH ALERT MEMO
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Dispatch Journal Lists */}
+                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
+                  <h4 className="text-base font-black uppercase italic tracking-tight mb-4 text-zinc-900 dark:text-white">Directive Transmissions Journal</h4>
+                  <div className="space-y-4">
+                    {staffNotifications.map((notif) => (
+                      <div key={notif.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-zinc-400 font-bold block text-[10px]">{notif.id}</span>
+                            <span className={cn(
+                              "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                              notif.type === 'alert' ? "bg-rose-500/10 text-rose-500 border-rose-500/15" :
+                              notif.type === 'shift_change' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                              "bg-zinc-500/10 text-zinc-500 border-zinc-500/15 text-zinc-500"
+                            )}>
+                              {notif.type}
+                            </span>
+                            <span className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-pulse" /> DISPATCHED
+                            </span>
+                          </div>
+                          <h5 className="font-black text-base uppercase italic tracking-tight text-zinc-950 dark:text-white">{notif.title}</h5>
+                          <blockquote className="text-xs text-zinc-650 dark:text-zinc-300 border-l-2 border-brand-primary pl-3 py-1 bg-zinc-50/50 dark:bg-zinc-900/30 rounded-r-md leading-relaxed whitespace-pre-line">{notif.message}</blockquote>
+                          <p className="text-[10px] text-zinc-550 dark:text-zinc-400 font-bold uppercase">To: {notif.staffName} ({notif.staffId}) • Dispatched By: {notif.sentBy} • On: {notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleString() : new Date(notif.createdAt).toLocaleString()}</p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm("Archive this notification entry?")) {
+                              await deleteDoc(doc(db, 'staffNotifications', notif.id));
+                            }
+                          }}
+                          className="p-3 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all scale-90 self-stretch md:self-auto flex items-center justify-center shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {staffNotifications.length === 0 && (
+                      <div className="py-16 text-center text-zinc-500 italic opacity-40 uppercase font-black">
+                        No team announcements or memos logged.
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-              {staff.length === 0 && (
-                <div className="col-span-full py-24 text-center opacity-20 italic font-black uppercase">
-                  {t('no_staff_recorded')}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </motion.div>
         ) : activeTab === 'promotions' ? (
           <motion.div
@@ -2162,6 +2704,45 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+
+            {/* Direct Customer Email Campaign Broadcast Panel */}
+            <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 mt-10">
+              <div className="mb-6">
+                <h4 className="text-lg font-black uppercase italic tracking-tight text-zinc-900 dark:text-white">Active Promotion Broadcasts Center</h4>
+                <p className="text-xs text-zinc-500">Deliver exquisite, styled digital checkout codes directly to the email of registered customers</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {promotions.map((promo) => (
+                  <div key={promo.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-[#2d2d2d] dark:border-zinc-900 flex flex-col justify-between gap-6">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-full text-brand-primary bg-brand-primary/10 border border-brand-primary/25">
+                          {promo.type === 'percentage' ? `${promo.value}% discount` : `value RWF ${promo.value}`}
+                        </span>
+                        <span className="font-mono text-zinc-500 text-[10px]">#{promo.id}</span>
+                      </div>
+
+                      <h5 className="font-black text-lg text-zinc-900 dark:text-white uppercase italic tracking-tight">{promo.name}</h5>
+                      <p className="text-xs text-zinc-500 leading-relaxed">Runs from {promo.startDate ? (promo.startDate.toDate ? promo.startDate.toDate().toLocaleDateString() : new Date(promo.startDate).toLocaleDateString()) : ''} to {promo.endDate ? (promo.endDate.toDate ? promo.endDate.toDate().toLocaleDateString() : new Date(promo.endDate).toLocaleDateString()) : ''}. Applicable on select premium Kigali merchandise stores.</p>
+                    </div>
+
+                    <button
+                      onClick={() => setSendingPromoEmail(promo)}
+                      className="w-full py-4 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest text-center flex items-center justify-center gap-2 italic transform transition-transform hover:scale-102"
+                    >
+                      <Megaphone className="h-4 w-4" /> Broadcast campaign via email
+                    </button>
+                  </div>
+                ))}
+
+                {promotions.length === 0 && (
+                  <div className="col-span-1 md:col-span-2 py-20 text-center text-zinc-505 italic opacity-40 uppercase font-black">
+                    Configure a Promotion before initiating broadcasts
+                  </div>
+                )}
+              </div>
+            </div>
           </motion.div>
         ) : activeTab === 'suppliers' ? (
           <motion.div
@@ -2171,60 +2752,321 @@ export default function AdminDashboard() {
             exit={{ opacity: 0, x: 20 }}
             className="space-y-8"
           >
-            <div className="flex justify-between items-center">
-              <h3 className="text-2xl font-black uppercase italic tracking-tighter">{t('portal_suppliers')}</h3>
-              <button className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
-                <Truck className="h-4 w-4" /> {t('add_supplier')}
-              </button>
-            </div>
-            <div className="bg-black/5 dark:bg-white/5 rounded-[48px] overflow-hidden border border-brand-border">
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full min-w-[800px] text-left border-collapse">
-                  <thead>
-                    <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
-                      <th className="px-8 py-6">{t('supplier')}</th>
-                      <th className="px-8 py-6">{t('contact')}</th>
-                      <th className="px-8 py-6">{t('category')}</th>
-                      <th className="px-8 py-6 text-center">{t('status')}</th>
-                      <th className="px-8 py-6 text-right">{t('actions_table')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-brand-border">
-                    {suppliers.map(supplier => (
-                      <tr key={supplier.id} className="hover:bg-brand-primary/5 transition-colors">
-                        <td className="px-8 py-6">
-                          <span className="font-black uppercase italic text-sm">{supplier.name}</span>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold">{supplier.contactName}</span>
-                            <span className="text-[9px] opacity-40 uppercase">{supplier.email}</span>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <span className="text-[10px] font-black uppercase tracking-widest bg-zinc-500/10 text-zinc-500 px-3 py-1 rounded-full italic">
-                            {supplier.category}
-                          </span>
-                        </td>
-                        <td className="px-8 py-6 text-center">
-                          <div className={cn(
-                            "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase italic border",
-                            supplier.active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20"
-                          )}>
-                            {supplier.active ? 'Active' : 'Inactive'}
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                           <button className="p-3 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary hover:text-white transition-all scale-90">
-                              <Plus className="h-4 w-4" />
-                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Suppliers Section Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-900 dark:text-white">{t('portal_suppliers')} & Logistics</h3>
+                <p className="text-xs text-zinc-500 font-bold uppercase">Oversee direct Kigali vendor partnerships, dispatch replenishment requests, and audit logistics channels</p>
+              </div>
+              <div className="flex gap-2">
+                {activeSupplierTab === 'directory' && (
+                  <button 
+                    onClick={() => setIsEditingSupplier({ name: '', contactName: '', email: '', phone: '', category: 'General', active: true })}
+                    className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic hover:scale-105 transition-all shadow-lg shadow-brand-primary/10"
+                  >
+                    <Plus className="h-4 w-4" /> {t('add_supplier')}
+                  </button>
+                )}
+                {activeSupplierTab === 'po' && (
+                  <button
+                    onClick={() => {
+                      setPoLineItems([{ productId: products[0]?.id || '', quantity: 200, wholesaleCost: Math.floor((products[0]?.price || 1000) * 0.7) }]);
+                      setIsCreatingPO(true);
+                    }}
+                    className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic hover:scale-105 transition-all shadow-lg shadow-brand-primary/10"
+                  >
+                    <Plus className="h-4 w-4" /> Create PO restock demand
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Sub Tabs Selection */}
+            <div className="flex border-b border-brand-border pb-1 gap-2 flex-wrap">
+              <button
+                onClick={() => setActiveSupplierTab('directory')}
+                className={cn(
+                  "px-5 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                  activeSupplierTab === 'directory'
+                    ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                    : "bg-black/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                )}
+              >
+                Supplier Directory ({suppliers.length})
+              </button>
+              <button
+                onClick={() => setActiveSupplierTab('po')}
+                className={cn(
+                  "px-5 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                  activeSupplierTab === 'po'
+                    ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                    : "bg-black/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                )}
+              >
+                Logistics & Restocking (POs) ({purchaseOrders.length})
+              </button>
+              <button
+                onClick={() => setActiveSupplierTab('messages')}
+                className={cn(
+                  "px-5 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                  activeSupplierTab === 'messages'
+                    ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
+                    : "bg-black/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
+                )}
+              >
+                SMTP Logistics Messages ({emails.filter(e => e.type?.startsWith('supplier')).length})
+              </button>
+            </div>
+
+            {/* TAB CONTENTS (1) DIRECTORY */}
+            {activeSupplierTab === 'directory' && (
+              <div className="bg-black/5 dark:bg-white/5 rounded-[48px] overflow-hidden border border-brand-border">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full min-w-[800px] text-left border-collapse">
+                    <thead>
+                      <tr className="bg-black/10 dark:bg-white/10 uppercase font-black text-[10px] tracking-widest italic">
+                        <th className="px-8 py-6">{t('supplier')}</th>
+                        <th className="px-8 py-6">{t('contact')}</th>
+                        <th className="px-8 py-6">{t('category')}</th>
+                        <th className="px-8 py-6 text-center">{t('status')}</th>
+                        <th className="px-8 py-6 text-right">{t('actions_table')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-border">
+                      {suppliers.map(supplier => (
+                        <tr key={supplier.id} className="hover:bg-brand-primary/5 transition-colors">
+                          <td className="px-8 py-6">
+                            <span className="font-black uppercase italic text-sm">{supplier.name}</span>
+                            <span className="block font-mono text-[9px] text-zinc-450 uppercase">{supplier.id}</span>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold">{supplier.contactName}</span>
+                              <span className="text-[9px] opacity-40 uppercase select-all">{supplier.email}</span>
+                              {supplier.phone && <span className="text-[9px] font-mono select-all text-zinc-455">{supplier.phone}</span>}
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-zinc-500/10 text-zinc-500 px-3 py-1 rounded-full italic">
+                              {supplier.category}
+                            </span>
+                          </td>
+                          <td className="px-8 py-6 text-center">
+                            <button
+                              onClick={async () => {
+                                await updateDoc(doc(db, 'suppliers', supplier.id), { active: !supplier.active });
+                              }}
+                              className={cn(
+                                "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase italic border transition-all cursor-pointer hover:scale-103",
+                                supplier.active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                              )}
+                              title="Toggle active status"
+                            >
+                              {supplier.active ? 'Active' : 'Inactive'}
+                            </button>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {/* Create restock PO for this supplier specifically */}
+                              <button
+                                onClick={() => {
+                                  setSelectedPOSupplierId(supplier.id);
+                                  setPoLineItems([{ productId: products[0]?.id || '', quantity: 200, wholesaleCost: Math.floor((products[0]?.price || 1000) * 0.7) }]);
+                                  setIsCreatingPO(true);
+                                }}
+                                className="p-3 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary hover:text-white transition-all scale-90"
+                                title="File restocking request (PO)"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => setIsEditingSupplier(supplier)}
+                                className="p-3 bg-[#e0e7ff]/30 text-indigo-500 rounded-xl hover:bg-indigo-550 hover:text-white transition-all scale-90"
+                                title="Edit partnership profile"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (window.confirm(`Dissolve partnership with vendor "${supplier.name}"? This removes them from system archives.`)) {
+                                    await deleteDoc(doc(db, 'suppliers', supplier.id));
+                                  }
+                                }}
+                                className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all scale-90"
+                                title="Delete supplier description"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENTS (2) LOGISTICS & POs */}
+            {activeSupplierTab === 'po' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-805 shadow-xl shadow-zinc-200/5">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Issued Demands</p>
+                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">{purchaseOrders.length} Orders</p>
+                  </div>
+                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-805 shadow-xl shadow-zinc-200/5">
+                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Awaiting Deliveries (Open)</p>
+                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">
+                      {purchaseOrders.filter(po => po.status === 'ordered' || po.status === 'shipped').length} Open
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-850 shadow-xl shadow-zinc-200/5">
+                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Goods Checked In (Restocked)</p>
+                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">
+                      {purchaseOrders.filter(po => po.status === 'received').length} Completed
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
+                  <div className="mb-6">
+                    <h4 className="text-lg font-black uppercase italic tracking-tight text-zinc-950 dark:text-white">Supply restock requests</h4>
+                    <p className="text-xs text-zinc-500">Demanded replenishment items linked directly to premium Kigali suppliers</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {purchaseOrders.map((po) => {
+                      const supplierOfPO = suppliers.find(s => s.id === po.supplierId);
+                      return (
+                        <div key={po.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                          <div className="space-y-3 flex-1 w-full">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="font-mono text-zinc-400 font-bold block select-all text-xs">{po.id}</span>
+                              <span className="text-zinc-500 dark:text-zinc-400 font-black uppercase italic tracking-wide text-sm">• {supplierOfPO ? supplierOfPO.name : `Supplier ID ${po.supplierId}`}</span>
+                              <span className={cn(
+                                "text-[9px] font-black uppercase px-2.5 py-1 rounded-full border tracking-wider",
+                                po.status === 'received' 
+                                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/10" 
+                                  : po.status === 'shipped'
+                                  ? "bg-orange-500/10 text-orange-500 border-orange-500/10 animate-pulse"
+                                  : "bg-amber-500/10 text-amber-500 border-amber-500/10 animate-pulse"
+                              )}>
+                                {po.status}
+                              </span>
+                            </div>
+
+                            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 max-w-xl">
+                              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Requested Goods:</p>
+                              <div className="flex flex-col gap-1">
+                                {po.items && po.items.map((line: any, lIdx: number) => (
+                                  <div key={lIdx} className="text-xs flex justify-between">
+                                    <span className="text-zinc-700 dark:text-zinc-300">• {line.name} <strong className="opacity-60 text-[10px] font-mono">x{line.quantity}</strong></span>
+                                    <span className="font-mono text-zinc-500">{formatCurrency(line.cost)}/ea</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-4 text-xs font-semibold text-zinc-500 flex-wrap">
+                              <span>SLA target: <strong className="text-zinc-700 dark:text-zinc-350">{po.expectedDelivery}</strong></span>
+                              <span>Total Quote: <strong className="text-zinc-900 dark:text-white font-black">{formatCurrency(po.totalCost)}</strong></span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 self-stretch md:self-auto flex-col w-full md:w-auto shrink-0">
+                            {po.status === 'ordered' && (
+                              <>
+                                <button
+                                  onClick={() => handleMarkPOShipped(po)}
+                                  className="px-5 py-3 text-white bg-orange-500 hover:bg-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+                                >
+                                  <Truck className="h-4 w-4" /> MARK SHIPPED 🚚
+                                </button>
+                                <button
+                                  onClick={() => handleConfirmPOReceived(po)}
+                                  className="px-5 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+                                >
+                                  <CheckCircle className="h-4 w-4" /> VERIFY & RECEIVE ✔
+                                </button>
+                              </>
+                            )}
+                            {po.status === 'shipped' && (
+                              <button
+                                onClick={() => handleConfirmPOReceived(po)}
+                                className="px-5 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+                              >
+                                <CheckCircle className="h-4 w-4" /> VERIFY & RECEIVE ✔
+                              </button>
+                            )}
+                            {po.status === 'received' && (
+                              <div className="text-[10px] font-black text-emerald-500 border border-emerald-500/20 bg-emerald-500/5 p-3 rounded-xl uppercase tracking-widest text-center">
+                                Checked In & Restocked
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {purchaseOrders.length === 0 && (
+                      <div className="py-20 text-center text-zinc-500 italic opacity-40 uppercase font-black">
+                        No purchase restock orders filed yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENTS (3) SMTP MESSAGES LOGS */}
+            {activeSupplierTab === 'messages' && (
+              <div className="space-y-6">
+                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
+                  <div className="mb-6">
+                    <h4 className="text-lg font-black uppercase italic tracking-tight text-zinc-900 dark:text-white">Supplier Communications Ledger</h4>
+                    <p className="text-xs text-zinc-500">Live journal recording all system SMTP mail dispatches concerning order placements, supplier shipment approvals, and cargo receipts</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {emails
+                      .filter(e => e.type?.startsWith('supplier') || e.recipient?.includes('supplier') || e.subject?.toUpperCase().includes('RESTOCK') || e.subject?.toUpperCase().includes('DEMAND') || e.subject?.toUpperCase().includes('CARGO'))
+                      .map((email) => (
+                        <div key={email.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                          <div className="space-y-2 flex-1 w-full">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-zinc-400 font-bold block text-xs">{email.id}</span>
+                              <span className="text-[10px] font-black uppercase italic text-zinc-500">• {email.type ? email.type.replace('_', ' ') : 'notification'}</span>
+                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse ml-2" />
+                              <span className="text-[10px] font-black text-emerald-500 uppercase">TRANSMITTED</span>
+                            </div>
+
+                            <h5 className="font-black text-base uppercase italic text-zinc-950 dark:text-white select-all">{email.subject}</h5>
+
+                            <div className="flex gap-4 text-xs font-semibold text-zinc-500 flex-wrap">
+                              <span>To: <strong className="text-zinc-700 dark:text-zinc-300 select-all">{email.recipientName} &lt;{email.recipient || email.to}&gt;</strong></span>
+                              <span>On: <strong>{email.createdAt?.toDate ? email.createdAt.toDate().toLocaleString() : new Date(email.createdAt).toLocaleString()}</strong></span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => setViewingEmail(email)}
+                            className="px-5 py-3 text-white bg-zinc-900 border border-zinc-800 dark:bg-zinc-900 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 italic self-stretch md:self-auto text-center justify-center shrink-0"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" /> View Letter Layout
+                          </button>
+                        </div>
+                    ))}
+
+                    {emails.filter(e => e.type?.startsWith('supplier') || e.recipient?.includes('supplier') || e.subject?.toUpperCase().includes('RESTOCK') || e.subject?.toUpperCase().includes('DEMAND') || e.subject?.toUpperCase().includes('CARGO')).length === 0 && (
+                      <div className="py-24 text-center text-zinc-500 italic opacity-40 uppercase font-black">
+                        No transactional transmissions logged yet for suppliers
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         ) : activeTab === 'alerts' ? (
           <motion.div
@@ -2286,274 +3128,6 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
-          </motion.div>
-        ) : activeTab === 'communications' ? (
-          <motion.div
-            key="communications-tab"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="space-y-8 text-neutral-800 dark:text-neutral-100"
-          >
-            {/* Nav & Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
-              <div>
-                <h3 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-900 dark:text-white">Simba Communications & Supplies</h3>
-                <p className="text-xs font-bold text-zinc-500 uppercase">Manage transactional notifications, restocking purchase orders, and promo broadcasts</p>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setActiveCommunicationsSubTab('po')}
-                  className={cn(
-                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
-                    activeCommunicationsSubTab === 'po'
-                      ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
-                      : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
-                  )}
-                >
-                  Supplier Demands (POs)
-                </button>
-                <button
-                  onClick={() => setActiveCommunicationsSubTab('history')}
-                  className={cn(
-                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
-                    activeCommunicationsSubTab === 'history'
-                      ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
-                      : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
-                  )}
-                >
-                  Transactional Transmissions
-                </button>
-                <button
-                  onClick={() => setActiveCommunicationsSubTab('campaign')}
-                  className={cn(
-                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
-                    activeCommunicationsSubTab === 'campaign'
-                      ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/10"
-                      : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
-                  )}
-                >
-                  Interactive Campaigns
-                </button>
-              </div>
-            </div>
-
-            {/* Subtab Contents — PO */}
-            {activeCommunicationsSubTab === 'po' && (
-              <div className="space-y-6">
-                {/* Stats Panel */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/5">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Issued Demands</p>
-                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">{purchaseOrders.length} Orders</p>
-                  </div>
-                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/5">
-                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Awaiting Deliveries (Open)</p>
-                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">
-                      {purchaseOrders.filter(po => po.status === 'ordered' || po.status === 'shipped').length} Open
-                    </p>
-                  </div>
-                  <div className="bg-white dark:bg-zinc-900 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/5">
-                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Goods Checked In (Restocked)</p>
-                    <p className="text-3xl font-black italic text-zinc-900 dark:text-white mt-1">
-                      {purchaseOrders.filter(po => po.status === 'received').length} Completed
-                    </p>
-                  </div>
-                </div>
-
-                {/* Main section */}
-                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
-                  <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                    <div>
-                      <h4 className="text-lg font-black uppercase italic tracking-tight">Supply restock requests</h4>
-                      <p className="text-xs text-zinc-500">Demanded replenishment items linked directly to premium Kigali suppliers</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setPoLineItems([{ productId: products[0]?.id || '', quantity: 200, wholesaleCost: Math.floor((products[0]?.price || 1000) * 0.7) }]);
-                        setIsCreatingPO(true);
-                      }}
-                      className="px-5 py-3 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic transform transition-transform hover:scale-102"
-                    >
-                      <Plus className="h-4 w-4" /> Create PO restock demand
-                    </button>
-                  </div>
-
-                  {/* Purchase order items */}
-                  <div className="space-y-4">
-                    {purchaseOrders.map((po) => {
-                      const supplierOfPO = suppliers.find(s => s.id === po.supplierId);
-                      return (
-                        <div key={po.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                          <div className="space-y-3 flex-1 w-full">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <span className="font-mono text-zinc-400 font-bold block select-all text-xs">{po.id}</span>
-                              <span className="text-zinc-500 dark:text-zinc-400 font-black uppercase italic tracking-wide text-sm">• {supplierOfPO ? supplierOfPO.name : `Supplier ID ${po.supplierId}`}</span>
-                              <span className={cn(
-                                "text-[9px] font-black uppercase px-2.5 py-1 rounded-full border tracking-wider",
-                                po.status === 'received' 
-                                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/10" 
-                                  : po.status === 'shipped'
-                                  ? "bg-orange-500/10 text-orange-500 border-orange-500/10 animate-pulse"
-                                  : "bg-amber-500/10 text-amber-500 border-amber-500/10 animate-pulse"
-                              )}>
-                                {po.status}
-                              </span>
-                            </div>
-
-                            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 max-w-xl">
-                              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Requested Goods:</p>
-                              <div className="flex flex-col gap-1">
-                                {po.items && po.items.map((line: any, lIdx: number) => (
-                                  <div key={lIdx} className="text-xs flex justify-between">
-                                    <span className="text-zinc-700 dark:text-zinc-300">• {line.name} <strong className="opacity-60 text-[10px] font-mono">x{line.quantity}</strong></span>
-                                    <span className="font-mono text-zinc-500">{formatCurrency(line.cost)}/ea</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="flex gap-4 text-xs font-semibold text-zinc-500 flex-wrap">
-                              <span>SLA target: <strong className="text-zinc-700 dark:text-zinc-350">{po.expectedDelivery}</strong></span>
-                              <span>Total Quote: <strong className="text-zinc-900 dark:text-white font-black">{formatCurrency(po.totalCost)}</strong></span>
-                            </div>
-                          </div>
-
-                          {/* Action panel triggers */}
-                          <div className="flex gap-2 self-stretch md:self-auto flex-col w-full md:w-auto shrink-0">
-                            {po.status === 'ordered' && (
-                              <>
-                                <button
-                                  onClick={() => handleMarkPOShipped(po)}
-                                  className="px-5 py-3 text-white bg-orange-500 hover:bg-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2"
-                                >
-                                  <Truck className="h-4 w-4" /> MARK SHIPPED 🚚
-                                </button>
-                                <button
-                                  onClick={() => handleConfirmPOReceived(po)}
-                                  className="px-5 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2"
-                                >
-                                  <CheckCircle className="h-4 w-4" /> VERIFY & RECEIVE ✔
-                                </button>
-                              </>
-                            )}
-                            {po.status === 'shipped' && (
-                              <button
-                                onClick={() => handleConfirmPOReceived(po)}
-                                className="px-5 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2"
-                              >
-                                <CheckCircle className="h-4 w-4" /> VERIFY & RECEIVE ✔
-                              </button>
-                            )}
-                            {po.status === 'received' && (
-                              <div className="text-[10px] font-black text-emerald-500 border border-emerald-500/20 bg-emerald-500/5 p-3 rounded-xl uppercase tracking-widest text-center">
-                                Checked In & Restocked
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {purchaseOrders.length === 0 && (
-                      <div className="py-20 text-center text-zinc-500 italic opacity-40 uppercase font-black">
-                        No purchase restock orders filed yet
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Subtab Contents — TRANSACTIONAL LOGS */}
-            {activeCommunicationsSubTab === 'history' && (
-              <div className="space-y-6">
-                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
-                  <div className="mb-6">
-                    <h4 className="text-lg font-black uppercase italic tracking-tight">Transactional Notification Journal</h4>
-                    <p className="text-xs text-zinc-500">Full SMTP log capturing of all system-issued order receipts, courier alerts, and supply demands</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    {emails.map((email) => (
-                      <div key={email.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div className="space-y-2 flex-1 w-full">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-zinc-400 font-bold block text-xs">{email.id}</span>
-                            <span className="text-[10px] font-black uppercase italic text-zinc-500">• {email.type ? email.type.replace('_', ' ') : 'notification'}</span>
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse ml-2" />
-                            <span className="text-[10px] font-black text-emerald-500 uppercase">TRANSMITTED</span>
-                          </div>
-
-                          <h5 className="font-black text-base uppercase italic text-zinc-950 dark:text-white select-all">{email.subject}</h5>
-
-                          <div className="flex gap-4 text-xs font-semibold text-zinc-500 flex-wrap">
-                            <span>To: <strong className="text-zinc-700 dark:text-zinc-300 select-all">{email.recipientName} &lt;{email.to}&gt;</strong></span>
-                            <span>On: <strong>{email.createdAt?.toDate ? email.createdAt.toDate().toLocaleString() : new Date(email.createdAt).toLocaleString()}</strong></span>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => setViewingEmail(email)}
-                          className="px-5 py-3 text-white bg-zinc-900 border border-zinc-800 dark:bg-zinc-900 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-zinc-850 dark:hover:bg-zinc-805 transition-colors flex items-center gap-2 italic self-stretch md:self-auto text-center justify-center shrink-0"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" /> View Template Layout
-                        </button>
-                      </div>
-                    ))}
-
-                    {emails.length === 0 && (
-                      <div className="py-24 text-center text-zinc-500 italic opacity-40 uppercase font-black">
-                        No transactional transmissions logged yet
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Subtab Contents — INTERACTIVE CAMPAIGNS */}
-            {activeCommunicationsSubTab === 'campaign' && (
-              <div className="space-y-6">
-                <div className="bg-[#1c1c1e]/5 dark:bg-zinc-900/40 p-6 md:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800">
-                  <div className="mb-6">
-                    <h4 className="text-lg font-black uppercase italic tracking-tight">Active Promotion Broadcasts</h4>
-                    <p className="text-xs text-zinc-500">Deliver exquisite, styled digital checkout codes directly to the email of registered customers</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {promotions.map((promo) => (
-                      <div key={promo.id} className="bg-white dark:bg-zinc-950 p-6 rounded-[32px] border border-zinc-200 dark:border-zinc-900 flex flex-col justify-between gap-6">
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start">
-                            <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-full text-brand-primary bg-brand-primary/10 border border-brand-primary/25">
-                              {promo.type === 'percentage' ? `${promo.value}% discount` : `value RWF ${promo.value}`}
-                            </span>
-                            <span className="font-mono text-zinc-500 text-[10px]">#{promo.id}</span>
-                          </div>
-
-                          <h5 className="font-black text-lg text-zinc-900 dark:text-white uppercase italic tracking-tight">{promo.name}</h5>
-                          <p className="text-xs text-zinc-500 leading-relaxed">Runs from {promo.startDate ? (promo.startDate.toDate ? promo.startDate.toDate().toLocaleDateString() : new Date(promo.startDate).toLocaleDateString()) : ''} to {promo.endDate ? (promo.endDate.toDate ? promo.endDate.toDate().toLocaleDateString() : new Date(promo.endDate).toLocaleDateString()) : ''}. Applicable on select premium Kigali merchandise stores.</p>
-                        </div>
-
-                        <button
-                          onClick={() => setSendingPromoEmail(promo)}
-                          className="w-full py-4 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest text-center flex items-center justify-center gap-2 italic transform transition-transform hover:scale-102"
-                        >
-                          <Megaphone className="h-4 w-4" /> Broadcast campaign via email
-                        </button>
-                      </div>
-                    ))}
-
-                    {promotions.length === 0 && (
-                      <div className="col-span-1 md:col-span-2 py-20 text-center text-zinc-500 italic opacity-40 uppercase font-black">
-                        Configure a Promotion before initiating broadcasts
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
           </motion.div>
         ) : (
           <div />
@@ -2678,6 +3252,275 @@ export default function AdminDashboard() {
                     className="flex-1 py-4 bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-orange-600 transition-colors disabled:opacity-40 italic shadow-lg shadow-brand-primary/20"
                   >
                     {isSaving ? "Saving..." : "Save Promotion"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Supplier Profile Editor Modal Overlay */}
+      <AnimatePresence>
+        {isEditingSupplier && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto"
+            id="supplier-edit-modal"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-zinc-950 border border-zinc-805 w-full max-w-lg rounded-[40px] p-6 md:p-8 shadow-2xl relative text-white"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tight text-white">
+                    {isEditingSupplier.id ? "Edit Vendor Profile" : "Register New Kigali Supplier"}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wide">Enter official business registries and SLA points</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setIsEditingSupplier(null)}
+                  className="p-3 bg-zinc-900 border border-zinc-800 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all scale-90"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveSupplier} className="space-y-5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Supplier Name / Enterprise</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. Inyange Industries Rwanda"
+                    value={isEditingSupplier.name || ''}
+                    onChange={e => setIsEditingSupplier({ ...isEditingSupplier, name: e.target.value })}
+                    className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Key Logistics Contact Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. Jean Pierre Nsabimana"
+                    value={isEditingSupplier.contactName || ''}
+                    onChange={e => setIsEditingSupplier({ ...isEditingSupplier, contactName: e.target.value })}
+                    className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">SMTP Contact Email</label>
+                    <input 
+                      type="email" 
+                      required
+                      placeholder="e.g. logistics@inyange.rw"
+                      value={isEditingSupplier.email || ''}
+                      onChange={e => setIsEditingSupplier({ ...isEditingSupplier, email: e.target.value })}
+                      className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Corporate Phone</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. +250 788 340 000"
+                      value={isEditingSupplier.phone || ''}
+                      onChange={e => setIsEditingSupplier({ ...isEditingSupplier, phone: e.target.value })}
+                      className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Merchandise Category</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. Dairy & Beverages"
+                    value={isEditingSupplier.category || ''}
+                    onChange={e => setIsEditingSupplier({ ...isEditingSupplier, category: e.target.value })}
+                    className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 bg-black/35 border border-[#2d2d2d] p-4 rounded-2xl">
+                  <input 
+                    type="checkbox"
+                    id="supplier-active-chk"
+                    checked={isEditingSupplier.active !== false}
+                    onChange={e => setIsEditingSupplier({ ...isEditingSupplier, active: e.target.checked })}
+                    className="w-5 h-5 accent-brand-primary rounded"
+                  />
+                  <label htmlFor="supplier-active-chk" className="text-xs font-black uppercase text-white cursor-pointer select-none">
+                    Supplier Partnership is Active & Eligible for PO demands
+                  </label>
+                </div>
+
+                <div className="flex gap-4 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditingSupplier(null)}
+                    className="flex-1 py-4 bg-[#232323] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-[#323232] transition-colors italic"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex-1 py-4 bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-orange-600 transition-colors disabled:opacity-40 italic shadow-lg shadow-brand-primary/20"
+                  >
+                    {isSaving ? "Saving..." : "Save Supplier"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Staff Profile Editor Modal Overlay */}
+      <AnimatePresence>
+        {isEditingStaff && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto"
+            id="staff-edit-modal"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-zinc-950 border border-zinc-805 w-full max-w-lg rounded-[40px] p-6 md:p-8 shadow-2xl relative text-white"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tight text-white">
+                    {isEditingStaff.id ? "Edit Staff Account" : "Register Team Associate"}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wide">Enter duty configurations and shift wage scales</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setIsEditingStaff(null)}
+                  className="p-3 bg-zinc-900 border border-zinc-800 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all scale-90"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveStaff} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-440 block">Full Legal Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. Keza Gisele"
+                    value={isEditingStaff.name || ''}
+                    onChange={e => setIsEditingStaff({ ...isEditingStaff, name: e.target.value })}
+                    className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-440 block">Allocated Job Role</label>
+                    <select
+                      value={isEditingStaff.role || 'Cashier'}
+                      onChange={e => setIsEditingStaff({ ...isEditingStaff, role: e.target.value as any })}
+                      className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                    >
+                      <option value="Manager">Manager</option>
+                      <option value="Cashier">Cashier</option>
+                      <option value="Stockist">Stockist</option>
+                      <option value="Courier">Courier</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-440 block">Designated Mobile No.</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="e.g. +250 788 123 456"
+                      value={isEditingStaff.phone || ''}
+                      onChange={e => setIsEditingStaff({ ...isEditingStaff, phone: e.target.value })}
+                      className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-440 block">Salary Scale (RWF)</label>
+                    <input 
+                      type="number" 
+                      placeholder="e.g. 450000"
+                      value={isEditingStaff.salary || ''}
+                      onChange={e => setIsEditingStaff({ ...isEditingStaff, salary: Number(e.target.value) })}
+                      className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-440 block">Tasks Done</label>
+                    <input 
+                      type="number" 
+                      value={isEditingStaff.tasksCompleted || 0}
+                      onChange={e => setIsEditingStaff({ ...isEditingStaff, tasksCompleted: Number(e.target.value) })}
+                      className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-440 block">Rating (0-5)</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      min="0"
+                      max="5"
+                      value={isEditingStaff.rating || 5.0}
+                      onChange={e => setIsEditingStaff({ ...isEditingStaff, rating: Number(e.target.value) })}
+                      className="w-full bg-black/40 border border-[#2d2d2d] rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-black/35 border border-[#2d2d2d] p-4 rounded-2xl">
+                  <input 
+                    type="checkbox"
+                    id="staff-active-chk"
+                    checked={isEditingStaff.active !== false}
+                    onChange={e => setIsEditingStaff({ ...isEditingStaff, active: e.target.checked })}
+                    className="w-5 h-5 accent-brand-primary rounded"
+                  />
+                  <label htmlFor="staff-active-chk" className="text-xs font-black uppercase text-white cursor-pointer select-none">
+                    Roster Active (Available on shift scheduler lists)
+                  </label>
+                </div>
+
+                <div className="flex gap-4 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditingStaff(null)}
+                    className="flex-1 py-4 bg-[#232323] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-[#323232] transition-colors italic"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex-1 py-4 bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-orange-600 transition-colors disabled:opacity-40 italic shadow-lg shadow-brand-primary/20"
+                  >
+                    {isSaving ? "Saving..." : "Save Member"}
                   </button>
                 </div>
               </form>
