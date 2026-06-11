@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut, Zap } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut, Zap, Heart, ChevronDown, Home, Info, ChevronRight } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
+import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from './AuthProvider';
 import { useTranslation } from 'react-i18next';
 import { auth } from '../lib/firebase';
@@ -15,10 +16,13 @@ export default function Navbar() {
   const { totalItems } = useCart();
   const { user, profile } = useAuth();
   const { t, i18n } = useTranslation();
+  const { setIsOpen: setIsWishlistOpen, wishlistIds } = useWishlist();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isDesktopLangOpen, setIsDesktopLangOpen] = useState(false);
+  const [isMobileLangOpen, setIsMobileLangOpen] = useState(false);
   
   const products = productsData.products as Product[];
 
@@ -142,8 +146,9 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="nav-blur sticky top-0 z-[100]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
+      <nav className="nav-blur sticky top-0 z-[100]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-24">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 sm:gap-4 group shrink-0">
@@ -166,8 +171,8 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-2 lg:gap-8 min-w-0">
-            <form onSubmit={handleSearch} className="relative group flex items-center flex-1 max-w-[200px] lg:max-w-xs transition-all">
+          <div className="hidden xl:flex items-center gap-2 xl:gap-8 min-w-0">
+            <form onSubmit={handleSearch} className="relative group flex items-center flex-1 max-w-[200px] xl:max-w-xs transition-all">
               <Search className="absolute left-6 h-5 w-5 text-zinc-500 dark:text-white/30 group-focus-within:text-brand-primary transition-colors" />
               <input
                 type="text"
@@ -179,7 +184,7 @@ export default function Navbar() {
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-3 pl-14 pr-16 text-xs lg:text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-8 focus:ring-brand-primary/5 transition-all placeholder:text-zinc-400 dark:placeholder:text-white/20 text-black dark:text-white shadow-xl group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
+                className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-3 pl-14 pr-16 text-xs xl:text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-8 focus:ring-brand-primary/5 transition-all placeholder:text-zinc-400 dark:placeholder:text-white/20 text-black dark:text-white shadow-xl group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
               />
               {searchQuery && (
                 <button 
@@ -194,7 +199,7 @@ export default function Navbar() {
                   <X className="h-5 w-5" />
                 </button>
               )}
-              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-black/40 dark:text-white/20 tracking-tighter uppercase border border-zinc-300 dark:border-white/10 px-2 py-1 rounded pointer-events-none hidden lg:block">⌘K</div>
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-black/40 dark:text-white/20 tracking-tighter uppercase border border-zinc-300 dark:border-white/10 px-2 py-1 rounded pointer-events-none hidden xl:block">⌘K</div>
               
               {/* Desktop Suggestions */}
               <AnimatePresence>
@@ -243,13 +248,27 @@ export default function Navbar() {
             </form>
 
             <button 
+              onClick={() => setIsWishlistOpen(true)}
+              className="relative p-2.5 bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-full hover:text-brand-primary transition-all group text-zinc-800 dark:text-zinc-200"
+              title={t('my_wishlist', 'My Wishlist')}
+              id="desktop-wishlist-toggle"
+            >
+              <Heart className="h-4 w-4 text-zinc-500 dark:text-zinc-400 group-hover:scale-110 group-hover:text-rose-500 transition-all" />
+              {wishlistIds.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-zinc-100 dark:border-zinc-900 shadow-md">
+                  {wishlistIds.length}
+                </span>
+              )}
+            </button>
+
+            <button 
               onClick={() => setIsDark(!isDark)}
               className="p-2.5 bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-full hover:text-brand-primary transition-all group"
             >
               {isDark ? <Sun className="h-4 w-4 text-brand-accent group-hover:scale-110 transition-transform" /> : <Moon className="h-4 w-4 text-black/40 group-hover:scale-110 transition-transform" />}
             </button>
 
-            <div className="flex items-center gap-3 lg:gap-8 micro-label">
+            <div className="flex items-center gap-3 xl:gap-8 micro-label">
               <Link to="/shop" className="hover:text-brand-primary transition-colors text-zinc-800 dark:text-zinc-200 font-black tracking-widest uppercase">{t('shop') || 'Shop'}</Link>
               <Link to="/about" className="hover:text-brand-primary transition-colors text-zinc-850 dark:text-zinc-200 font-black tracking-widest uppercase">{t('about_us')}</Link>
               
@@ -286,20 +305,49 @@ export default function Navbar() {
                 </Link>
               )}
 
-              <div className="flex gap-3 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-full border border-brand-border dark:border-white/10">
-                {languages.map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => changeLanguage(lang.code)}
-                    className={cn(
-                      "cursor-pointer transition-all hover:text-brand-primary flex items-center justify-center text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md",
-                      i18n.language === lang.code ? "bg-brand-primary text-white dark:text-black italic shadow-lg" : "text-zinc-500 hover:bg-black/5"
-                    )}
-                    title={lang.label}
-                  >
-                    {lang.short}
-                  </button>
-                ))}
+              {/* Desktop Language Selector Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsDesktopLangOpen(!isDesktopLangOpen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-full hover:text-brand-primary font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer"
+                >
+                  <Globe className="h-3.5 w-3.5 text-zinc-500" />
+                  <span>{languages.find(l => l.code === i18n.language)?.short || i18n.language.toUpperCase()}</span>
+                  <ChevronDown className={cn("h-3 w-3 text-zinc-400 transition-transform", isDesktopLangOpen && "rotate-180")} />
+                </button>
+                <AnimatePresence>
+                  {isDesktopLangOpen && (
+                    <>
+                      {/* Clicking outside closes the dropdown list */}
+                      <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsDesktopLangOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className="absolute right-0 mt-2 w-36 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 py-1 overflow-hidden"
+                      >
+                        {languages.map((lang) => (
+                          <button
+                            key={lang.code}
+                            type="button"
+                            onClick={() => {
+                              changeLanguage(lang.code);
+                              setIsDesktopLangOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-black/5 dark:hover:bg-white/5 flex justify-between items-center transition-colors cursor-pointer",
+                              i18n.language === lang.code ? "text-brand-primary italic bg-brand-primary/5" : "text-zinc-700 dark:text-zinc-300"
+                            )}
+                          >
+                            <span>{lang.label}</span>
+                            <span className="opacity-40 text-[8px]">{lang.short}</span>
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
@@ -328,13 +376,26 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Buttons */}
-          <div className="flex lg:hidden items-center gap-2 sm:gap-4">
+          <div className="flex xl:hidden items-center gap-2 sm:gap-4">
             <button 
               onClick={() => setIsSearchOpen(true)} 
               className="p-2 sm:p-3 text-zinc-800 dark:text-white bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md"
               aria-label="Search"
             >
               <Search className="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
+            <button 
+              onClick={() => setIsWishlistOpen(true)} 
+              className="relative text-zinc-800 dark:text-white bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 p-2 sm:p-3 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md flex items-center justify-center"
+              aria-label={t('my_wishlist', 'Wishlist')}
+              id="mobile-wishlist-toggle"
+            >
+              <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-rose-500" />
+              {wishlistIds.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-zinc-100 dark:border-zinc-900 shadow-md">
+                  {wishlistIds.length}
+                </span>
+              )}
             </button>
             <Link to="/cart" className="relative text-zinc-800 dark:text-white bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 p-2 sm:p-3 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md flex items-center justify-center">
               <motion.div
@@ -370,6 +431,7 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+    </nav>
 
       {/* Mobile Search Overlay */}
       <AnimatePresence>
@@ -378,7 +440,7 @@ export default function Navbar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md lg:hidden"
+            className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md xl:hidden"
           >
             <motion.div
               initial={{ y: -50 }}
@@ -443,7 +505,12 @@ export default function Navbar() {
       {/* Mobile Right Slide-in Drawer */}
       <AnimatePresence>
         {isMenuOpen && (
-          <div className="fixed inset-0 z-[200] lg:hidden">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] xl:hidden"
+          >
             {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
@@ -534,83 +601,161 @@ export default function Navbar() {
                 {/* Primary Nav Links */}
                 <div className="space-y-6">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 italic mb-4">{t('navigation')}</h3>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-2.5">
                     <Link 
                       to="/" 
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
+                      className="flex items-center gap-4 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/40 hover:bg-brand-primary/5 border border-zinc-100 dark:border-zinc-900 hover:border-brand-primary/20 transition-all group cursor-pointer"
                     >
-                      {t('home')}
-                      <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
+                      <div className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 rounded-xl group-hover:bg-brand-primary/10 group-hover:border-brand-primary/20 transition-colors">
+                        <Home className="h-4.5 w-4.5 text-zinc-600 dark:text-zinc-400 group-hover:text-brand-primary transition-colors" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-extrabold italic uppercase tracking-wider text-xs text-zinc-900 dark:text-white group-hover:text-brand-primary transition-colors">{t('home')}</p>
+                        <p className="text-[9px] font-medium text-zinc-500 uppercase tracking-wide mt-0.5">{t('home_desc', 'Main Storefront')}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-zinc-400 group-hover:text-brand-primary group-hover:translate-x-1 transition-all" />
                     </Link>
+
                     <Link 
                       to="/shop" 
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
+                      className="flex items-center gap-4 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/40 hover:bg-brand-primary/5 border border-zinc-100 dark:border-zinc-900 hover:border-brand-primary/20 transition-all group cursor-pointer"
                     >
-                      {t('shop') || 'Shop'}
-                      <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
+                      <div className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 rounded-xl group-hover:bg-brand-primary/10 group-hover:border-brand-primary/20 transition-colors">
+                        <ShoppingBag className="h-4.5 w-4.5 text-zinc-600 dark:text-zinc-400 group-hover:text-brand-primary transition-colors" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-extrabold italic uppercase tracking-wider text-xs text-zinc-900 dark:text-white group-hover:text-brand-primary transition-colors">{t('shop') || 'Shop'}</p>
+                        <p className="text-[9px] font-medium text-zinc-500 uppercase tracking-wide mt-0.5">{t('shop_desc', 'Browse Products')}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-zinc-400 group-hover:text-brand-primary group-hover:translate-x-1 transition-all" />
                     </Link>
+
                     <Link 
                       to="/about" 
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
+                      className="flex items-center gap-4 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/40 hover:bg-brand-primary/5 border border-zinc-100 dark:border-zinc-900 hover:border-brand-primary/20 transition-all group cursor-pointer"
                     >
-                      {t('about_us')}
-                      <div className="h-px bg-brand-primary w-0 group-hover:w-12 transition-all duration-500" />
+                      <div className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 rounded-xl group-hover:bg-brand-primary/10 group-hover:border-brand-primary/20 transition-colors">
+                        <Info className="h-4.5 w-4.5 text-zinc-600 dark:text-zinc-400 group-hover:text-brand-primary transition-colors" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-extrabold italic uppercase tracking-wider text-xs text-zinc-900 dark:text-white group-hover:text-brand-primary transition-colors">{t('about_us')}</p>
+                        <p className="text-[9px] font-medium text-zinc-500 uppercase tracking-wide mt-0.5">{t('about_desc', 'Our Heritage')}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-zinc-400 group-hover:text-brand-primary group-hover:translate-x-1 transition-all" />
                     </Link>
+
                     <Link 
                       to="/cart" 
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white hover:text-brand-primary transition-all group"
+                      className="flex items-center gap-4 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/40 hover:bg-brand-primary/5 border border-zinc-100 dark:border-zinc-900 hover:border-brand-primary/20 transition-all group cursor-pointer"
                     >
-                      {t('my_cart')}
-                      <span className="text-brand-primary text-lg ml-2">({totalItems})</span>
+                      <div className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 rounded-xl group-hover:bg-brand-primary/10 group-hover:border-brand-primary/20 transition-colors relative">
+                        <ShoppingCart className="h-4.5 w-4.5 text-zinc-600 dark:text-zinc-400 group-hover:text-brand-primary transition-colors" />
+                        {totalItems > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-brand-primary text-white text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-white dark:border-zinc-950 animate-bounce">{totalItems}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-extrabold italic uppercase tracking-wider text-xs text-zinc-900 dark:text-white group-hover:text-brand-primary transition-colors">{t('my_cart')}</p>
+                        <p className="text-[9px] font-medium text-zinc-500 uppercase tracking-wide mt-0.5">{t('cart_desc', 'Your Shopping Items')}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-zinc-400 group-hover:text-brand-primary group-hover:translate-x-1 transition-all" />
                     </Link>
+
+                    <button 
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsWishlistOpen(true);
+                      }}
+                      className="flex items-center gap-4 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/40 hover:bg-brand-primary/5 border border-zinc-100 dark:border-zinc-900 hover:border-brand-primary/20 transition-all group cursor-pointer text-left w-full"
+                    >
+                      <div className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 rounded-xl group-hover:bg-rose-500/10 group-hover:border-rose-500/20 transition-colors relative">
+                        <Heart className="h-4.5 w-4.5 text-zinc-600 dark:text-zinc-400 group-hover:text-rose-500 transition-colors" />
+                        {wishlistIds.length > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-white dark:border-zinc-950">{wishlistIds.length}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-extrabold italic uppercase tracking-wider text-xs text-zinc-900 dark:text-white group-hover:text-rose-500 transition-colors">{t('my_wishlist', 'Wishlist')}</p>
+                        <p className="text-[9px] font-medium text-zinc-500 uppercase tracking-wide mt-0.5">{t('wishlist_desc', 'Saved and Loved Items')}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-zinc-400 group-hover:text-brand-primary group-hover:translate-x-1 transition-all" />
+                    </button>
+
                     {profile?.isAdmin && (
                       <Link 
                         to="/admin" 
                         onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center justify-between text-2xl font-black italic uppercase tracking-tighter text-brand-primary hover:text-orange-600 transition-all group p-4 bg-brand-primary/5 rounded-2xl border border-brand-primary/10"
+                        className="flex items-center gap-4 p-3.5 rounded-2xl bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/10 hover:border-brand-primary/30 transition-all group cursor-pointer w-full"
                       >
-                        {t('admin_hub')}
-                        <Zap className="h-6 w-6" />
+                        <div className="p-2.5 bg-white dark:bg-zinc-900 border border-brand-primary/20 rounded-xl">
+                          <Zap className="h-4.5 w-4.5 text-brand-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-extrabold italic uppercase tracking-wider text-xs text-brand-primary">{t('admin_hub')}</p>
+                          <p className="text-[9px] font-medium text-brand-primary/60 uppercase tracking-wide mt-0.5">{t('admin_desc', 'Supermarket Portal')}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-brand-primary group-hover:translate-x-1 transition-all" />
                       </Link>
                     )}
                   </div>
                 </div>
 
-                {/* Preferences */}
-                <div className="space-y-6">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 italic mb-4">{t('preferences')}</h3>
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => setIsDark(!isDark)}
-                      className="flex-1 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-brand-border flex items-center justify-center gap-3 active:scale-95 transition-transform"
-                    >
-                      {isDark ? <Sun className="h-5 w-5 text-brand-accent" /> : <Moon className="h-5 w-5" />}
-                      <span className="text-[9px] font-black uppercase tracking-widest">{isDark ? 'LIGHT' : 'DARK'}</span>
-                    </button>
-                    <div className="flex-1 grid grid-cols-1 gap-2">
-                      {languages.map((lang) => (
-                        <button
-                          key={lang.code}
-                          onClick={() => {
-                            changeLanguage(lang.code);
-                            setIsMenuOpen(false);
-                          }}
-                          className={cn(
-                            "p-3 rounded-xl text-left font-black italic uppercase tracking-widest text-[10px] flex items-center justify-between",
-                            i18n.language === lang.code ? "bg-brand-primary text-white dark:text-black shadow-xl" : "bg-black/5 dark:bg-white/5 opacity-80"
-                          )}
-                        >
-                          <span>{lang.label}</span>
-                          <span className="opacity-40">{lang.short}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                 {/* Preferences */}
+                 <div className="space-y-6">
+                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 italic mb-4">{t('preferences')}</h3>
+                   <div className="flex flex-col sm:flex-row gap-3">
+                     <button 
+                       onClick={() => setIsDark(!isDark)}
+                       className="flex-1 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-brand-border flex items-center justify-center gap-3 active:scale-95 transition-transform cursor-pointer"
+                     >
+                       {isDark ? <Sun className="h-5 w-5 text-brand-accent" /> : <Moon className="h-5 w-5" />}
+                       <span className="text-[9px] font-black uppercase tracking-widest">{isDark ? 'LIGHT' : 'DARK'}</span>
+                     </button>
+                     <div className="flex-1">
+                       <button
+                         type="button"
+                         onClick={() => setIsMobileLangOpen(!isMobileLangOpen)}
+                         className="w-full p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-brand-border flex items-center justify-between gap-2 active:scale-95 transition-transform font-black uppercase text-[9px] tracking-widest cursor-pointer"
+                       >
+                         <span className="truncate">{languages.find(l => l.code === i18n.language)?.label || 'Language'}</span>
+                         <ChevronDown className={cn("h-4 w-4 text-zinc-400 transition-transform duration-200", isMobileLangOpen && "rotate-180")} />
+                       </button>
+                       <AnimatePresence>
+                         {isMobileLangOpen && (
+                           <motion.div
+                             initial={{ opacity: 0, height: 0 }}
+                             animate={{ opacity: 1, height: 'auto' }}
+                             exit={{ opacity: 0, height: 0 }}
+                             className="overflow-hidden bg-black/5 dark:bg-white/5 border border-zinc-200 dark:border-zinc-800 rounded-2xl mt-2 py-1"
+                           >
+                             {languages.map((lang) => (
+                               <button
+                                 key={`mobile-lang-${lang.code}`}
+                                 type="button"
+                                 onClick={() => {
+                                   changeLanguage(lang.code);
+                                   setIsMobileLangOpen(false);
+                                   setIsMenuOpen(false);
+                                 }}
+                                 className={cn(
+                                   "w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-black/5 dark:hover:bg-white/5 flex justify-between items-center transition-colors cursor-pointer",
+                                   i18n.language === lang.code ? "text-brand-primary bg-brand-primary/5" : "text-zinc-700 dark:text-zinc-300"
+                                 )}
+                               >
+                                 <span>{lang.label}</span>
+                                 <span className="opacity-40">{lang.short}</span>
+                               </button>
+                             ))}
+                           </motion.div>
+                         )}
+                       </AnimatePresence>
+                     </div>
+                   </div>
+                 </div>
               </div>
 
               {/* Footer */}
@@ -620,9 +765,9 @@ export default function Navbar() {
                 </p>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </>
   );
 }

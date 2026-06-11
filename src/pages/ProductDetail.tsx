@@ -318,20 +318,18 @@ export default function ProductDetail() {
                     {t('add_to_cart')}
                   </button>
                 )}
-                {user && (
-                  <button 
-                    onClick={() => product && toggleWishlist(product)}
-                    className={cn(
-                      "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all border-2 order-1 sm:order-2",
-                      isInWishlist(Number(id)) 
-                        ? "bg-rose-500 text-white border-rose-500 shadow-xl shadow-rose-500/20" 
-                        : "bg-black/5 dark:bg-white/5 border-brand-border text-[var(--brand-text-muted)] hover:text-rose-500 hover:border-rose-500/50"
-                    )}
-                    aria-label={isInWishlist(Number(id)) ? "Remove from wishlist" : "Add to wishlist"}
-                  >
-                    <Heart className={cn("h-6 w-6 sm:h-8 sm:w-8", isInWishlist(Number(id)) ? "fill-white" : "fill-none")} />
-                  </button>
-                )}
+                <button 
+                  onClick={() => product && toggleWishlist(product)}
+                  className={cn(
+                    "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all border-2 order-1 sm:order-2",
+                    isInWishlist(Number(id)) 
+                      ? "bg-rose-500 text-white border-rose-500 shadow-xl shadow-rose-500/20" 
+                      : "bg-black/5 dark:bg-white/5 border-brand-border text-[var(--brand-text-muted)] hover:text-rose-500 hover:border-rose-500/50"
+                  )}
+                  aria-label={isInWishlist(Number(id)) ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                  <Heart className={cn("h-6 w-6 sm:h-8 sm:w-8", isInWishlist(Number(id)) ? "fill-white" : "fill-none")} />
+                </button>
              </div>
           </div>
 

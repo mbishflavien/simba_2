@@ -54,24 +54,22 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
             </span>
           </div>
         )}
-        {user && (
-          <button 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleWishlist(product);
-            }}
-            className={cn(
-              "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border border-white/20 group/heart hover:scale-110 active:scale-95 z-20",
-              isInWishlist(product.id) 
-                ? "bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/30" 
-                : "bg-black/20 text-white/60 hover:text-white"
-            )}
-            aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
-          >
-            <Heart className={cn("h-5 w-5 transition-transform", isInWishlist(product.id) ? "fill-white" : "fill-none scale-90 group-hover/heart:scale-100")} />
-          </button>
-        )}
+        <button 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleWishlist(product);
+          }}
+          className={cn(
+            "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border border-white/20 group/heart hover:scale-110 active:scale-95 z-20",
+            isInWishlist(product.id) 
+              ? "bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/30" 
+              : "bg-black/20 text-white/60 hover:text-white"
+          )}
+          aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          <Heart className={cn("h-5 w-5 transition-transform", isInWishlist(product.id) ? "fill-white" : "fill-none scale-90 group-hover/heart:scale-100")} />
+        </button>
       </Link>
 
       <div className="flex flex-col gap-1 px-1">

@@ -9,6 +9,7 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Welcome from './pages/Welcome';
 import FloatingCartBar from './components/FloatingCartBar';
+import WishlistDrawer from './components/WishlistDrawer';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import AboutUs from './pages/AboutUs';
@@ -85,6 +86,7 @@ function AppLayout() {
       </div>
       {!hideGlobalUI && <Footer />}
       {!hideGlobalUI && <FloatingCartBar />}
+      {!hideGlobalUI && <WishlistDrawer />}
     </div>
   );
 }
