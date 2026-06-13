@@ -1064,23 +1064,48 @@ export default function AdminDashboard() {
       
       // Dispatch real email rendering and persistence in Firestore 'emails'
       setEmailBlastStatus("Transmitting and logging secure campaign letters in Firestore database...");
-      const count = await sendPromotionEmail(promo, maxUsers);
+      const report = await sendPromotionEmail(promo, maxUsers);
 
       const alertRef = collection(db, 'inventoryAlerts');
+      
+      // 1. If there are failed dispatch attempts, queue a high-visibility communication warning alert
+      if (report.failedCount > 0) {
+        await addDoc(alertRef, {
+          id: `PROMO-WARN-${Date.now()}`,
+          type: 'alert',
+          message: `Campaign Warning: "${promo.name}" completed with ${report.failedCount} failures out of ${report.totalAttempted} dispatches. Check logs for details.`,
+          severity: 'medium',
+          isRead: false,
+          createdAt: Timestamp.now()
+        });
+      }
+
+      // 2. Queue the standard success info log in alerts center
       await addDoc(alertRef, {
         id: `PROMO-${Date.now()}`,
         type: 'info',
-        message: `Promotion broadcast for "${promo.name}" logged and dispatched to ${count} customers.`,
+        message: `Promotion campaign "${promo.name}" broadcast completed. Successfully delivered: ${report.successCount}, Failed: ${report.failedCount}.`,
         severity: 'low',
         isRead: false,
         createdAt: Timestamp.now()
       });
 
-      alert(`Success! Promotion broadcast dispatched successfully! ${count} email logs written.`);
+      // 3. User feedback message with precise statistics
+      if (report.failedCount > 0) {
+        alert(
+          `Success status: Campaign queued with warnings!\n\n` +
+          `• Successfully Queued: ${report.successCount} campaign letters\n` +
+          `• Dispatch Blocked/Failed: ${report.failedCount} attempts\n\n` +
+          `Failed subscriber targets have been recorded in the SMTP Logs under failed states with detailed diagnostics.`
+        );
+      } else {
+        alert(`Success! Promotion broadcast dispatched successfully! ${report.successCount} campaign emails written.`);
+      }
+      
       setSendingPromoEmail(null);
     } catch (error) {
       console.error("Error sending promo emails:", error);
-      alert("Failed to send promotion emails");
+      alert("Failed to execute promotion campaign broadcast. Check SMTP integration state and network.");
     } finally {
       setIsSendingEmail(false);
       setEmailBlastStatus(null);

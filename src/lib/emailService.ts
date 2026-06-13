@@ -451,8 +451,22 @@ export async function sendSupplierGoodsReceived(po: PurchaseOrder, supplier: Sup
   return poId;
 }
 
+export interface PromotionBroadcastReport {
+  successCount: number;
+  failedCount: number;
+  totalAttempted: number;
+  failures: {
+    email: string;
+    recipientName: string;
+    reason: string;
+  }[];
+}
+
 // 9. Promotion Broadcast
-export async function sendPromotionEmail(promotion: Promotion, customerDetails: {displayName: string, email: string}[]): Promise<number> {
+export async function sendPromotionEmail(
+  promotion: Promotion, 
+  customerDetails: {displayName: string, email: string}[]
+): Promise<PromotionBroadcastReport> {
   let promoDetails = '';
   if (promotion.type === 'percentage') {
     promoDetails = `<strong style="font-size: 48px; color: #E2231A; line-height: 1; display: block; margin: 10px 0;">${promotion.value}% OFF</strong>`;
@@ -462,10 +476,53 @@ export async function sendPromotionEmail(promotion: Promotion, customerDetails: 
     promoDetails = `<strong style="font-size: 32px; color: #E2231A; line-height: 1; display: block; margin: 10px 0;">GET BUY-1-GET-1 DEAL</strong>`;
   }
 
-  let count = 0;
+  const report: PromotionBroadcastReport = {
+    successCount: 0,
+    failedCount: 0,
+    totalAttempted: customerDetails.length,
+    failures: []
+  };
+
   for (const customer of customerDetails) {
-    if (!customer.email || !customer.email.includes('@')) {
+    const isEmailValid = customer.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim());
+
+    if (!isEmailValid) {
+      const errReason = !customer.email 
+        ? "No email address specified" 
+        : `Lacks proper syntax or domain name formatting: "${customer.email}"`;
+
       console.warn(`[Promotion Dismissed] User "${customer.displayName || 'Unknown'}" lacks a valid email address (${customer.email || 'None'}).`);
+      report.failedCount++;
+      report.failures.push({
+        email: customer.email || 'None',
+        recipientName: customer.displayName || 'Unknown Subscriber',
+        reason: errReason
+      });
+
+      // Write a persistent failed delivery record to store communication logs for auditing
+      try {
+        const failedEmailId = `EML-VAL-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`.toUpperCase();
+        const emailRef = doc(db, 'emails', failedEmailId);
+        await setDoc(emailRef, {
+          id: failedEmailId,
+          to: customer.email ? customer.email.trim() : 'invalid_email',
+          recipientName: customer.displayName || 'Unknown Subscriber',
+          subject: `🎉 [DISPATCH FAILURE] [PROMOTION SPECIAL] ${promotion.name}`,
+          body: buildEmailHtml(
+            `🎉 EXCLUSIVE KIGALI DEALS DISPATCH BLOCKED`,
+            `<p>Delivery failed for subscriber: <strong>${customer.displayName || 'Unknown'}</strong>.</p><p>Error: <strong>${errReason}</strong></p>`
+          ),
+          type: 'promotion_broadcast',
+          status: 'failed',
+          createdAt: Timestamp.now(),
+          metadata: {
+            promotionId: promotion.id,
+            error: errReason
+          }
+        });
+      } catch (dbErr) {
+        console.error("Could not write invalid email validation failure log:", dbErr);
+      }
       continue;
     }
     
@@ -498,11 +555,43 @@ export async function sendPromotionEmail(promotion: Promotion, customerDetails: 
         status: 'sent',
         metadata: { promotionId: promotion.id }
       });
-      count++;
+      report.successCount++;
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`[Promotion Error] Could not dispatch to ${customer.email}:`, err);
+      report.failedCount++;
+      report.failures.push({
+        email: customer.email.trim(),
+        recipientName: customer.displayName || 'Valued Customer',
+        reason: errMsg
+      });
+
+      // Write error log to Firestore for transparent auditable states
+      try {
+        const failedEmailId = `EML-ERR-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`.toUpperCase();
+        const emailRef = doc(db, 'emails', failedEmailId);
+        await setDoc(emailRef, {
+          id: failedEmailId,
+          to: customer.email ? customer.email.trim() : 'invalid_email',
+          recipientName: customer.displayName || 'Unknown Subscriber',
+          subject: `🎉 [DELIVERY FAILURE] [PROMOTION SPECIAL] ${promotion.name}`,
+          body: buildEmailHtml(
+            `🎉 EXCLUSIVE KIGALI DEALS DISPATCH BLOCKED`,
+            `<p>Delivery failed for subscriber: <strong>${customer.displayName || 'Unknown'}</strong>.</p><p>Exception details: <strong>${errMsg}</strong></p>`
+          ),
+          type: 'promotion_broadcast',
+          status: 'failed',
+          createdAt: Timestamp.now(),
+          metadata: {
+            promotionId: promotion.id,
+            error: errMsg
+          }
+        });
+      } catch (dbErr) {
+        console.error("Could not write write exception error log:", dbErr);
+      }
     }
   }
 
-  return count;
+  return report;
 }
