@@ -6,6 +6,8 @@ import { useAuth } from '../components/AuthProvider';
 import { Order, Product, Supplier, PurchaseOrder, Promotion, StaffMember, InventoryAlert, Shift, StaffNotification } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { sendOrderShipping, sendOrderDelivery, sendSupplierDemand, sendSupplierShipmentConfirm, sendSupplierGoodsReceived, sendPromotionEmail, buildEmailHtml } from '../lib/emailService';
+import { categorizeProductByName } from '../services/aiService';
+import RwandanCatalogSeeder from '../components/RwandanCatalogSeeder';
 import { subDays, subHours, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { 
   BarChart, 
@@ -211,9 +213,79 @@ export default function AdminDashboard() {
   const [activeCommunicationsSubTab, setActiveCommunicationsSubTab] = useState<'po' | 'history' | 'campaign'>('po');
   const [isCreatingPO, setIsCreatingPO] = useState(false);
   const [selectedPOSupplierId, setSelectedPOSupplierId] = useState('');
-  const [poLineItems, setPoLineItems] = useState<{ productId: string; quantity: number; wholesaleCost: number }[]>([]);
+  const [poLineItems, setPoLineItems] = useState<{ productId: string; quantity: number | ''; wholesaleCost: number | '' }[]>([]);
+  const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  const [formShiftStatus, setFormShiftStatus] = useState<'scheduled' | 'active' | 'absent' | 'completed'>('scheduled');
+
+  useEffect(() => {
+    if (editingShift) {
+      setShiftStaffId(editingShift.staffId);
+      setShiftDate(editingShift.date);
+      setShiftTimeSlot(editingShift.timeSlot);
+      setFormShiftStatus(editingShift.status);
+    }
+  }, [editingShift]);
+
+  const handleSaveShiftSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shiftStaffId || !shiftDate || !shiftTimeSlot) return;
+
+    try {
+      if (editingShift) {
+        await updateDoc(doc(db, 'shifts', editingShift.id), {
+          staffId: shiftStaffId,
+          staffName: staff.find(s => s.id === shiftStaffId)?.name || editingShift.staffName,
+          date: shiftDate,
+          timeSlot: shiftTimeSlot,
+          status: formShiftStatus,
+          updatedAt: Timestamp.now()
+        });
+        if (formShiftStatus === 'active') {
+          await updateDoc(doc(db, 'staff', shiftStaffId), { shiftStatus: 'on_duty' });
+        } else if (formShiftStatus === 'completed' || formShiftStatus === 'absent') {
+          await updateDoc(doc(db, 'staff', shiftStaffId), { shiftStatus: 'off_duty' });
+        }
+        alert("Shift updated successfully!");
+        setEditingShift(null);
+      } else {
+        await handleCreateShift(shiftStaffId, shiftDate, shiftTimeSlot);
+        setIsCreatingShift(false);
+      }
+    } catch (err) {
+      console.error("Error saving shift schedule:", err);
+      alert("Failed to save shift. Check your database connection.");
+    }
+  };
+
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
   const [poExpectedDelivery, setPoExpectedDelivery] = useState('');
   const [viewingEmail, setViewingEmail] = useState<any | null>(null);
+
+  const [isAiCategorizing, setIsAiCategorizing] = useState(false);
+
+  const handleAiCategorizeAllProducts = async () => {
+    if (!window.confirm("Run background Gemini AI check and automatically categorize all products in your catalogue matching common sense rules (e.g. putting olive oil and flours in Food Products)?")) return;
+    setIsAiCategorizing(true);
+    try {
+      let count = 0;
+      for (const prod of products) {
+        const correctCategory = await categorizeProductByName(prod.name);
+        if (prod.category !== correctCategory) {
+          await updateDoc(doc(db, 'products', String(prod.id)), {
+            category: correctCategory,
+            updatedAt: Timestamp.now()
+          });
+          count++;
+        }
+      }
+      alert(`Success! Auto-categorized entire catalogue. Corrected ${count} product categories.`);
+    } catch (err) {
+      console.error("AI Catalog Categorization Failed:", err);
+      alert("Failed to run AI catalog categorization.");
+    } finally {
+      setIsAiCategorizing(false);
+    }
+  };
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -366,7 +438,7 @@ export default function AdminDashboard() {
     const unsubscribeProducts = onSnapshot(productsQ, (snapshot) => {
       const prodsMap = new Map<string | number, Product>();
       snapshot.docs.forEach(doc => {
-        const prod = { id: doc.id, ...doc.data() } as Product;
+        const prod = { ...doc.data(), id: doc.id } as Product;
         prodsMap.set(prod.id, prod);
       });
       setProducts(Array.from(prodsMap.values()));
@@ -376,63 +448,63 @@ export default function AdminDashboard() {
 
     // Fetch Suppliers
     const unsubscribeSuppliers = onSnapshot(query(collection(db, 'suppliers')), (snapshot) => {
-      setSuppliers(snapshot.docs.map(d => ({ ...d.data() } as Supplier)));
+      setSuppliers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Supplier)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'suppliers');
     });
 
     // Fetch Staff
     const unsubscribeStaff = onSnapshot(query(collection(db, 'staff')), (snapshot) => {
-      setStaff(snapshot.docs.map(d => ({ ...d.data() } as StaffMember)));
+      setStaff(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as StaffMember)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'staff');
     });
 
     // Fetch Promotions
     const unsubscribePromos = onSnapshot(query(collection(db, 'promotions')), (snapshot) => {
-      setPromotions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Promotion)));
+      setPromotions(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Promotion)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'promotions');
     });
 
     // Fetch Customers (Users) for Email Alerts/Promos
     const unsubscribeUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => {
-      setCustomerUsers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      setCustomerUsers(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
     // Fetch Alerts
     const unsubscribeAlerts = onSnapshot(query(collection(db, 'inventoryAlerts'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setAlerts(snapshot.docs.map(d => ({ ...d.data() } as InventoryAlert)));
+      setAlerts(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as InventoryAlert)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'inventoryAlerts');
     });
 
     // Fetch Purchase Orders (Supplier Demands)
     const unsubscribePurchaseOrders = onSnapshot(query(collection(db, 'purchaseOrders'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setPurchaseOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PurchaseOrder)));
+      setPurchaseOrders(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as PurchaseOrder)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'purchaseOrders');
     });
 
     // Fetch Emails log list
     const unsubscribeEmails = onSnapshot(query(collection(db, 'emails'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setEmails(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      setEmails(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'emails');
     });
 
     // Fetch Shifts
     const unsubscribeShifts = onSnapshot(query(collection(db, 'shifts'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setShifts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+      setShifts(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any)));
     }, (error) => {
       console.error("error fetching shifts", error);
     });
 
     // Fetch Staff Notifications
     const unsubscribeStaffNotifications = onSnapshot(query(collection(db, 'staffNotifications'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setStaffNotifications(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+      setStaffNotifications(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any)));
     }, (error) => {
       console.error("error fetching staff notifications", error);
     });
@@ -460,54 +532,71 @@ export default function AdminDashboard() {
       const selectedStaff = staff.find(s => s.id === memoStaffId);
       const recipientName = memoStaffId === 'all' ? 'All Staff Members' : (selectedStaff?.name || 'Unknown Staff');
       
-      const newMemo: StaffNotification = {
-        id: `MEMO-${Date.now()}`.toUpperCase(),
-        staffId: memoStaffId,
-        staffName: recipientName,
-        title: memoTitle,
-        message: memoMessage,
-        type: memoType,
-        sentBy: profile?.displayName || profile?.email || 'System Administrator',
-        createdAt: Timestamp.now()
-      };
+      if (editingMemoId) {
+        // Edit mode
+        await updateDoc(doc(db, 'staffNotifications', editingMemoId), {
+          staffId: memoStaffId,
+          staffName: recipientName,
+          title: memoTitle,
+          message: memoMessage,
+          type: memoType,
+          updatedAt: Timestamp.now()
+        });
+        alert("Memo Directive successfully updated!");
+        setEditingMemoId(null);
+      } else {
+        // Create mode
+        const newMemo: StaffNotification = {
+          id: `MEMO-${Date.now()}`.toUpperCase(),
+          staffId: memoStaffId,
+          staffName: recipientName,
+          title: memoTitle,
+          message: memoMessage,
+          type: memoType,
+          sentBy: profile?.displayName || profile?.email || 'System Administrator',
+          createdAt: Timestamp.now()
+        };
 
-      // Save to Firestore
-      await setDoc(doc(db, 'staffNotifications', newMemo.id), newMemo);
+        // Save to Firestore
+        await setDoc(doc(db, 'staffNotifications', newMemo.id), newMemo);
 
-      // Create simulated transactional email record in emails list log
-      const emailId = `EML-${Date.now()}`.toUpperCase();
-      const emailHtml = buildEmailHtml(
-        `📌 [${memoType.toUpperCase()}] SIMBA TEAM DIRECTIVE: ${memoTitle}`,
-        `
-        <p>Dear ${recipientName},</p>
-        <p>This is an official administrative directive broadcasted on behalf of the Simba Logistics Operations Board.</p>
-        <div style="background-color: #f5f5f5; border-left: 4px solid #f97316; padding: 15px; margin: 15px 0; font-family: monospace;">
-          <strong>Subject:</strong> ${memoTitle}<br/>
-          <strong>Message:</strong><br/>
-          ${memoMessage}
-        </div>
-        <p>This notification is logged persistently in your staff ledger. Please sign off on your roster portal immediately.</p>
-        `,
-        "Open Staff Roster Portal",
-        "/admin"
-      );
+        // Create simulated transactional email record in emails list log
+        const emailId = `EML-${Date.now()}`.toUpperCase();
+        const emailHtml = buildEmailHtml(
+          `📌 [${memoType.toUpperCase()}] SIMBA TEAM DIRECTIVE: ${memoTitle}`,
+          `
+          <p>Dear ${recipientName},</p>
+          <p>This is an official administrative directive broadcasted on behalf of the Simba Logistics Operations Board.</p>
+          <div style="background-color: #f5f5f5; border-left: 4px solid #f97316; padding: 15px; margin: 15px 0; font-family: monospace;">
+            <strong>Subject:</strong> ${memoTitle}<br/>
+            <strong>Message:</strong><br/>
+            ${memoMessage}
+          </div>
+          <p>This notification is logged persistently in your staff ledger. Please sign off on your roster portal immediately.</p>
+          `,
+          "Open Staff Roster Portal",
+          "/admin"
+        );
 
-      await setDoc(doc(db, 'emails', emailId), {
-        id: emailId,
-        recipient: memoStaffId === 'all' ? 'staff-broadcast@simba.com' : (selectedStaff?.phone || 'staff-member@simba.com'),
-        recipientName: recipientName,
-        subject: `📌 [${memoType.toUpperCase()}] Simba Duty Memo: ${memoTitle}`,
-        body: emailHtml,
-        type: 'staff_broadcast',
-        referenceId: newMemo.id,
-        createdAt: Timestamp.now()
-      });
+        await setDoc(doc(db, 'emails', emailId), {
+          id: emailId,
+          recipient: memoStaffId === 'all' ? 'staff-broadcast@simba.com' : (selectedStaff?.phone || 'staff-member@simba.com'),
+          recipientName: recipientName,
+          subject: `📌 [${memoType.toUpperCase()}] Simba Duty Memo: ${memoTitle}`,
+          body: emailHtml,
+          type: 'staff_broadcast',
+          referenceId: newMemo.id,
+          createdAt: Timestamp.now()
+        });
+
+        alert("Memo successfully transmitted to staff and logged in communication channels!");
+      }
 
       // Clear state
       setMemoTitle('');
       setMemoMessage('');
-      setIsCreatingStaffMemo(false);
-      alert("Memo successfully transmitted to staff and logged in communication channels!");
+      setMemoStaffId('all');
+      setMemoType('general');
     } catch (error) {
       console.error("Error broadcasting staff memo:", error);
       alert("Broadcast failed, please check your network connection.");
@@ -649,6 +738,13 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Validate empty values explicitly and ask user to fill them
+    const hasEmptyValue = poLineItems.some(item => item.quantity === '' || item.wholesaleCost === '');
+    if (hasEmptyValue) {
+      alert("Please enter a valid Quantity and Wholesale Cost for all items on your purchase order.");
+      return;
+    }
+
     try {
       const targetSupplier = suppliers.find(s => s.id === selectedPOSupplierId);
       if (!targetSupplier) {
@@ -656,14 +752,14 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Compute totals
+      // Compute totals with parsed numbers
       const compiledItems = poLineItems.map(lineItem => {
         const prod = products.find(p => p.id === lineItem.productId);
         return {
           id: lineItem.productId,
           name: prod ? prod.name : "Unknown Item",
-          quantity: lineItem.quantity,
-          cost: lineItem.wholesaleCost
+          quantity: Number(lineItem.quantity),
+          cost: Number(lineItem.wholesaleCost)
         };
       });
 
@@ -1039,11 +1135,16 @@ export default function AdminDashboard() {
       }
 
       // Seed Products
-      const productPromises = initialProducts.products.map((p: any) => {
+      const productPromises = initialProducts.products.map(async (p: any) => {
         const productRef = doc(db, 'products', String(p.id));
         const { rating, reviewCount, ...prodWithoutRating } = p;
+        
+        // Dynamic taxonomy categorization via AI rules mapping
+        const correctCategory = await categorizeProductByName(p.name);
+
         return setDoc(productRef, {
           ...prodWithoutRating,
+          category: correctCategory,
           rating: 0,
           reviewCount: 0,
           id: String(p.id),
@@ -1185,7 +1286,7 @@ export default function AdminDashboard() {
       p.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
       (p.category && p.category.toLowerCase().includes(inventorySearch.toLowerCase())) ||
       p.id.toString().includes(inventorySearch)
-    )
+    ).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true }))
   , [products, inventorySearch]);
 
   const hourlySalesData = useMemo(() => {
@@ -1315,9 +1416,9 @@ export default function AdminDashboard() {
       {/* Notification Toast Stack */}
       <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none">
         <AnimatePresence>
-          {newOrderAlerts.map((alert) => (
+          {newOrderAlerts.map((alert, idx) => (
             <motion.div 
-              key={`alert-${alert.orderId}`}
+              key={`alert-${alert.orderId}-${idx}`}
               initial={{ opacity: 0, y: -50, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.9 }}
@@ -1343,9 +1444,9 @@ export default function AdminDashboard() {
             </motion.div>
           ))}
 
-          {deliveredAlerts.map((alert) => (
+          {deliveredAlerts.map((alert, idx) => (
             <motion.div 
-              key={`delivered-${alert.orderId}`}
+              key={`delivered-${alert.orderId}-${idx}`}
               initial={{ opacity: 0, y: -50, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.9 }}
@@ -1888,6 +1989,14 @@ export default function AdminDashboard() {
             exit={{ opacity: 0, x: 20 }}
             className="space-y-8"
           >
+            {/* Gemini Rwanda AI Catalog Seeder */}
+            <RwandanCatalogSeeder 
+              categoriesList={categoriesList}
+              onSeedingComplete={() => {
+                // Success state handled in child, auto-updating via Firestore snapshot
+              }}
+            />
+
             {/* Category Management Block */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-black/5 dark:bg-zinc-900/40 p-8 sm:p-10 rounded-[48px] border border-brand-border">
               {/* Card 1: Create Category */}
@@ -2024,6 +2133,14 @@ export default function AdminDashboard() {
                 />
               </div>
               <button 
+                onClick={handleAiCategorizeAllProducts}
+                disabled={isAiCategorizing}
+                type="button"
+                className="w-full sm:w-auto px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 italic shadow-xl shadow-zinc-800/20 disabled:opacity-50 cursor-pointer"
+              >
+                <span>{isAiCategorizing ? "Categorizing..." : "🪄 AI Auto-Categorize"}</span>
+              </button>
+              <button 
                 onClick={() => setIsEditingProduct({})}
                 className="w-full sm:w-auto px-8 py-4 bg-brand-primary text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-orange-600 transition-all active:scale-95 italic shadow-xl shadow-brand-primary/20"
               >
@@ -2067,7 +2184,27 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">{t('category')}</label>
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-40">{t('category')}</label>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!isEditingProduct.name) {
+                                alert("Please enter a product name first!");
+                                return;
+                              }
+                              try {
+                                const aiCat = await categorizeProductByName(isEditingProduct.name);
+                                setIsEditingProduct(prev => prev ? { ...prev, category: aiCat } : null);
+                              } catch (err) {
+                                console.error("Error auto classifying:", err);
+                              }
+                            }}
+                            className="text-[9px] font-black uppercase tracking-wider text-brand-primary hover:bg-brand-primary/5 px-2 py-0.5 rounded border border-brand-primary/25 transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>🪄 AI SUGGEST</span>
+                          </button>
+                        </div>
                         <select 
                           required
                           value={isEditingProduct.category || ''}
@@ -2459,12 +2596,21 @@ export default function AdminDashboard() {
                           </button>
                         )}
                         <button
+                          onClick={() => {
+                            setEditingShift(sh);
+                          }}
+                          className="p-2.5 text-blue-500 bg-blue-500/10 hover:bg-blue-500 hover:text-white rounded-xl transition-all cursor-pointer"
+                          title="Edit roster shift details"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={async () => {
                             if (window.confirm("Delete this shift schedule entry?")) {
                               await deleteDoc(doc(db, 'shifts', sh.id));
                             }
                           }}
-                          className="p-2.5 text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-xl transition-all"
+                          className="p-2.5 text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-xl transition-all cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -2485,7 +2631,7 @@ export default function AdminDashboard() {
             {activeStaffTab === 'messages' && (
               <div className="space-y-6">
                 {/* Draft Outbox Compose Form */}
-                <div className="bg-white dark:bg-zinc-950 p-6 md:p-8 rounded-[40px] border border-brand-border shadow-xl shadow-zinc-100/5 select-text">
+                <div id="memo-composer-terminal" className="bg-white dark:bg-zinc-950 p-6 md:p-8 rounded-[40px] border border-brand-border shadow-xl shadow-zinc-100/5 select-text">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 bg-brand-primary/10 rounded-xl flex items-center justify-center">
                       <Megaphone className="h-5 w-5 text-brand-primary" />
@@ -2551,12 +2697,27 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    <div className="flex justify-end pt-2">
+                    <div className="flex justify-end gap-3 pt-2">
+                      {editingMemoId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingMemoId(null);
+                            setMemoTitle('');
+                            setMemoMessage('');
+                            setMemoStaffId('all');
+                            setMemoType('general');
+                          }}
+                          className="px-6 py-4 bg-zinc-650 hover:bg-zinc-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest italic cursor-pointer"
+                        >
+                          Cancel Edit
+                        </button>
+                      )}
                       <button
                         type="submit"
-                        className="px-6 py-4 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest italic flex items-center gap-2 shadow-lg shadow-brand-primary/20 transform hover:scale-101 transition-all"
+                        className="px-6 py-4 bg-brand-primary hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest italic flex items-center gap-2 shadow-lg shadow-brand-primary/20 transform hover:scale-101 transition-all cursor-pointer pointer-events-auto"
                       >
-                        <Send className="h-4 w-4" /> TRANSMIT DISPATCH ALERT MEMO
+                        <Send className="h-4 w-4" /> {editingMemoId ? "SAVE UPDATED MEMO DIRECTIVE" : "TRANSMIT DISPATCH ALERT MEMO"}
                       </button>
                     </div>
                   </form>
@@ -2587,16 +2748,40 @@ export default function AdminDashboard() {
                           <blockquote className="text-xs text-zinc-650 dark:text-zinc-300 border-l-2 border-brand-primary pl-3 py-1 bg-zinc-50/50 dark:bg-zinc-900/30 rounded-r-md leading-relaxed whitespace-pre-line">{notif.message}</blockquote>
                           <p className="text-[10px] text-zinc-550 dark:text-zinc-400 font-bold uppercase">To: {notif.staffName} ({notif.staffId}) • Dispatched By: {notif.sentBy} • On: {notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleString() : new Date(notif.createdAt).toLocaleString()}</p>
                         </div>
-                        <button
-                          onClick={async () => {
-                            if (window.confirm("Archive this notification entry?")) {
-                              await deleteDoc(doc(db, 'staffNotifications', notif.id));
-                            }
-                          }}
-                          className="p-3 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all scale-90 self-stretch md:self-auto flex items-center justify-center shrink-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-end">
+                          <button
+                            onClick={() => {
+                              setEditingMemoId(notif.id);
+                              setMemoStaffId(notif.staffId);
+                              setMemoType(notif.type);
+                              setMemoTitle(notif.title);
+                              setMemoMessage(notif.message);
+                              setIsCreatingStaffMemo(true);
+                              // Smooth scroll up to composer
+                              const composerEl = document.getElementById('memo-composer-terminal');
+                              if (composerEl) {
+                                composerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              } else {
+                                window.scrollTo({ top: 380, behavior: 'smooth' });
+                              }
+                            }}
+                            className="p-3 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition-all scale-90 flex items-center justify-center cursor-pointer"
+                            title="Edit this directive"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm("Archive this notification entry?")) {
+                                await deleteDoc(doc(db, 'staffNotifications', notif.id));
+                              }
+                            }}
+                            className="p-3 bg-rose-500/10 text-[#f43f5e] hover:bg-rose-500 hover:text-white rounded-xl transition-all scale-90 flex items-center justify-center cursor-pointer"
+                            title="Delete this directive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
 
@@ -2774,7 +2959,7 @@ export default function AdminDashboard() {
                 {activeSupplierTab === 'po' && (
                   <button
                     onClick={() => {
-                      setPoLineItems([{ productId: products[0]?.id || '', quantity: 200, wholesaleCost: Math.floor((products[0]?.price || 1000) * 0.7) }]);
+                      setPoLineItems([{ productId: products[0]?.id || '', quantity: '', wholesaleCost: '' }]);
                       setIsCreatingPO(true);
                     }}
                     className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic hover:scale-105 transition-all shadow-lg shadow-brand-primary/10"
@@ -2875,7 +3060,7 @@ export default function AdminDashboard() {
                               <button
                                 onClick={() => {
                                   setSelectedPOSupplierId(supplier.id);
-                                  setPoLineItems([{ productId: products[0]?.id || '', quantity: 200, wholesaleCost: Math.floor((products[0]?.price || 1000) * 0.7) }]);
+                                  setPoLineItems([{ productId: products[0]?.id || '', quantity: '', wholesaleCost: '' }]);
                                   setIsCreatingPO(true);
                                 }}
                                 className="p-3 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary hover:text-white transition-all scale-90"
@@ -3614,7 +3799,7 @@ export default function AdminDashboard() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] mb-2.5">Recipients Queue Detail</p>
                 <div className="flex gap-1.5 overflow-x-auto max-w-full py-1.5 scrollbar-thin">
                   {customerUsers.length > 0 ? customerUsers.map((user, idx) => (
-                    <div key={user.id || idx} className="bg-[#1f1f1f] border border-[#2d2d2d] px-3 py-1.5 rounded-md text-[9px] font-mono text-zinc-300 shrink-0 select-text max-w-[170px] truncate">
+                    <div key={`customer-recip-${user.id || idx}-${idx}`} className="bg-[#1f1f1f] border border-[#2d2d2d] px-3 py-1.5 rounded-md text-[9px] font-mono text-zinc-300 shrink-0 select-text max-w-[170px] truncate">
                       <span className="font-bold block text-white truncate">{user.displayName || "Simba Client"}</span>
                       <span className="opacity-60">{user.email}</span>
                     </div>
@@ -3745,8 +3930,7 @@ export default function AdminDashboard() {
                       const chosenCategory = suppliers.find(s => s.id === e.target.value)?.category;
                       const matchingProds = products.filter(p => !chosenCategory || p.category.toLowerCase() === chosenCategory.toLowerCase());
                       const defaultProdId = matchingProds[0]?.id || products[0]?.id || '';
-                      const defaultProdPrice = matchingProds[0]?.price || products[0]?.price || 1500;
-                      setPoLineItems([{ productId: defaultProdId, quantity: 200, wholesaleCost: Math.floor(defaultProdPrice * 0.7) }]);
+                      setPoLineItems([{ productId: defaultProdId, quantity: '', wholesaleCost: '' }]);
                     }}
                     required
                     className="w-full px-5 py-3.5 bg-black/40 border border-[#2d2d2d] rounded-2xl text-xs font-bold text-white uppercase"
@@ -3778,7 +3962,7 @@ export default function AdminDashboard() {
                       <button
                         type="button"
                         onClick={() => {
-                          setPoLineItems([...poLineItems, { productId: products[0]?.id || '', quantity: 100, wholesaleCost: 1000 }]);
+                          setPoLineItems([...poLineItems, { productId: products[0]?.id || '', quantity: '', wholesaleCost: '' }]);
                         }}
                         className="text-[9px] font-black uppercase tracking-wider text-brand-primary h-8 px-3 border border-brand-primary/20 rounded-lg hover:bg-brand-primary/5 transition-all text-center"
                       >
@@ -3794,10 +3978,6 @@ export default function AdminDashboard() {
                           onChange={(e) => {
                             const newItems = [...poLineItems];
                             newItems[idx].productId = e.target.value;
-                            const prod = products.find(p => p.id === e.target.value);
-                            if (prod) {
-                              newItems[idx].wholesaleCost = Math.floor(prod.price * 0.7);
-                            }
                             setPoLineItems(newItems);
                           }}
                           className="bg-black/40 border border-[#2d2d2d] px-3 py-2.5 rounded-xl text-xs text-white max-w-full md:flex-1"
@@ -3810,13 +3990,13 @@ export default function AdminDashboard() {
                         {/* Qty count */}
                         <div className="w-24">
                           <input
-                            type="number"
-                            value={item.quantity}
-                            min={1}
+                            type="text"
+                            value={item.quantity === 0 ? '' : item.quantity}
                             placeholder="Qty"
                             onChange={(e) => {
                               const newItems = [...poLineItems];
-                              newItems[idx].quantity = Number(e.target.value);
+                              const val = e.target.value;
+                              newItems[idx].quantity = val === '' ? '' : (isNaN(Number(val)) ? '' : Number(val));
                               setPoLineItems(newItems);
                             }}
                             required
@@ -3827,13 +4007,13 @@ export default function AdminDashboard() {
                         {/* Wholesale spec */}
                         <div className="w-32">
                           <input
-                            type="number"
-                            value={item.wholesaleCost}
-                            min={0}
+                            type="text"
+                            value={item.wholesaleCost === 0 ? '' : item.wholesaleCost}
                             placeholder="Cost (RWF)"
                             onChange={(e) => {
                               const newItems = [...poLineItems];
-                              newItems[idx].wholesaleCost = Number(e.target.value);
+                              const val = e.target.value;
+                              newItems[idx].wholesaleCost = val === '' ? '' : (isNaN(Number(val)) ? '' : Number(val));
                               setPoLineItems(newItems);
                             }}
                             required
@@ -3873,6 +4053,126 @@ export default function AdminDashboard() {
                   className="w-full py-4 bg-brand-primary hover:bg-orange-600 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest italic tracking-wider transition-colors"
                 >
                   Submit Slips & Broadcast Restock Demands via SMTP
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Assign & Edit Shift Modal */}
+      <AnimatePresence>
+        {(isCreatingShift || editingShift) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto"
+            id="assign-shift-modal"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-neutral-900 border border-brand-primary/20 w-full max-w-md rounded-[40px] p-6 md:p-8 shadow-2xl relative text-white"
+            >
+              <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
+                <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tighter">
+                    {editingShift ? "Edit Staff Shift" : "Schedule Staff Shift"}
+                  </h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase">
+                    {editingShift ? "Modify timeslot and status parameters" : "Assign a new calendar block to staff"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingShift(false);
+                    setEditingShift(null);
+                  }}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-full text-[10px] font-bold uppercase cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveShiftSchedule} className="space-y-6">
+                {/* Staff Member Selector */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] block mb-2">
+                    Staff Member
+                  </label>
+                  <select
+                    value={shiftStaffId}
+                    onChange={(e) => setShiftStaffId(e.target.value)}
+                    required
+                    disabled={!!editingShift}
+                    className="w-full px-5 py-3.5 bg-black/40 border border-[#2d2d2d] rounded-2xl text-xs font-bold text-white uppercase"
+                  >
+                    <option value="">Select Staff Member</option>
+                    {staff.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Day of Duty */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] block mb-2">
+                    Day of Duty
+                  </label>
+                  <input
+                    type="date"
+                    value={shiftDate}
+                    onChange={(e) => setShiftDate(e.target.value)}
+                    required
+                    className="w-full px-5 py-3.5 bg-black/40 border border-[#2d2d2d] rounded-2xl text-xs font-bold text-white uppercase font-mono"
+                  />
+                </div>
+
+                {/* Daily Shift timeslot */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] block mb-2">
+                    Daily Shift timeslot
+                  </label>
+                  <select
+                    value={shiftTimeSlot}
+                    onChange={(e) => setShiftTimeSlot(e.target.value as any)}
+                    required
+                    className="w-full px-5 py-3.5 bg-black/40 border border-[#2d2d2d] rounded-2xl text-xs font-bold text-white uppercase"
+                  >
+                    <option value="morning">Morning Shift (06:00 - 14:00)</option>
+                    <option value="afternoon">Afternoon Shift (14:00 - 22:00)</option>
+                    <option value="night">Night Shift (22:00 - 06:00)</option>
+                  </select>
+                </div>
+
+                {/* Status selector - only visible when editing */}
+                {editingShift && (
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#9a9a9a] block mb-2">
+                      Roster shift status
+                    </label>
+                    <select
+                      value={formShiftStatus}
+                      onChange={(e) => setFormShiftStatus(e.target.value as any)}
+                      required
+                      className="w-full px-5 py-3.5 bg-black/40 border border-[#2d2d2d] rounded-2xl text-xs font-bold text-white uppercase"
+                    >
+                      <option value="scheduled">Scheduled (Awaiting Check-in)</option>
+                      <option value="active">Active (Currently on Duty)</option>
+                      <option value="absent">Absent (Skipped / Sick Leave)</option>
+                      <option value="completed">Completed (Successfully Signed-off)</option>
+                    </select>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-brand-primary hover:bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest italic tracking-wide transition-colors rounded-2xl cursor-pointer"
+                >
+                  {editingShift ? "Save Shift Overrides" : "Authorize & Lock Shift Schedule"}
                 </button>
               </form>
             </motion.div>

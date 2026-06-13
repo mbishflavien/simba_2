@@ -396,7 +396,7 @@ export default function ProductDetail() {
                 <div className="px-4 pb-4">
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">{p.category}</p>
                   <h3 className="text-xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] leading-none mb-3 truncate">{p.name}</h3>
-                  <p className="text-2xl font-black text-brand-primary italic tracking-tight">{formatCurrency(p.price)}</p>
+                  <p className="text-base sm:text-lg font-black text-brand-primary italic tracking-tight">{formatCurrency(p.price)}</p>
                 </div>
               </motion.div>
             ))}

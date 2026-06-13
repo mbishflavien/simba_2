@@ -464,35 +464,44 @@ export async function sendPromotionEmail(promotion: Promotion, customerDetails: 
 
   let count = 0;
   for (const customer of customerDetails) {
-    const content = `
-      <p style="margin-top: 0; text-align: center;">Mwaramutse <strong>${customer.displayName || 'Customer'}</strong>,</p>
-      <p style="text-align: center;">Exclusive promotion just for you! Simba brings special savings on your favorite food, drinks, and daily household supplies this week in Kigali!</p>
-      
-      <!-- Huge Promo Card -->
-      <div style="background: linear-gradient(135deg, #1A1C24 0%, #0E0F12 100%); border: 2px dashed #E2231A; border-radius: 20px; padding: 32px; text-align: center; margin: 28px 0; box-shadow: 0 4px 20px rgba(226, 35, 26, 0.1);">
-        <span style="font-size: 9px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #FFFFFF; opacity: 0.6;">KIGALI SEASONAL DEAL PRESENTS:</span>
-        <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 900; color: #FFFFFF; margin: 12px 0 0 0; text-transform: uppercase; font-style: italic; letter-spacing: -0.5px;">
-          ${promotion.name}
-        </h2>
+    if (!customer.email || !customer.email.includes('@')) {
+      console.warn(`[Promotion Dismissed] User "${customer.displayName || 'Unknown'}" lacks a valid email address (${customer.email || 'None'}).`);
+      continue;
+    }
+    
+    try {
+      const content = `
+        <p style="margin-top: 0; text-align: center;">Mwaramutse <strong>${customer.displayName || 'Customer'}</strong>,</p>
+        <p style="text-align: center;">Exclusive promotion just for you! Simba brings special savings on your favorite food, drinks, and daily household supplies this week in Kigali!</p>
         
-        ${promoDetails}
-        
-        <p style="font-size: 11px; color: #A1A1AA; margin-top: 14px; margin-bottom: 0;">Use coupon checkout code <strong style="color: #FFFFFF; font-family: monospace; font-size: 14px; letter-spacing: 1px; background-color: #27272A; padding: 3px 8px; border-radius: 6px;">SIMBAWEEK</strong> or visit our branch closest to you to grab the stock!</p>
-      </div>
+        <!-- Huge Promo Card -->
+        <div style="background: linear-gradient(135deg, #1A1C24 0%, #0E0F12 100%); border: 2px dashed #E2231A; border-radius: 20px; padding: 32px; text-align: center; margin: 28px 0; box-shadow: 0 4px 20px rgba(226, 35, 26, 0.1);">
+          <span style="font-size: 9px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #FFFFFF; opacity: 0.6;">KIGALI SEASONAL DEAL PRESENTS:</span>
+          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 900; color: #FFFFFF; margin: 12px 0 0 0; text-transform: uppercase; font-style: italic; letter-spacing: -0.5px;">
+            ${promotion.name}
+          </h2>
+          
+          ${promoDetails}
+          
+          <p style="font-size: 11px; color: #A1A1AA; margin-top: 14px; margin-bottom: 0;">Use coupon checkout code <strong style="color: #FFFFFF; font-family: monospace; font-size: 14px; letter-spacing: 1px; background-color: #27272A; padding: 3px 8px; border-radius: 6px;">SIMBAWEEK</strong> or visit our branch closest to you to grab the stock!</p>
+        </div>
 
-      <p style="text-align: center; font-size: 11px; color: #71717A; margin-top: 24px;">This offer is valid until <strong>${promotion.endDate ? new Date(promotion.endDate.seconds ? promotion.endDate.seconds * 1000 : promotion.endDate).toLocaleDateString() : 'this Sunday'}</strong> in Nyarutarama, Kimironko, Remera and all branches.</p>
-    `;
+        <p style="text-align: center; font-size: 11px; color: #71717A; margin-top: 24px;">This offer is valid until <strong>${promotion.endDate ? new Date(promotion.endDate.seconds ? promotion.endDate.seconds * 1000 : promotion.endDate).toLocaleDateString() : 'this Sunday'}</strong> in Nyarutarama, Kimironko, Remera and all branches.</p>
+      `;
 
-    await sendEmail({
-      to: customer.email,
-      recipientName: customer.displayName || 'Valued Customer',
-      subject: `🎉 [PROMOTION SPECIAL] ${promotion.name} at Simba Supermarket!`,
-      body: buildEmailHtml(`🎉 EXCLUSIVE DEALS IN KIGALI`, content, "Shop Simba Online Deals Now", "/"),
-      type: 'promotion_broadcast',
-      status: 'sent',
-      metadata: { promotionId: promotion.id }
-    });
-    count++;
+      await sendEmail({
+        to: customer.email.trim(),
+        recipientName: customer.displayName || 'Valued Customer',
+        subject: `🎉 [PROMOTION SPECIAL] ${promotion.name} at Simba Supermarket!`,
+        body: buildEmailHtml(`🎉 EXCLUSIVE DEALS IN KIGALI`, content, "Shop Simba Online Deals Now", "/"),
+        type: 'promotion_broadcast',
+        status: 'sent',
+        metadata: { promotionId: promotion.id }
+      });
+      count++;
+    } catch (err) {
+      console.error(`[Promotion Error] Could not dispatch to ${customer.email}:`, err);
+    }
   }
 
   return count;

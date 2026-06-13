@@ -34,9 +34,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card-gradient p-5 flex flex-col group"
+      className="card-gradient p-5 flex flex-col group h-full"
     >
-      <Link to={`/product/${product.id}`} className="flex-1 bg-white dark:bg-zinc-950 rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-200 dark:border-white/10">
+      <Link to={`/product/${product.id}`} className="aspect-square w-full bg-white dark:bg-zinc-950 rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-200 dark:border-white/10 flex-shrink-0">
         <motion.img
           whileHover={{ scale: 1.12 }}
           src={product.image}
@@ -72,7 +72,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
         </button>
       </Link>
 
-      <div className="flex flex-col gap-1 px-1">
+      <div className="flex flex-col gap-1 px-1 flex-1">
         <div className="flex justify-between items-start mb-0.5">
           <div className="flex items-center gap-2">
             <span className="micro-label">
@@ -104,7 +104,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
 
         <div className="flex items-center mt-auto pt-6 border-t border-zinc-100 dark:border-white/10 gap-2 sm:gap-4 min-h-[4rem] sm:min-h-[4.5rem]">
           <div className="flex-1 min-w-0 flex flex-col justify-center relative z-10">
-            <p className="text-base sm:text-2xl font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm">
+            <p className="text-xs sm:text-base md:text-lg font-display font-black italic tracking-tighter text-brand-primary leading-none drop-shadow-sm">
               {formatCurrency(product.price)}
             </p>
             {product.stockCount !== undefined && (

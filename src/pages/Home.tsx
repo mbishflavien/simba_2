@@ -182,7 +182,7 @@ export default function Home() {
       if (onlyInStock && (!product.inStock || (product.stockCount !== undefined && product.stockCount <= 0))) return false;
 
       return true;
-    });
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true }));
   }, [products, selectedCategory, searchQuery, minPrice, maxPrice, onlyInStock]);
 
   const displayedProducts = useMemo(() => {
@@ -567,6 +567,7 @@ export default function Home() {
               {displayedProducts.map((product, idx) => (
                 <motion.div
                   key={product.id}
+                  className="h-full"
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ 
@@ -664,7 +665,7 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <AiAssistant onSearchApplied={handleAiSearch} />
+      <AiAssistant onSearchApplied={handleAiSearch} products={enrichedProducts} />
     </div>
   );
 }
