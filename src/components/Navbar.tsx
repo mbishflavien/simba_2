@@ -9,7 +9,7 @@ import { auth } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useMemo } from 'react';
-import productsData from '../data/products.json';
+import { get789Products } from '../services/catalogLoader';
 import { Product } from '../types';
 
 export default function Navbar() {
@@ -24,7 +24,8 @@ export default function Navbar() {
   const [isDesktopLangOpen, setIsDesktopLangOpen] = useState(false);
   const [isMobileLangOpen, setIsMobileLangOpen] = useState(false);
   
-  const products = productsData.products as Product[];
+  const products = get789Products();
+
 
   const handleSignOut = () => {
     auth.signOut();

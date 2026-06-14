@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { get789Products, augmentProductsList } from '../services/catalogLoader';
 import { useSearchParams, Link } from 'react-router-dom';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -13,14 +14,118 @@ import AiAssistant from '../components/AiAssistant';
 import { AiSearchIntent } from '../services/aiService';
 import landingHero from '../assets/images/landing_hero_1781164991277.png';
 
+const SUBCATEGORY_NAMES: Record<number, string> = {
+  13: 'Heaters & Utensils',
+  15: 'Massage Rollers',
+  16: 'RC Toys & Leisure',
+  19: 'Appliances & Pans',
+  22: 'Paper & Stationery',
+  27: 'Cognac & Whiskeys',
+  29: 'Pet Care & Accessories',
+  58: 'Baby Feeding & Formula',
+  61: 'Bakery & Croissants',
+  62: 'Canned Meats & Tuna',
+  65: 'Oils & Spices',
+  66: 'Milk & Dairy',
+  67: 'Azam & Wheat Flours',
+  70: 'Tomato Sauce & Ketchup',
+  71: 'Rice & Grains',
+  72: 'Akabanga & Chili Spices',
+  73: 'Sugar & Sweeteners',
+  74: 'Coffee & Breakfast Tea',
+  76: 'Syrups & Cocoa Chocolate',
+  77: 'Nuts & Dates',
+  97: 'Toothpicks & Party Cups',
+  98: 'Sanitary Pads & Travel',
+  99: 'Baby Diapers & Wipes',
+  103: 'Sponges & Cloths',
+  105: 'Kitchen Cleaners & Soaps',
+  131: 'Pure Honey & Jams',
+  148: 'Laundry Irons',
+  165: 'Coffee Pots & Mugs',
+  166: 'Canisters & Holders',
+  167: 'Paper Plates & Sockets',
+  168: 'Fuguang Water Bottles',
+  176: 'Mops & Brushes',
+  177: 'Toilet Brushes & Stands',
+  187: 'Straws & Foil Paper',
+  195: 'Frying Cooking Pots',
+  197: 'Knives & Kitchen Slicers',
+  198: 'Spoons, Forks & Shovels',
+  199: 'Unbreakable Dinnerware',
+  204: 'Hair Shampoos',
+  205: 'Face & Body Creams',
+  208: 'Razors & Shaving Foams',
+  211: 'Styling Gel & Hair Spray',
+  214: 'Lotions & Hand Washes',
+  215: 'Power Extensions',
+  220: 'Kettles & Tea Makers',
+  234: 'Scotch & Whiskies',
+  235: 'Guinness & Local Beers',
+  236: 'Dry Gin & Spirits',
+  237: 'Champagnes & Wines',
+  238: 'Liqueurs & Cream Drinks',
+  244: 'Fabric Softer & Bleach',
+  245: 'Handwashes & Sanitizers',
+  246: 'Toilet Paper Rolls',
+  247: 'Kitchen Paper Towels',
+  258: 'Fruity Jams & Spreads',
+  259: 'Margarine & Cooking Butter',
+  260: 'Chocolate Bars & Snacks',
+  264: 'Colored Painting Pencils',
+  266: 'Exercise Writing Books',
+  277: 'Pillows & Accessories',
+  346: 'Canned Mushrooms',
+  347: 'Foul Medammas & Beans',
+  348: 'Olives & Pickled Veg',
+  349: 'Wafers & Biscuits',
+  354: 'Dry Dog & Cat Foods',
+  362: 'Blenders & Mixers',
+  366: 'Tiffany Butter Candies',
+  367: 'Tutti Fruity Bubble Gums',
+  368: 'Fresh Sweet Corn Cans',
+  371: 'Sausages & Hotdogs',
+  372: 'Canned Fish & Sardines',
+  373: 'Baking Yeast & Essence',
+  379: 'Petroleum Jellies',
+  400: 'Deodorants & Body Sprays',
+  406: 'Lip Balm Therapy',
+  412: 'Printing Copy Paper',
+  414: 'Scented Candles',
+  449: 'Oatmeals & Cereals',
+  468: 'Drip Coffee Makers',
+  471: 'Beef Sausages & Burgers',
+  473: 'Cigarettes & Matches',
+  478: 'Instant Ramen Noodles',
+  486: 'Tropical Fruit Juices',
+  493: 'Energy Drinks & Sodas',
+  503: 'UHT Whole Milk Pack',
+  530: 'Rattan Bread Baskets',
+  576: 'Kw-Trio Staples',
+  579: 'Wipes & Cotton Buds',
+  580: 'Alkaline Battery AA & AAA',
+  581: 'Bic Razors & Lady Shaves',
+  663: 'Broccoli & Vegetables',
+  664: 'Fresh Apples & Avocados',
+  665: 'Organic Eggs Pack',
+  669: 'Dark Block Cooking Chocolate',
+  670: 'Cappuccino & Hot Cocoa Mix',
+  671: 'Vinegars & Dressings',
+  672: 'Turmeric & Masala Spices',
+  673: 'Iodized Table Salts'
+};
+
 export default function Home() {
   const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(() => {
+    return get789Products();
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   
   const [minPrice, setMinPrice] = useState<number | ''>('');
@@ -36,7 +141,8 @@ export default function Home() {
         const prod = { id: doc.id, ...doc.data() } as Product;
         prodsMap.set(prod.id, prod);
       });
-      setProducts(Array.from(prodsMap.values()));
+      setProducts(augmentProductsList(Array.from(prodsMap.values())));
+
       setIsLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
@@ -146,6 +252,7 @@ export default function Home() {
   const filteredProducts = useMemo(() => {
     return enrichedProducts.filter(product => {
       if (selectedCategory && product.category !== selectedCategory) return false;
+      if (selectedSubcategory && product.subcategoryId !== selectedSubcategory) return false;
       
       if (searchQuery) {
         // Split on whitespace, commas, or semicolons
@@ -183,7 +290,15 @@ export default function Home() {
 
       return true;
     }).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true }));
-  }, [products, selectedCategory, searchQuery, minPrice, maxPrice, onlyInStock]);
+  }, [enrichedProducts, selectedCategory, selectedSubcategory, searchQuery, minPrice, maxPrice, onlyInStock]);
+
+  const availableSubcategories = useMemo(() => {
+    if (!selectedCategory) return [];
+    const ids = products
+      .filter(p => p.category === selectedCategory && p.subcategoryId !== undefined && p.subcategoryId !== null)
+      .map(p => p.subcategoryId as number);
+    return Array.from(new Set(ids)).sort((a: number, b: number) => a - b);
+  }, [products, selectedCategory]);
 
   const displayedProducts = useMemo(() => {
     return filteredProducts.slice(0, visibleCount);
@@ -364,17 +479,53 @@ export default function Home() {
         </section>
       )}
 
-      <div id="market" className="sticky top-16 sm:top-20 z-40">
+      <div id="market" className="sticky top-16 sm:top-20 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md">
         <CategoryBar 
           categories={allCategories} 
           selectedCategory={selectedCategory} 
           getCategoryLabel={getCategoryLabel}
           onSelectCategory={(cat) => {
             setSelectedCategory(cat);
+            setSelectedSubcategory(null);
             setVisibleCount(16);
             if (searchQuery) setSearchParams({});
           }} 
         />
+        
+        {/* Subcategory Filtering Rail */}
+        {selectedCategory && availableSubcategories.length > 0 && (
+          <div className="border-t border-brand-border py-4 px-6 overflow-x-auto no-scrollbar bg-zinc-50 dark:bg-zinc-950 flex gap-3 scroll-smooth max-w-7xl mx-auto rounded-full mt-2 shadow-inner">
+            <button
+              onClick={() => setSelectedSubcategory(null)}
+              className={cn(
+                "px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                selectedSubcategory === null
+                  ? "bg-brand-primary text-white border border-brand-primary shadow-md shadow-brand-primary/20 scale-105"
+                  : "bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-brand-border"
+              )}
+            >
+              {i18n.language === 'rw' ? 'Byose' : 'All Subcategories'}
+            </button>
+            {availableSubcategories.map((subId) => {
+              const label = SUBCATEGORY_NAMES[subId] || `Subcategory ${subId}`;
+              const isSelected = selectedSubcategory === subId;
+              return (
+                <button
+                  key={subId}
+                  onClick={() => setSelectedSubcategory(isSelected ? null : subId)}
+                  className={cn(
+                    "px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                    isSelected
+                      ? "bg-brand-primary text-white border border-brand-primary shadow-md shadow-brand-primary/20 scale-105"
+                      : "bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-brand-border"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto px-4 py-20 sm:py-32 w-full relative overflow-x-hidden">
