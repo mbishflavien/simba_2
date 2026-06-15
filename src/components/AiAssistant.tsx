@@ -182,9 +182,7 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
   };
 
   const handleClearHistory = () => {
-    if (window.confirm("Format conversation? This clears all messages.")) {
-      setMessages([]);
-    }
+    setMessages([]);
   };
 
   return (

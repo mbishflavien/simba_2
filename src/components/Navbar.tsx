@@ -96,6 +96,24 @@ export default function Navbar() {
   useEffect(() => {
     setActiveIndex(-1);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const isInputFocused = document.activeElement && ['input', 'textarea', 'select'].includes(document.activeElement.tagName.toLowerCase());
+      if (isInputFocused) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        const firstSearchInput = document.querySelector('input[placeholder*="Search"]') || document.querySelector('input[placeholder*="search"]') || document.querySelector('input[type="text"]');
+        if (firstSearchInput) {
+          (firstSearchInput as HTMLInputElement).focus();
+          setShowSuggestions(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
