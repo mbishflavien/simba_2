@@ -13,6 +13,7 @@ import WishlistDrawer from './components/WishlistDrawer';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import AboutUs from './pages/AboutUs';
+import Branches from './pages/Branches';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Profile from './pages/Profile';
@@ -74,6 +75,7 @@ function AppLayout() {
           <Route path="/checkout" element={<Cart />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/about" element={<AboutUs />} />
+          <Route path="/branches" element={<Branches />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

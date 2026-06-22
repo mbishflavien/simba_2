@@ -56,8 +56,12 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  // Extract error code if present
+  const errorCode = (error as any)?.code || '';
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid || 'anonymous',
       email: auth.currentUser?.email || '',
@@ -71,8 +75,16 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     },
     operationType,
     path
-  }
+  };
   const errorJson = JSON.stringify(errInfo);
   console.error('Firestore Error Status: ', errorJson);
-  throw new Error(errorJson);
+
+  // Throw to trigger diagnostic tools ONLY for actual security/permission failures. This allows connection/offline warnings to be bypassable.
+  if (
+    errorCode === 'permission-denied' || 
+    errorMessage.toLowerCase().includes('permission') || 
+    errorMessage.toLowerCase().includes('insufficient')
+  ) {
+    throw new Error(errorJson);
+  }
 }

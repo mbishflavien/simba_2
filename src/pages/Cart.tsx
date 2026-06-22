@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi, LogIn, MapPin, Search, ShoppingBag, Star, Check } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, CreditCard, RefreshCcw, Smartphone, CheckCircle, Wifi, LogIn, MapPin, Search, ShoppingBag, Star, Check, Printer, AlertTriangle, Bookmark } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,7 +27,7 @@ const NEIGHBORHOODS: Record<string, { lat: number; lng: number }> = {
 };
 
 export default function Cart() {
-  const { cart, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart } = useCart();
+  const { cart, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart, addToCart } = useCart();
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -37,12 +37,21 @@ export default function Cart() {
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'cash'>('momo');
   const [phoneNumber, setPhoneNumber] = useState('078');
   const [address, setAddress] = useState('');
+  const [landmarks, setLandmarks] = useState('');
+  const [savedForLater, setSavedForLater] = useState<any[]>(() => {
+    const saved = localStorage.getItem('simba_saved_for_later');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [neighborhood, setNeighborhood] = useState('');
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [cardType, setCardType] = useState<'visa' | 'mastercard'>('visa');
   const [cardData, setCardData] = useState({ number: '', expiry: '', cvv: '' });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    localStorage.setItem('simba_saved_for_later', JSON.stringify(savedForLater));
+  }, [savedForLater]);
 
   const [placedOrderId, setPlacedOrderId] = useState<string>('');
   const [serviceRating, setServiceRating] = useState<number>(0);
@@ -80,7 +89,130 @@ export default function Cart() {
     return Object.keys(errors).length === 0;
   };
 
+  const validateRwandanPhone = (phone: string) => {
+    const cleaned = phone.replace(/[\s-]/g, '');
+    const regex = /^\+2507[2389]\d{7}$/;
+    return regex.test(cleaned);
+  };
+
+  const handlePrintReceipt = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const itemsHtml = cart.map(item => `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px; font-weight: bold;">${item.name.toUpperCase()}</td>
+        <td style="padding: 12px; text-align: center;">${item.quantity}</td>
+        <td style="padding: 12px; text-align: right;">${item.price.toLocaleString()} RWF</td>
+        <td style="padding: 12px; text-align: right; font-weight: bold;">${(item.price * item.quantity).toLocaleString()} RWF</td>
+      </tr>
+    `).join('');
+
+    const subtotal = totalPrice;
+    const logistics = paymentMethod === 'cash' || totalPrice > 50000 ? 0 : 2000;
+    const grandTotal = subtotal + logistics;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Simba Receipt - ${placedOrderId || 'DRAFT'}</title>
+          <style>
+            body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1fb937; padding: 40px; margin: 0; line-height: 1.5; background-color: #ffffff; }
+            .receipt-container { max-width: 650px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 40px; border-radius: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+            .header { text-align: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 24px; margin-bottom: 24px; }
+            .logo { font-size: 28px; font-weight: 900; letter-spacing: -1px; color: #f97316; font-style: italic; }
+            .tagline { font-size: 9px; text-transform: uppercase; letter-spacing: 3px; color: #9ca3af; margin-top: 4px; font-weight: 800; }
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 30px; font-size: 12px; }
+            .meta-item { background-color: #f9fafb; padding: 12px 16px; border-radius: 12px; }
+            .meta-label { font-size: 10px; text-transform: uppercase; color: #6b7280; font-weight: 700; margin-bottom: 2px; }
+            .meta-value { font-weight: bold; color: #111827; }
+            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
+            .items-table th { text-align: left; padding: 12px; font-weight: 800; text-transform: uppercase; font-size: 10px; color: #4b5563; border-bottom: 2px solid #e5e7eb; }
+            .summary-section { border-top: 2px solid #f3f4f6; padding-top: 16px; font-size: 13px; width: 280px; margin-left: auto; }
+            .summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+            .total-row { font-size: 16px; font-weight: 900; color: #f97316; border-top: 1px solid #e5e7eb; padding-top: 10px; margin-top: 10px; }
+            .footer { text-align: center; margin-top: 50px; border-top: 1px dashed #e5e7eb; padding-top: 20px; font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-container">
+            <div class="header">
+              <div class="logo">SIMBA SUPERMARKET 🦁</div>
+              <div class="tagline">Always serving the heart of Kigali since 2007</div>
+            </div>
+            
+            <div class="meta-grid">
+              <div class="meta-item">
+                <div class="meta-label">Order Reference</div>
+                <div class="meta-value">${placedOrderId || 'Draft Receipt'}</div>
+              </div>
+              <div class="meta-item" style="text-align: right;">
+                <div class="meta-label">Date & Time</div>
+                <div class="meta-value">${new Date().toLocaleString()}</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">Customer Account</div>
+                <div class="meta-value">${user?.email || 'Guest Account'}</div>
+              </div>
+              <div class="meta-item" style="text-align: right;">
+                <div class="meta-label">Payment Option</div>
+                <div class="meta-value">${paymentMethod === 'momo' ? 'MTN Mobile Money' : paymentMethod === 'card' ? 'Credit Card' : 'Cash on pickup'}</div>
+              </div>
+              <div class="meta-item" style="grid-column: span 2;">
+                <div class="meta-label">Target Destination Address</div>
+                <div class="meta-value">${paymentMethod === 'cash' ? 'Store Pickup' : address}</div>
+              </div>
+            </div>
+
+            <table class="items-table">
+              <thead>
+                <tr>
+                   <th>Product Listing</th>
+                   <th style="text-align: center;">Qty</th>
+                   <th style="text-align: right;">Unit Price</th>
+                   <th style="text-align: right;">Total RWF</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+
+            <div class="summary-section">
+              <div class="summary-row">
+                <span style="color: #6b7280;">Subtotal:</span>
+                <span style="font-weight: bold;">${subtotal.toLocaleString()} RWF</span>
+              </div>
+              <div class="summary-row">
+                <span style="color: #6b7280;">Logistics Charges:</span>
+                <span style="font-weight: bold; color: ${logistics === 0 ? '#10b981' : '#1f2937'};">${logistics === 0 ? 'FREE' : logistics.toLocaleString() + ' RWF'}</span>
+              </div>
+              <div class="summary-row total-row">
+                <span>Grand Total:</span>
+                <span>${grandTotal.toLocaleString()} RWF</span>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p>Murakoze cyane kubana natwe! / Thank you for shopping with Simba!</p>
+              <p style="font-size: 8px; color: #9ca3af; margin-top: 8px;">Generated securely via Simba Digitized Terminal Checkout</p>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handleCheckout = () => {
+    if (totalPrice < 2500) {
+      return;
+    }
     if (!user) {
       navigate('/login', { state: { from: '/cart' } });
       return;
@@ -90,10 +222,23 @@ export default function Cart() {
 
   const startPayment = (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+
     if (paymentMethod !== 'cash' && !address.trim()) {
-      setFormErrors({ address: t('address_required') });
+      errors.address = t('address_required');
+    }
+
+    if (paymentMethod === 'momo') {
+      if (!validateRwandanPhone(phoneNumber)) {
+        errors.phoneNumber = 'Rwandan mobile number must match standard format starting with +250 and prefixes like 78, 79, 72, or 73';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
+
     setFormErrors({});
     if (paymentMethod === 'cash' && !selectedBranch) {
       setCheckoutStep('cash');
@@ -146,6 +291,7 @@ export default function Cart() {
         status: 'pending',
         paymentMethod,
         address: orderAddress,
+        landmarks: landmarks || null,
         pickupBranch: paymentMethod === 'cash' ? selectedBranch : null,
         createdAt: serverTimestamp()
       });
@@ -158,7 +304,7 @@ export default function Cart() {
         total: totalPrice + (paymentMethod === 'cash' ? 0 : (totalPrice > 50000 ? 0 : 2000)),
         status: 'pending',
         paymentMethod,
-        address: orderAddress,
+        address: orderAddress + (landmarks ? ` (Landmarks: ${landmarks})` : ''),
         pickupBranch: paymentMethod === 'cash' ? selectedBranch : undefined,
         createdAt: Timestamp.now()
       };
@@ -346,12 +492,21 @@ export default function Cart() {
           )}
         </div>
 
-        <Link 
-          to="/profile" 
-          className="inline-flex items-center gap-2 bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 transition-colors shadow-2xl shadow-brand-primary/20"
-        >
-          {t('view_order_details')}
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
+          <Link 
+            to="/profile" 
+            className="inline-flex items-center gap-2 bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 transition-colors shadow-2xl shadow-brand-primary/20 w-full sm:w-auto justify-center"
+          >
+            {t('view_order_details')}
+          </Link>
+          <button 
+            onClick={handlePrintReceipt}
+            className="inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-zinc-850 dark:hover:bg-zinc-100 transition-colors shadow-2xl w-full sm:w-auto justify-center"
+          >
+            <Printer className="h-5 w-5" />
+            Download / Print Receipt
+          </button>
+        </div>
       </div>
     );
   }
@@ -427,10 +582,21 @@ export default function Cart() {
           })}
         </div>
 
-        <Link to="/" className="text-[var(--brand-text-muted)] hover:text-brand-primary micro-label flex items-center gap-2 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          {t('back_to_shop')}
-        </Link>
+        <div className="flex items-center gap-6 shrink-0">
+          <Link to="/" className="text-[var(--brand-text-muted)] hover:text-brand-primary micro-label flex items-center gap-2 transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            {t('back_to_shop')}
+          </Link>
+          {checkoutStep === 'cart' && (
+            <button 
+              onClick={clearCart}
+              className="text-[var(--brand-text-muted)] hover:text-red-500 micro-label flex items-center gap-2 transition-colors border border-transparent hover:border-red-500/20 px-4 py-2 rounded-full bg-red-500/10 hover:bg-red-500/20 cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear Cart
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 sm:gap-20 items-start">
@@ -465,12 +631,24 @@ export default function Cart() {
                         <p className="micro-label mb-1 sm:mb-2 uppercase tracking-widest text-[8px] sm:text-[10px] !opacity-60 truncate">{item.category}</p>
                         <h3 className="font-black text-[var(--brand-text)] text-lg sm:text-2xl tracking-tight leading-none truncate italic uppercase">{item.name}</h3>
                       </div>
-                      <button 
-                        onClick={() => removeFromCart(item.id)}
-                        className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 transition-colors shrink-0"
-                      >
-                        <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" />
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                          onClick={() => {
+                            setSavedForLater(prev => [...prev.filter(x => x.id !== item.id), item]);
+                            removeFromCart(item.id);
+                          }}
+                          className="p-2 text-[var(--brand-text-muted)] hover:text-brand-primary transition-colors hover:scale-110"
+                          title="Save for Later"
+                        >
+                          <Bookmark className="h-5 w-5 sm:h-6 sm:w-6" />
+                        </button>
+                        <button 
+                          onClick={() => removeFromCart(item.id)}
+                          className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 transition-colors shrink-0"
+                        >
+                          <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" />
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="flex justify-between items-center mt-2 sm:mt-0">
@@ -500,6 +678,57 @@ export default function Cart() {
               ))}
             </AnimatePresence>
           </div>
+
+          {savedForLater.length > 0 && checkoutStep === 'cart' && (
+            <div className="mt-16 pt-12 border-t border-brand-border/40 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none">
+                    SAVED FOR LATER<span className="text-brand-primary">.</span>
+                  </h3>
+                  <p className="micro-label mt-1 uppercase opacity-60">Temporary shopping shelf — {savedForLater.length} items</p>
+                </div>
+                <button 
+                  onClick={() => setSavedForLater([])}
+                  className="text-xs font-bold uppercase text-[var(--brand-text-muted)] hover:text-red-500 transition-colors cursor-pointer"
+                >
+                  Clear Saved Shelf
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {savedForLater.map(item => (
+                  <div key={item.id} className="p-4 rounded-[24px] border border-brand-border/40 bg-black/5 dark:bg-white/5 flex items-center gap-4 group">
+                    <img src={item.image} alt={item.name} className="w-16 h-16 object-contain p-1 bg-white rounded-xl grayscale group-hover:grayscale-0 transition-all shrink-0" referrerPolicy="no-referrer" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">{item.category}</p>
+                      <h4 className="text-sm font-black uppercase tracking-tight text-[var(--brand-text)] truncate">{item.name}</h4>
+                      <p className="text-xs font-bold text-brand-primary mt-1">{formatCurrency(item.price)}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <button 
+                        onClick={() => {
+                          addToCart(item);
+                          setSavedForLater(prev => prev.filter(x => x.id !== item.id));
+                        }}
+                        className="p-2 text-brand-primary hover:text-orange-600 dark:hover:text-orange-400 bg-brand-primary/10 hover:bg-brand-primary/20 rounded-xl transition-all cursor-pointer"
+                        title="Move to Cart"
+                      >
+                        <ShoppingBag className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => setSavedForLater(prev => prev.filter(x => x.id !== item.id))}
+                        className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer"
+                        title="Remove"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Branch Selection (Below Order) */}
           {checkoutStep === 'cash' && (
@@ -568,11 +797,24 @@ export default function Cart() {
                   </div>
                 </div>
 
+                {totalPrice < 2500 && (
+                  <div className="p-5 mb-6 bg-amber-500/10 border border-amber-500/20 rounded-[20px] text-[10px] font-black text-amber-500 uppercase tracking-widest italic flex items-start gap-3 text-left">
+                    <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 animate-pulse" />
+                    <span>Minimum checkout threshold is 2,500 RWF to make local delivery viable. Current cart: {formatCurrency(totalPrice)}. Please add more items!</span>
+                  </div>
+                )}
+
                 <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={totalPrice >= 2500 ? { scale: 1.02 } : {}}
+                  whileTap={totalPrice >= 2500 ? { scale: 0.98 } : {}}
+                  disabled={totalPrice < 2500}
                   onClick={handleCheckout}
-                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-7 rounded-[24px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-4 shadow-2xl shadow-brand-primary/40 italic relative z-10 group"
+                  className={cn(
+                    "w-full py-7 rounded-[24px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-4 shadow-2xl italic relative z-10 group",
+                    totalPrice >= 2500 
+                      ? "bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black shadow-brand-primary/40" 
+                      : "bg-zinc-500/10 border border-brand-border/40 text-zinc-500 cursor-not-allowed"
+                  )}
                 >
                   <CreditCard className="h-6 w-6 font-black group-hover:rotate-12 transition-transform" />
                   {t('proceed_to_checkout')}
@@ -610,6 +852,17 @@ export default function Cart() {
                       )}
                     />
                     {formErrors.address && <p className="text-[10px] text-red-500 font-bold uppercase ml-4">{formErrors.address}</p>}
+                 </div>
+
+                 <div className="space-y-4 text-left">
+                    <label className="micro-label uppercase tracking-widest block ml-4">Delivery Instructions & Landmarks</label>
+                    <textarea 
+                      rows={2}
+                      value={landmarks}
+                      onChange={e => setLandmarks(e.target.value)}
+                      placeholder="E.g., Opposite Gisozi Sector Office or Near the pharmacy..."
+                      className="w-full bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl py-4 px-6 text-sm font-bold text-[var(--brand-text)] outline-none focus:border-brand-primary resize-none"
+                    />
                  </div>
 
                  <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-4">
@@ -664,6 +917,9 @@ export default function Cart() {
                         onChange={e => setPhoneNumber(e.target.value)}
                         className="w-full bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl py-5 px-6 italic font-black text-xl text-[var(--brand-text)] outline-none focus:border-brand-primary"
                       />
+                      {formErrors.phoneNumber && (
+                        <p className="text-[10px] text-red-500 font-bold uppercase ml-4">{formErrors.phoneNumber}</p>
+                      )}
                    </div>
                  ) : paymentMethod === 'card' ? (
                    <div className="flex gap-4">
@@ -745,6 +1001,12 @@ export default function Cart() {
                         ? SIMBA_BRANCHES.find(b => b.id === selectedBranch)?.name 
                         : address}
                     </p>
+                    {paymentMethod !== 'cash' && landmarks && (
+                      <div className="mt-2 pt-2 border-t border-dashed border-brand-border/40">
+                        <p className="text-[9px] font-black uppercase opacity-40">Landmarks & Instructions</p>
+                        <p className="text-[11px] font-bold text-brand-primary italic">{landmarks}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

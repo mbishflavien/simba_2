@@ -2,7 +2,29 @@ import productsData from '../data/products.json';
 import { Product } from '../types';
 
 export function augmentProductsList(baseList: Product[]): Product[] {
-  const baseProducts = baseList && baseList.length > 0 ? baseList : (productsData.products || []) as Product[];
+  const fileProducts = (productsData.products || []) as Product[];
+  const mergedMap = new Map<string, Product>();
+
+  // 1. Add all standard file products first (keyed by string ID)
+  fileProducts.forEach(p => {
+    mergedMap.set(String(p.id), p);
+  });
+
+  // 2. Add live Firestore products if available
+  if (baseList && baseList.length > 0) {
+    baseList.forEach(p => {
+      mergedMap.set(String(p.id), p);
+    });
+  }
+
+  const baseProducts = Array.from(mergedMap.values()).map(p => {
+    const numId = Number(p.id);
+    return {
+      ...p,
+      id: isNaN(numId) ? p.id : numId
+    };
+  });
+
   const originalCount = baseProducts.length;
   if (originalCount === 0) return [];
 

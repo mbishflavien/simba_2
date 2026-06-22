@@ -7,7 +7,7 @@ import { useCart } from '../hooks/useCart';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { ArrowLeft, ShoppingCart, ShieldCheck, Truck, RefreshCcw, Star, Send, MessageSquare, Package, Heart } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, ShieldCheck, Truck, RefreshCcw, Star, Send, MessageSquare, Package, Heart, Share2, Link as LinkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -36,6 +36,7 @@ export default function ProductDetail() {
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -331,6 +332,53 @@ export default function ProductDetail() {
                   <Heart className={cn("h-6 w-6 sm:h-8 sm:w-8", isInWishlist(Number(id)) ? "fill-white" : "fill-none")} />
                 </button>
              </div>
+
+              {/* Social Sharing Widget */}
+              <div className="pt-6 border-t border-brand-border dark:border-white/10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-text-muted)] mb-3">Share This Product</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <a 
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Check out this amazing product from Simba Supermarket: ${product?.name} at only ${product?.price} RWF! ` + window.location.href)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-tight transition-colors shadow-lg shadow-green-500/10 cursor-pointer"
+                  >
+                    <span className="font-extrabold">WhatsApp</span>
+                  </a>
+                  <a 
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-tight transition-colors shadow-lg shadow-blue-600/10 cursor-pointer"
+                  >
+                    <span className="font-extrabold">Facebook</span>
+                  </a>
+                  <a 
+                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out this product at Simba Supermarket: ${product?.name}`)}&url=${encodeURIComponent(window.location.href)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-tight transition-colors shadow-lg shadow-sky-500/10 cursor-pointer"
+                  >
+                    <span className="font-extrabold">Twitter</span>
+                  </a>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(window.location.href);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-tight transition-all cursor-pointer border",
+                      copied 
+                        ? "bg-green-500/10 text-green-500 border-green-500/20" 
+                        : "bg-black/5 dark:bg-white/5 text-[var(--brand-text)] border-brand-border dark:border-white/10 hover:border-brand-primary"
+                    )}
+                  >
+                    <LinkIcon className="h-3 w-3" />
+                    <span className="font-extrabold">{copied ? "Copied!" : "Copy Link"}</span>
+                  </button>
+                </div>
+              </div>
           </div>
 
           {/* Benefits */}

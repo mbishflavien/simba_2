@@ -290,6 +290,7 @@ export default function Navbar() {
             <div className="flex items-center gap-3 xl:gap-8 micro-label">
               <Link to="/shop" className="hover:text-brand-primary transition-colors text-zinc-800 dark:text-zinc-200 font-black tracking-widest uppercase">{t('shop') || 'Shop'}</Link>
               <Link to="/about" className="hover:text-brand-primary transition-colors text-zinc-850 dark:text-zinc-200 font-black tracking-widest uppercase">{t('about_us')}</Link>
+              <Link to="/branches" className="hover:text-brand-primary transition-colors text-zinc-850 dark:text-zinc-200 font-black tracking-widest uppercase">Branches</Link>
               
               {profile?.isAdmin && (
                 <Link 

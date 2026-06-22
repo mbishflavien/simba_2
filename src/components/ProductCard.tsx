@@ -4,7 +4,7 @@ import { useCart } from '../hooks/useCart';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../components/AuthProvider';
 import { formatCurrency, cn } from '../lib/utils';
-import { ShoppingCart, Plus, Minus, Info, Check, Star, Heart } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Info, Check, Star, Heart, Eye, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
@@ -19,6 +19,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
   const { user } = useAuth();
   const { t } = useTranslation();
   const [isAdded, setIsAdded] = React.useState(false);
+  const [quickViewOpen, setQuickViewOpen] = React.useState(false);
 
   const cartItem = useMemo(() => 
     cart.find(item => item.id === product.id)
@@ -54,6 +55,24 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
             </span>
           </div>
         )}
+        
+        {/* Quick View Button Hover Overlay */}
+        {product.inStock && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setQuickViewOpen(true);
+              }}
+              className="bg-brand-primary hover:bg-orange-600 text-white font-black uppercase text-[10px] tracking-widest px-6 py-3 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 pointer-events-auto flex items-center gap-2 cursor-pointer"
+            >
+              <Eye className="h-4 w-4" />
+              Quick View
+            </button>
+          </div>
+        )}
+
         <button 
           onClick={(e) => {
             e.preventDefault();
@@ -63,8 +82,8 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           className={cn(
             "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border border-white/20 group/heart hover:scale-110 active:scale-95 z-20",
             isInWishlist(product.id) 
-              ? "bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/30" 
-              : "bg-black/20 text-white/60 hover:text-white"
+               ? "bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/30" 
+               : "bg-black/20 text-white/60 hover:text-white"
           )}
           aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
         >
@@ -184,6 +203,114 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           </div>
         </div>
       </div>
+
+      {/* Quick View Modal Overlay */}
+      <AnimatePresence>
+        {quickViewOpen && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 p-6 sm:p-10 rounded-[32px] max-w-lg w-full relative space-y-6 shadow-2xl overflow-y-auto max-h-[95vh] text-[var(--brand-text)]"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuickViewOpen(false);
+                }}
+                className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-brand-primary hover:bg-zinc-500/10 rounded-full transition-all cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X className="h-6 w-6" />
+              </button>
+
+              <div className="aspect-square w-48 h-48 mx-auto bg-white p-4 rounded-[28px] border border-zinc-100 flex items-center justify-center relative shadow-sm shrink-0">
+                <img 
+                  src={product.image} 
+                  alt={product.name} 
+                  className="max-h-full max-w-full object-contain"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600"; }}
+                />
+              </div>
+
+              <div className="space-y-4 text-center sm:text-left">
+                <div className="flex flex-wrap gap-2 items-center justify-center sm:justify-start">
+                  <span className="micro-label bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-3 py-1 rounded-full">
+                    {product.category}
+                  </span>
+                  <span className="micro-label border border-zinc-200 dark:border-white/10 px-3 py-1 rounded-full text-zinc-500">
+                    {product.unit}
+                  </span>
+                </div>
+
+                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tight text-[var(--brand-text)] leading-none">
+                  {product.name}
+                </h3>
+
+                <p className="text-2xl font-black text-brand-primary italic">
+                  {formatCurrency(product.price)}
+                </p>
+
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-tight leading-relaxed">
+                  Premium Quality {product.name} sourced directly from trusted local and global farms. Delivered fresh to your Kigali residence within 30 minutes. Guaranteed freshness in every order!
+                </p>
+
+                {product.stockCount !== undefined && (
+                  <p className={cn(
+                    "text-[10px] font-black uppercase tracking-widest",
+                    product.stockCount <= 10 ? "text-red-500" : "text-green-500"
+                  )}>
+                    {product.stockCount < 10 ? `Only ${product.stockCount} left in stock!` : `${product.stockCount} ${t('in_stock', 'In Stock')}`}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-6 border-t border-zinc-100 dark:border-white/5 flex flex-col sm:flex-row gap-4 items-center">
+                <Link
+                  to={`/product/${product.id}`}
+                  onClick={() => setQuickViewOpen(false)}
+                  className="w-full sm:w-auto text-center font-black uppercase tracking-widest text-[10px] text-zinc-400 hover:text-brand-primary transition-colors py-3 sm:px-6 hover:underline"
+                >
+                  View Details Page &rarr;
+                </Link>
+
+                <div className="w-full sm:flex-1 flex justify-end">
+                  {cartItem ? (
+                    <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1 shadow-inner w-full sm:w-auto justify-between sm:justify-start">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartItem.quantity - 1); }}
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-10 text-center font-black text-xs text-[var(--brand-text)] italic">{cartItem.quantity}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartItem.quantity + 1); }}
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToCart();
+                      }}
+                      className="w-full sm:w-auto bg-black dark:bg-white hover:bg-brand-primary dark:hover:bg-brand-primary text-white dark:text-black hover:text-white dark:hover:text-white font-black uppercase tracking-widest text-xs py-4 px-8 rounded-full shadow-lg transition-all"
+                    >
+                      {isAdded ? "Added!" : "Add to Cart"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 });

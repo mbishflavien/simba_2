@@ -5,7 +5,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { UserPlus, Mail, Lock, AlertCircle, ArrowRight, User } from 'lucide-react';
+import { UserPlus, Mail, Lock, AlertCircle, ArrowRight, User, Eye, EyeOff } from 'lucide-react';
 
 export default function SignUp() {
   const { t } = useTranslation();
@@ -16,6 +16,7 @@ export default function SignUp() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const from = location.state?.from || '/';
 
@@ -156,13 +157,20 @@ export default function SignUp() {
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
               <input 
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-zinc-50 dark:bg-black/20 border-2 border-transparent focus:border-brand-primary rounded-2xl py-4 pl-12 pr-4 outline-none font-bold italic text-xs tracking-tight transition-all text-[var(--brand-text)] shadow-inner"
+                className="w-full bg-zinc-50 dark:bg-black/20 border-2 border-transparent focus:border-brand-primary rounded-2xl py-4 pl-12 pr-12 outline-none font-bold italic text-xs tracking-tight transition-all text-[var(--brand-text)] shadow-inner"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-brand-primary transition-colors cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 

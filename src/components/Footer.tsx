@@ -68,9 +68,9 @@ export default function Footer() {
             <h4 className="font-black mb-8 uppercase tracking-[0.3em] text-[10px] text-brand-primary">{t('support')}</h4>
             <ul className="space-y-4 text-sm font-bold uppercase tracking-tight italic text-zinc-100">
               <li><Link to="/about" className="hover:text-brand-primary transition-colors hover:translate-x-1 inline-block transform duration-300">{t('about_us')}</Link></li>
+              <li><Link to="/branches" className="hover:text-brand-primary transition-colors hover:translate-x-1 inline-block transform duration-300">Our Branches & Hours</Link></li>
               <li><Link to="/support/contact" className="hover:text-brand-primary transition-colors hover:translate-x-1 inline-block transform duration-300">{t('contact_support')}</Link></li>
               <li><Link to="/support/delivery" className="hover:text-brand-primary transition-colors hover:translate-x-1 inline-block transform duration-300">{t('delivery_tc')}</Link></li>
-              <li><Link to="/support/momo-guide" className="hover:text-brand-primary transition-colors hover:translate-x-1 inline-block transform duration-300">{t('momo_guide')}</Link></li>
             </ul>
           </div>
 
