@@ -35,7 +35,7 @@ export default function Cart() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'method' | 'confirmation' | 'momo' | 'card' | 'cash' | 'waiting'>('cart');
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'cash'>('momo');
-  const [phoneNumber, setPhoneNumber] = useState('078');
+  const [phoneNumber, setPhoneNumber] = useState('78');
   const [address, setAddress] = useState('');
   const [landmarks, setLandmarks] = useState('');
   const [savedForLater, setSavedForLater] = useState<any[]>(() => {
@@ -54,6 +54,17 @@ export default function Cart() {
   }, [savedForLater]);
 
   const [placedOrderId, setPlacedOrderId] = useState<string>('');
+  const [receiptCart, setReceiptCart] = useState<any[]>([]);
+  const [receiptTotal, setReceiptTotal] = useState<number>(0);
+  const [receiptMethod, setReceiptMethod] = useState<'momo' | 'card' | 'cash'>('momo');
+  const [receiptAddress, setReceiptAddress] = useState<string>('');
+
+  const prepareReceipt = () => {
+    setReceiptCart([...cart]);
+    setReceiptTotal(totalPrice);
+    setReceiptMethod(paymentMethod);
+    setReceiptAddress(paymentMethod === 'cash' ? `Store Pickup` : address);
+  };
   const [serviceRating, setServiceRating] = useState<number>(0);
   const [hoveredRating, setHoveredRating] = useState<number>(0);
   const [serviceFeedback, setServiceFeedback] = useState<string>('');
@@ -89,8 +100,25 @@ export default function Cart() {
     return Object.keys(errors).length === 0;
   };
 
+  const getNormalizedPhone = (phone: string) => {
+    let cleaned = phone.replace(/[\s-]/g, '');
+    if (cleaned.startsWith('+250')) {
+      return cleaned;
+    }
+    if (cleaned.startsWith('250')) {
+      return '+' + cleaned;
+    }
+    if (cleaned.startsWith('07')) {
+      return '+250' + cleaned.substring(1);
+    }
+    if (cleaned.startsWith('7')) {
+      return '+250' + cleaned;
+    }
+    return '+250' + cleaned;
+  };
+
   const validateRwandanPhone = (phone: string) => {
-    const cleaned = phone.replace(/[\s-]/g, '');
+    const cleaned = getNormalizedPhone(phone);
     const regex = /^\+2507[2389]\d{7}$/;
     return regex.test(cleaned);
   };
@@ -99,7 +127,15 @@ export default function Cart() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsHtml = cart.map(item => `
+    // Use preserved receipt values if current cart is empty (post checkout)
+    const activeCart = cart.length > 0 ? cart : receiptCart;
+    const activeSubtotal = cart.length > 0 ? totalPrice : receiptTotal;
+    const activeMethod = cart.length > 0 ? paymentMethod : receiptMethod;
+    const activeAddress = cart.length > 0 
+      ? (paymentMethod === 'cash' ? 'Store Pickup' : address) 
+      : receiptAddress;
+
+    const itemsHtml = activeCart.map(item => `
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 12px; font-weight: bold;">${item.name.toUpperCase()}</td>
         <td style="padding: 12px; text-align: center;">${item.quantity}</td>
@@ -108,8 +144,8 @@ export default function Cart() {
       </tr>
     `).join('');
 
-    const subtotal = totalPrice;
-    const logistics = paymentMethod === 'cash' || totalPrice > 50000 ? 0 : 2000;
+    const subtotal = activeSubtotal;
+    const logistics = activeMethod === 'cash' || activeSubtotal > 50000 ? 0 : 2000;
     const grandTotal = subtotal + logistics;
 
     printWindow.document.write(`
@@ -156,11 +192,11 @@ export default function Cart() {
               </div>
               <div class="meta-item" style="text-align: right;">
                 <div class="meta-label">Payment Option</div>
-                <div class="meta-value">${paymentMethod === 'momo' ? 'MTN Mobile Money' : paymentMethod === 'card' ? 'Credit Card' : 'Cash on pickup'}</div>
+                <div class="meta-value">${activeMethod === 'momo' ? 'MTN Mobile Money' : activeMethod === 'card' ? 'Credit Card' : 'Cash on pickup'}</div>
               </div>
               <div class="meta-item" style="grid-column: span 2;">
                 <div class="meta-label">Target Destination Address</div>
-                <div class="meta-value">${paymentMethod === 'cash' ? 'Store Pickup' : address}</div>
+                <div class="meta-value">${activeAddress}</div>
               </div>
             </div>
 
@@ -231,6 +267,8 @@ export default function Cart() {
     if (paymentMethod === 'momo') {
       if (!validateRwandanPhone(phoneNumber)) {
         errors.phoneNumber = 'Rwandan mobile number must match standard format starting with +250 and prefixes like 78, 79, 72, or 73';
+      } else {
+        setPhoneNumber(getNormalizedPhone(phoneNumber));
       }
     }
 
@@ -336,6 +374,7 @@ export default function Cart() {
       const orderId = await saveOrder();
       if (orderId) setPlacedOrderId(orderId);
       setIsProcessing(false);
+      prepareReceipt();
       setIsSuccess(true);
       clearCart();
     } catch (error) {
@@ -354,6 +393,7 @@ export default function Cart() {
       const orderId = await saveOrder();
       if (orderId) setPlacedOrderId(orderId);
       setIsProcessing(false);
+      prepareReceipt();
       setIsSuccess(true);
       clearCart();
     } catch (error) {
@@ -373,6 +413,7 @@ export default function Cart() {
       const orderId = await saveOrder();
       if (orderId) setPlacedOrderId(orderId);
       setIsProcessing(false);
+      prepareReceipt();
       setIsSuccess(true);
       clearCart();
     } catch (error) {
@@ -494,14 +535,22 @@ export default function Cart() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
           <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 border border-brand-border text-[var(--brand-text)] px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors w-full sm:w-auto justify-center cursor-pointer"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Back to Shop
+          </Link>
+          <Link 
             to="/profile" 
-            className="inline-flex items-center gap-2 bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 transition-colors shadow-2xl shadow-brand-primary/20 w-full sm:w-auto justify-center"
+            className="inline-flex items-center gap-2 bg-brand-primary text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-orange-600 dark:hover:bg-orange-400 transition-colors shadow-2xl shadow-brand-primary/20 w-full sm:w-auto justify-center cursor-pointer"
           >
             {t('view_order_details')}
           </Link>
           <button 
+            type="button"
             onClick={handlePrintReceipt}
-            className="inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-zinc-850 dark:hover:bg-zinc-100 transition-colors shadow-2xl w-full sm:w-auto justify-center"
+            className="inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 px-12 py-5 rounded-full font-black uppercase tracking-widest hover:bg-zinc-850 dark:hover:bg-zinc-100 transition-colors shadow-2xl w-full sm:w-auto justify-center cursor-pointer"
           >
             <Printer className="h-5 w-5" />
             Download / Print Receipt
@@ -513,16 +562,114 @@ export default function Cart() {
 
   if (cart.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-32 text-center">
-        <h2 className="massive-header text-[var(--brand-text)] opacity-20 mb-8 uppercase italic">{t('empty_cart_title')}</h2>
-        <p className="micro-label mb-12 !opacity-60">{t('empty_cart_message')}</p>
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 border border-brand-border text-[var(--brand-text)] px-10 py-4 rounded-full font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white dark:hover:text-black transition-colors"
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center text-[var(--brand-text)] flex flex-col items-center">
+        {/* Visual Illustration */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="relative mb-8"
         >
-          <ArrowLeft className="h-4 w-4" />
-          {t('back_to_shop')}
-        </Link>
+          {/* Pulsing decorative background glows */}
+          <div className="absolute inset-0 bg-brand-primary/10 dark:bg-brand-primary/5 blur-3xl rounded-full scale-125 animate-pulse" />
+          
+          <div className="relative w-36 h-36 bg-zinc-50 dark:bg-zinc-900 border border-brand-border dark:border-white/5 rounded-full flex items-center justify-center mx-auto shadow-inner">
+            <ShoppingBag className="h-16 w-16 text-brand-primary/40 dark:text-brand-primary/30 stroke-1" />
+            <div className="absolute -top-1 -right-1 w-10 h-10 bg-brand-primary text-white rounded-full flex items-center justify-center font-extrabold text-sm border-4 border-white dark:border-zinc-950 shadow-md">
+              0
+            </div>
+            {/* Orbits / Sparkles */}
+            <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-zinc-100 dark:bg-zinc-800 border border-brand-border/40 dark:border-white/5 rounded-full flex items-center justify-center shadow-sm text-sm">
+              🌟
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.4 }}
+          className="space-y-4"
+        >
+          <h2 className="text-4xl sm:text-6xl font-black text-[var(--brand-text)] mb-2 uppercase italic tracking-tighter leading-none">
+            {t('empty_cart_title')}
+          </h2>
+          <p className="text-xs sm:text-sm font-bold max-w-lg mx-auto text-center opacity-60 leading-relaxed uppercase tracking-wider text-zinc-500">
+            {t('empty_cart_message')}. Simba Supermarket is stocked daily with fresh groceries, organic produce, dairy, bakery delights, and quality Kigali household goods!
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.4 }}
+          className="mt-10"
+        >
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-3 bg-brand-primary hover:bg-orange-600 dark:hover:bg-amber-400 text-white dark:text-black px-12 py-5 rounded-full font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-primary/20 hover:scale-105 active:scale-95 group cursor-pointer"
+          >
+            <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+            Explore Shopping Catalog
+          </Link>
+        </motion.div>
+
+        {/* Saved For Later (if exists) */}
+        {savedForLater.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="w-full mt-24 text-left border-t border-brand-border/30 pt-12 space-y-6"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none">
+                  SAVED FOR LATER<span className="text-brand-primary">.</span>
+                </h3>
+                <p className="micro-label mt-1 uppercase opacity-60">Items on your temporary shopping shelf</p>
+              </div>
+              <button 
+                onClick={() => setSavedForLater([])}
+                className="text-xs font-bold uppercase text-[var(--brand-text-muted)] hover:text-red-500 transition-colors cursor-pointer"
+              >
+                Clear Saved Shelf
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {savedForLater.map(item => (
+                <div key={item.id} className="p-4 rounded-[24px] border border-brand-border/40 bg-black/5 dark:bg-white/5 flex items-center gap-4 group">
+                  <img src={item.image} alt={item.name} className="w-16 h-16 object-contain p-1 bg-white rounded-xl grayscale group-hover:grayscale-0 transition-all shrink-0" referrerPolicy="no-referrer" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">{item.category}</p>
+                    <h4 className="text-sm font-black uppercase tracking-tight text-[var(--brand-text)] truncate">{item.name}</h4>
+                    <p className="text-xs font-bold text-brand-primary mt-1">{formatCurrency(item.price)}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <button 
+                      onClick={() => {
+                        addToCart(item);
+                        setSavedForLater(prev => prev.filter(x => x.id !== item.id));
+                      }}
+                      className="p-2 text-brand-primary hover:text-orange-600 dark:hover:text-orange-400 bg-brand-primary/10 hover:bg-brand-primary/20 rounded-xl transition-all cursor-pointer"
+                      title="Move to Cart"
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => setSavedForLater(prev => prev.filter(x => x.id !== item.id))}
+                      className="p-2 text-[var(--brand-text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer"
+                      title="Remove"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
     );
   }
@@ -910,6 +1057,20 @@ export default function Cart() {
                  {paymentMethod === 'momo' ? (
                    <div className="space-y-4">
                       <label className="micro-label uppercase tracking-widest block ml-4">MoMo Number</label>
+                       <div className="flex items-center bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl hover:border-zinc-400 focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/10 transition-all overflow-hidden mb-2 mt-2">
+                         <span className="italic font-black text-xl text-brand-primary pl-6 pr-2 py-5 bg-black/5 dark:bg-white/5 border-r border-brand-border dark:border-white/5 select-none">
+                           +250
+                         </span>
+                         <input 
+                           required
+                           type="tel"
+                           placeholder="788 123 456"
+                           value={phoneNumber}
+                           onChange={e => setPhoneNumber(e.target.value)}
+                           className="flex-1 bg-transparent py-5 px-6 italic font-black text-xl text-[var(--brand-text)] outline-none border-none focus:ring-0"
+                         />
+                       </div>
+                       {/*
                       <input 
                         required
                         type="tel"
@@ -917,7 +1078,8 @@ export default function Cart() {
                         onChange={e => setPhoneNumber(e.target.value)}
                         className="w-full bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-3xl py-5 px-6 italic font-black text-xl text-[var(--brand-text)] outline-none focus:border-brand-primary"
                       />
-                      {formErrors.phoneNumber && (
+                      */}
+                       {formErrors.phoneNumber && (
                         <p className="text-[10px] text-red-500 font-bold uppercase ml-4">{formErrors.phoneNumber}</p>
                       )}
                    </div>
