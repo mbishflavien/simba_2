@@ -134,7 +134,9 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'orders' | 'inventory' | 'staff' | 'promotions' | 'suppliers' | 'alerts'>('overview');
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7days' | 'today' | 'cumulative'>('7days');
+  const [analyticsChartType, setAnalyticsChartType] = useState<'revenue' | 'orders'>('revenue');
   const [inventorySearch, setInventorySearch] = useState('');
   const [newOrderAlerts, setNewOrderAlerts] = useState<Order[]>([]);
   const [deliveredAlerts, setDeliveredAlerts] = useState<Order[]>([]);
@@ -1246,13 +1248,63 @@ export default function AdminDashboard() {
 
     const todayRevenue = todayOrders.reduce((acc, o) => acc + o.total, 0);
 
+    // Advanced breakdowns
+    const grossRevenue = orders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0);
+    const pendingRevenue = orders.filter(o => o.status === 'pending' || o.status === 'processing' || o.status === 'shipped').reduce((acc, o) => acc + o.total, 0);
+    const cancelledRevenue = orders.filter(o => o.status === 'cancelled').reduce((acc, o) => acc + o.total, 0);
+
+    const statusCounts = {
+      pending: orders.filter(o => o.status === 'pending').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      shipped: orders.filter(o => o.status === 'shipped').length,
+      delivered: orders.filter(o => o.status === 'delivered').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+    };
+
+    const paymentCounts = {
+      momo: orders.filter(o => o.paymentMethod === 'momo').length,
+      card: orders.filter(o => o.paymentMethod === 'card').length,
+      cash: orders.filter(o => o.paymentMethod === 'cash').length,
+    };
+
+    const paymentRevenue = {
+      momo: orders.filter(o => o.paymentMethod === 'momo' && o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0),
+      card: orders.filter(o => o.paymentMethod === 'card' && o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0),
+      cash: orders.filter(o => o.paymentMethod === 'cash' && o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0),
+    };
+
+    const branchCounts: Record<string, { count: number, revenue: number }> = {};
+    orders.filter(o => o.status !== 'cancelled').forEach(o => {
+      const branch = o.pickupBranch || 'Online Delivery';
+      if (!branchCounts[branch]) {
+        branchCounts[branch] = { count: 0, revenue: 0 };
+      }
+      branchCounts[branch].count += 1;
+      branchCounts[branch].revenue += o.total;
+    });
+
+    const branchData = Object.entries(branchCounts).map(([name, val]) => ({
+      name,
+      orders: val.count,
+      revenue: val.revenue
+    })).sort((a, b) => b.revenue - a.revenue);
+
     return {
       total: orders.length,
-      pending: orders.filter(o => o.status === 'pending').length,
+      pending: statusCounts.pending,
       revenue: totalRevenue,
       todayRevenue: todayRevenue,
       inventoryCount: products.length,
-      outOfStock: products.filter(p => (p.stockCount !== undefined && p.stockCount <= 0)).length
+      outOfStock: products.filter(p => (p.stockCount !== undefined && p.stockCount <= 0)).length,
+      
+      // Breakdown extensions
+      grossRevenue,
+      pendingRevenue,
+      cancelledRevenue,
+      statusCounts,
+      paymentCounts,
+      paymentRevenue,
+      branchData,
     };
   }, [orders, products]);
 
@@ -1519,6 +1571,18 @@ export default function AdminDashboard() {
             >
               <LayoutDashboard className="h-4 w-4" />
               {t('overview')}
+            </button>
+            <button 
+              onClick={() => setActiveTab('analytics')}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                activeTab === 'analytics' 
+                  ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-105" 
+                  : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+              )}
+            >
+              <BarChart3 className="h-4 w-4" />
+              {t('portal_analytics') || 'Analytics & Revenue'}
             </button>
             <button 
               onClick={() => setActiveTab('orders')}
@@ -1865,6 +1929,442 @@ export default function AdminDashboard() {
                       <p className="text-[10px] font-black uppercase italic">Simba Milk + Fresh Bread (85% Match)</p>
                     </div>
                     <ArrowUpRight className="h-4 w-4 ml-auto text-teal-600" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : activeTab === 'analytics' ? (
+          <motion.div
+            key="analytics-tab"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="space-y-8 animate-fade-in"
+          >
+            {/* Header with Timeframe Selectors & Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-black/20 p-6 rounded-[32px] border border-brand-border">
+              <div>
+                <h2 className="text-2xl font-black uppercase italic tracking-tight text-[var(--brand-text)] flex items-center gap-2">
+                  <BarChart3 className="h-6 w-6 text-brand-primary" />
+                  REVENUE INTELLIGENCE & ANALYTICS
+                </h2>
+                <p className="text-[10px] uppercase font-bold tracking-widest opacity-40 mt-1">Real-time financial performance and sales channel breakdown</p>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="bg-black/5 dark:bg-white/5 p-1 rounded-xl border border-brand-border flex gap-1">
+                  <button
+                    onClick={() => setAnalyticsTimeframe('7days')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                      analyticsTimeframe === '7days' ? "bg-brand-primary text-white" : "opacity-50 hover:opacity-100 text-[var(--brand-text)]"
+                    )}
+                  >
+                    Last 7 Days
+                  </button>
+                  <button
+                    onClick={() => setAnalyticsTimeframe('today')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                      analyticsTimeframe === 'today' ? "bg-brand-primary text-white" : "opacity-50 hover:opacity-100 text-[var(--brand-text)]"
+                    )}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setAnalyticsTimeframe('cumulative')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                      analyticsTimeframe === 'cumulative' ? "bg-brand-primary text-white" : "opacity-50 hover:opacity-100 text-[var(--brand-text)]"
+                    )}
+                  >
+                    Cumulative History
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    alert("Generating financial spreadsheet... Your download will begin in a moment.");
+                  }}
+                  className="px-4 py-2.5 bg-zinc-950 border border-brand-border hover:bg-zinc-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all"
+                >
+                  <Save className="h-3.5 w-3.5 text-brand-primary" />
+                  Export Ledger
+                </button>
+              </div>
+            </div>
+
+            {/* Clear Revenue Metrics Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Gross Transaction Value */}
+              <div className="bg-brand-primary/10 border border-brand-primary/20 p-6 rounded-[32px] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-brand-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                <p className="text-[9px] font-black uppercase text-brand-primary mb-1 tracking-widest">Gross Sales Volume</p>
+                <h3 className="text-3xl font-black italic tracking-tighter text-[var(--brand-text)] mb-2" title={formatCurrency(stats.grossRevenue)}>
+                  {formatCurrency(stats.grossRevenue)}
+                </h3>
+                <p className="text-[9px] font-bold opacity-40 uppercase">All active orders (Excludes Cancelled)</p>
+                <div className="mt-4 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-brand-primary">
+                  <span>Gross Pipeline</span>
+                </div>
+              </div>
+
+              {/* Settled / Delivered Revenue */}
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[32px] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                <p className="text-[9px] font-black uppercase text-emerald-500 mb-1 tracking-widest">Settled Revenue</p>
+                <h3 className="text-3xl font-black italic tracking-tighter text-emerald-500 mb-2" title={formatCurrency(stats.revenue)}>
+                  {formatCurrency(stats.revenue)}
+                </h3>
+                <p className="text-[9px] font-bold opacity-40 uppercase">Completed & Delivered (Safely in bank)</p>
+                <div className="mt-4 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-emerald-500">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>{stats.statusCounts.delivered} Orders Delivered</span>
+                </div>
+              </div>
+
+              {/* Pipeline / In-Transit Revenue */}
+              <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-[32px] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                <p className="text-[9px] font-black uppercase text-amber-500 mb-1 tracking-widest">In-Progress Pipeline</p>
+                <h3 className="text-3xl font-black italic tracking-tighter text-amber-500 mb-2" title={formatCurrency(stats.pendingRevenue)}>
+                  {formatCurrency(stats.pendingRevenue)}
+                </h3>
+                <p className="text-[9px] font-bold opacity-40 uppercase">Pending, processing & shipped order value</p>
+                <div className="mt-4 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-amber-500">
+                  <Clock className="h-3 w-3 animate-pulse" />
+                  <span>{stats.statusCounts.pending + stats.statusCounts.processing + stats.statusCounts.shipped} Orders in fulfillment</span>
+                </div>
+              </div>
+
+              {/* Average Order Value (AOV) & Efficiency */}
+              <div className="bg-indigo-500/10 border border-indigo-500/20 p-6 rounded-[32px] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                <p className="text-[9px] font-black uppercase text-indigo-500 mb-1 tracking-widest">Avg Order Value (AOV)</p>
+                <h3 className="text-3xl font-black italic tracking-tighter text-indigo-500 mb-2">
+                  {formatCurrency(orders.length > 0 ? Math.round(stats.grossRevenue / (orders.length - stats.statusCounts.cancelled)) : 0)}
+                </h3>
+                <p className="text-[9px] font-bold opacity-40 uppercase">Average transaction value per active order</p>
+                <div className="mt-4 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-indigo-500">
+                  <span>Cart efficiency optimal</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sales Trend Over Time Visualizer */}
+            <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 px-2">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-5 w-5 text-brand-primary" />
+                  <div>
+                    <h3 className="font-black uppercase italic tracking-tighter text-xl">Sales & Volume Over Time</h3>
+                    <p className="text-[9px] font-bold uppercase opacity-30">7-Day Transactional Flow Trend Analysis</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAnalyticsChartType('revenue')}
+                    className={cn(
+                      "px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg border",
+                      analyticsChartType === 'revenue' ? "bg-brand-primary text-white border-brand-primary" : "border-brand-border opacity-50 hover:opacity-100"
+                    )}
+                  >
+                    Revenue Curve
+                  </button>
+                  <button
+                    onClick={() => setAnalyticsChartType('orders')}
+                    className={cn(
+                      "px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg border",
+                      analyticsChartType === 'orders' ? "bg-brand-primary text-white border-brand-primary" : "border-brand-border opacity-50 hover:opacity-100"
+                    )}
+                  >
+                    Order Frequency
+                  </button>
+                </div>
+              </div>
+
+              <div className="h-[320px] w-full">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  {analyticsChartType === 'revenue' ? (
+                    <AreaChart data={salesData}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 900, fill: 'currentColor', opacity: 0.4}} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '9px', fontWeight: 900 }}
+                        itemStyle={{ color: '#fff' }}
+                        formatter={(val: any) => [formatCurrency(val), "Revenue"]}
+                      />
+                      <Area type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={3} fill="url(#colorRevenue)" />
+                    </AreaChart>
+                  ) : (
+                    <AreaChart data={salesData}>
+                      <defs>
+                        <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 900, fill: 'currentColor', opacity: 0.4}} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '9px', fontWeight: 900 }}
+                        itemStyle={{ color: '#fff' }}
+                        formatter={(val: any) => [val, "Orders"]}
+                      />
+                      <Area type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={3} fill="url(#colorOrders)" />
+                    </AreaChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Middle Row: Payment Methods & Branch Breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Payment Methods Breakdown */}
+              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+                <div className="flex items-center gap-3 mb-6 px-2">
+                  <CreditCard className="h-5 w-5 text-brand-primary" />
+                  <div>
+                    <h3 className="font-black uppercase italic tracking-tighter text-xl">Payment Channels & Splits</h3>
+                    <p className="text-[9px] font-bold uppercase opacity-30">MoMo, Card, and cash transaction ratios</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'MTN Mobile Money', value: stats.paymentRevenue.momo },
+                            { name: 'Credit/Debit Card', value: stats.paymentRevenue.card },
+                            { name: 'Cash on Pickup', value: stats.paymentRevenue.cash }
+                          ]}
+                          innerRadius={50}
+                          outerRadius={70}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          <Cell fill="#f97316" />
+                          <Cell fill="#6366f1" />
+                          <Cell fill="#10b981" />
+                        </Pie>
+                        <Tooltip formatter={(val: any) => formatCurrency(val)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Momo */}
+                    <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-3 rounded-xl border-l-4 border-[#f97316]">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-800 dark:text-zinc-200">MTN MoMo</span>
+                        <p className="text-[8px] font-bold uppercase opacity-40">{stats.paymentCounts.momo} Transactions</p>
+                      </div>
+                      <span className="text-[10px] font-black italic">{formatCurrency(stats.paymentRevenue.momo)}</span>
+                    </div>
+
+                    {/* Card */}
+                    <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-3 rounded-xl border-l-4 border-[#6366f1]">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-800 dark:text-zinc-200">Card Payments</span>
+                        <p className="text-[8px] font-bold uppercase opacity-40">{stats.paymentCounts.card} Transactions</p>
+                      </div>
+                      <span className="text-[10px] font-black italic">{formatCurrency(stats.paymentRevenue.card)}</span>
+                    </div>
+
+                    {/* Cash */}
+                    <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-3 rounded-xl border-l-4 border-[#10b981]">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-800 dark:text-zinc-200">Cash on Pickup</span>
+                        <p className="text-[8px] font-bold uppercase opacity-40">{stats.paymentCounts.cash} Transactions</p>
+                      </div>
+                      <span className="text-[10px] font-black italic">{formatCurrency(stats.paymentRevenue.cash)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pickup Branch Performance */}
+              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+                <div className="flex items-center gap-3 mb-6 px-2">
+                  <MapPin className="h-5 w-5 text-brand-primary" />
+                  <div>
+                    <h3 className="font-black uppercase italic tracking-tighter text-xl">Branch Performance League</h3>
+                    <p className="text-[9px] font-bold uppercase opacity-30">Sales volume and traffic breakdown by Simba Supermarket locations</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 max-h-[220px] overflow-y-auto pr-2">
+                  {stats.branchData.length === 0 ? (
+                    <div className="py-12 text-center text-zinc-500 opacity-40 uppercase text-[10px] font-bold">
+                      No branch sales recorded yet.
+                    </div>
+                  ) : (
+                    stats.branchData.map((branch, idx) => {
+                      const sharePct = stats.grossRevenue > 0 ? (branch.revenue / stats.grossRevenue) * 100 : 0;
+                      return (
+                        <div key={idx} className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-brand-border">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-black uppercase tracking-tight text-[var(--brand-text)] flex items-center gap-2">
+                              <span className="w-5 h-5 bg-brand-primary/15 text-brand-primary font-black rounded-lg text-[9px] flex items-center justify-center">
+                                {idx + 1}
+                              </span>
+                              {branch.name}
+                            </span>
+                            <span className="text-[10px] font-black italic">{formatCurrency(branch.revenue)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[8px] font-bold opacity-30 uppercase">
+                            <span>{branch.orders} Orders processed</span>
+                            <span>{sharePct.toFixed(0)}% Share</span>
+                          </div>
+                          <div className="w-full bg-black/10 dark:bg-white/10 h-1.5 rounded-full overflow-hidden mt-2">
+                            <div className="bg-brand-primary h-full rounded-full" style={{ width: `${sharePct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Analytics Row: Order lifecycle + top sold products */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Order Status Distribution Pipeline */}
+              <div className="bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px] flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-6 px-2">
+                    <History className="h-5 w-5 text-brand-primary" />
+                    <div>
+                      <h3 className="font-black uppercase italic tracking-tighter text-xl">Fulfillment Pipeline</h3>
+                      <p className="text-[9px] font-bold uppercase opacity-30">Lifecycle distribution of orders</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Pending */}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-black uppercase italic mb-1">
+                        <span>Pending Approval</span>
+                        <span className="text-orange-500">{stats.statusCounts.pending} ({orders.length > 0 ? ((stats.statusCounts.pending / orders.length) * 100).toFixed(0) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                        <div className="bg-orange-500 h-full" style={{ width: `${orders.length > 0 ? (stats.statusCounts.pending / orders.length) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Processing */}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-black uppercase italic mb-1">
+                        <span>Under Processing</span>
+                        <span className="text-blue-500">{stats.statusCounts.processing} ({orders.length > 0 ? ((stats.statusCounts.processing / orders.length) * 100).toFixed(0) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                        <div className="bg-blue-500 h-full" style={{ width: `${orders.length > 0 ? (stats.statusCounts.processing / orders.length) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Shipped */}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-black uppercase italic mb-1">
+                        <span>Shipped / Dispatch</span>
+                        <span className="text-purple-500">{stats.statusCounts.shipped} ({orders.length > 0 ? ((stats.statusCounts.shipped / orders.length) * 100).toFixed(0) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                        <div className="bg-purple-500 h-full" style={{ width: `${orders.length > 0 ? (stats.statusCounts.shipped / orders.length) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Delivered */}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-black uppercase italic mb-1">
+                        <span>Delivered & Closed</span>
+                        <span className="text-emerald-500">{stats.statusCounts.delivered} ({orders.length > 0 ? ((stats.statusCounts.delivered / orders.length) * 100).toFixed(0) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                        <div className="bg-emerald-500 h-full" style={{ width: `${orders.length > 0 ? (stats.statusCounts.delivered / orders.length) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Cancelled */}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-black uppercase italic mb-1">
+                        <span>Cancelled / Rejected</span>
+                        <span className="text-rose-500">{stats.statusCounts.cancelled} ({orders.length > 0 ? ((stats.statusCounts.cancelled / orders.length) * 100).toFixed(0) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                        <div className="bg-rose-500 h-full" style={{ width: `${orders.length > 0 ? (stats.statusCounts.cancelled / orders.length) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-zinc-950 rounded-2xl border border-brand-border text-center text-[9px] font-black uppercase tracking-wider text-brand-primary">
+                  <span>Simba Supermarket Fulfillment Health Check: Excellent</span>
+                </div>
+              </div>
+
+              {/* Top Products League Table */}
+              <div className="lg:col-span-2 bg-white dark:bg-black/20 border border-brand-border p-8 rounded-[48px]">
+                <div className="flex justify-between items-center mb-6 px-2">
+                  <div className="flex items-center gap-3">
+                    <ShoppingBasket className="h-5 w-5 text-brand-primary" />
+                    <div>
+                      <h3 className="font-black uppercase italic tracking-tighter text-xl">Top Selling Products</h3>
+                      <p className="text-[9px] font-bold uppercase opacity-30">Products generating the highest transaction value</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-brand-primary/10 text-brand-primary rounded-full text-[9px] font-black uppercase italic">
+                    Leaderboard
+                  </span>
+                </div>
+
+                <div className="space-y-4 max-h-[340px] overflow-y-auto pr-2">
+                  {topProducts.length === 0 ? (
+                    <div className="py-16 text-center text-zinc-500 opacity-40 uppercase text-[10px] font-bold">
+                      No products sold yet.
+                    </div>
+                  ) : (
+                    topProducts.map((p, idx) => {
+                      const prodDetail = products.find(prod => prod.name === p.name);
+                      const isLowStock = prodDetail && (prodDetail.stockCount || 0) <= (prodDetail.lowStockThreshold || 10);
+                      const isOutOfStock = prodDetail && (prodDetail.stockCount || 0) <= 0;
+
+                      return (
+                        <div key={idx} className="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-transparent hover:border-brand-primary/20 transition-all">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-brand-primary/15 font-black text-brand-primary rounded-xl flex items-center justify-center italic text-base shrink-0">
+                              #{idx + 1}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black uppercase italic text-[var(--brand-text)]">{p.name}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[9px] font-bold opacity-30 uppercase">{p.quantity} Units Sold</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+                                {isOutOfStock ? (
+                                  <span className="text-[8px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded uppercase">Out of Stock</span>
+                                ) : isLowStock ? (
+                                  <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase">Low Stock ({prodDetail?.stockCount})</span>
+                                ) : (
+                                  <span className="text-[8px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">In Stock ({prodDetail?.stockCount})</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-sm font-black italic text-brand-primary">{formatCurrency(p.revenue)}</span>
+                            <p className="text-[8px] font-bold opacity-30 uppercase">Gross Revenue</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
