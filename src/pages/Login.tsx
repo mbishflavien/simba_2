@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { LogIn, Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
-import GoogleSandboxModal from '../components/GoogleSandboxModal';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -18,7 +17,6 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isGoogleSandboxOpen, setIsGoogleSandboxOpen] = useState(false);
   
   const from = location.state?.from || '/';
 
@@ -141,45 +139,52 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
-    // If inside an iframe, bypass and open the beautiful sandbox immediately for a seamless preview experience
-    if (window.self !== window.top) {
-      setIsGoogleSandboxOpen(true);
+    setLoading(true);
+    setError(null);
+
+    // Open a popup pointing to our same-origin /google-auth-helper page.
+    // This runs in a top-level context, avoiding all iframe & sandbox limitations.
+    const width = 500;
+    const height = 650;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    
+    const popup = window.open(
+      '/google-auth-helper',
+      'Google Auth',
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+    );
+
+    if (!popup) {
+      setError("Popup blocked. Please allow popups for this site to sign in with Google.");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    const provider = new GoogleAuthProvider();
-    try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+    // Set up message listener to receive success/error from the popup
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
       
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        const adminEmails = ['flavmbish@gmail.com', 'flavmbish@icloud.com', 'flavien.mbishibishi@a2sv.org', 'test.admin@simba.com', 'admin@test.com'];
-        const email = user.email || '';
-        const isAdmin = adminEmails.includes(email.toLowerCase());
-        await setDoc(userRef, {
-          userId: user.uid,
-          email,
-          displayName: user.displayName || 'Unnamed User',
-          phoneNumber: null,
-          address: null,
-          isAdmin,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
+        window.removeEventListener('message', handleAuthMessage);
+        navigate(from, { replace: true });
+      } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
+        window.removeEventListener('message', handleAuthMessage);
+        setError(event.data.error || 'Authentication failed');
+        setLoading(false);
       }
-      
-      navigate(from, { replace: true });
-    } catch (err: any) {
-      console.warn("Real Google Sign-In failed or blocked in this environment, falling back to Sandbox Modal.", err);
-      setIsGoogleSandboxOpen(true);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    window.addEventListener('message', handleAuthMessage);
+
+    // Track if popup is closed manually by user
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        window.removeEventListener('message', handleAuthMessage);
+        setLoading(false);
+      }
+    }, 1000);
   };
 
   return (
@@ -342,13 +347,6 @@ export default function Login() {
           </div>
         </div>
       </motion.div>
-
-      <GoogleSandboxModal
-        isOpen={isGoogleSandboxOpen}
-        onClose={() => setIsGoogleSandboxOpen(false)}
-        onSuccess={() => navigate(from, { replace: true })}
-        onError={(msg) => setError(msg)}
-      />
     </div>
   );
 }

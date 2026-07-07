@@ -6,7 +6,6 @@ import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { UserPlus, Mail, Lock, AlertCircle, ArrowRight, User, Eye, EyeOff } from 'lucide-react';
-import GoogleSandboxModal from '../components/GoogleSandboxModal';
 
 export default function SignUp() {
   const { t } = useTranslation();
@@ -18,7 +17,6 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isGoogleSandboxOpen, setIsGoogleSandboxOpen] = useState(false);
   
   const from = location.state?.from || '/';
 
@@ -57,37 +55,52 @@ export default function SignUp() {
   };
 
   const handleGoogleSignUp = async () => {
-    // If inside an iframe, bypass and open the beautiful sandbox immediately for a seamless preview experience
-    if (window.self !== window.top) {
-      setIsGoogleSandboxOpen(true);
+    setLoading(true);
+    setError(null);
+
+    // Open a popup pointing to our same-origin /google-auth-helper page.
+    // This runs in a top-level context, avoiding all iframe & sandbox limitations.
+    const width = 500;
+    const height = 650;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    
+    const popup = window.open(
+      '/google-auth-helper',
+      'Google Auth',
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+    );
+
+    if (!popup) {
+      setError("Popup blocked. Please allow popups for this site to sign up with Google.");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    const provider = new GoogleAuthProvider();
-    try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+    // Set up message listener to receive success/error from the popup
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
       
-      const { doc, getDoc } = await import('firebase/firestore');
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        await createProfile(
-          user.uid, 
-          user.email!, 
-          user.displayName || 'Unnamed User'
-        );
+      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
+        window.removeEventListener('message', handleAuthMessage);
+        navigate(from, { replace: true });
+      } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
+        window.removeEventListener('message', handleAuthMessage);
+        setError(event.data.error || 'Authentication failed');
+        setLoading(false);
       }
-      navigate(from, { replace: true });
-    } catch (err: any) {
-      console.warn("Real Google Sign-Up failed or blocked in this environment, falling back to Sandbox Modal.", err);
-      setIsGoogleSandboxOpen(true);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    window.addEventListener('message', handleAuthMessage);
+
+    // Track if popup is closed manually by user
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        window.removeEventListener('message', handleAuthMessage);
+        setLoading(false);
+      }
+    }, 1000);
   };
 
   return (
@@ -215,13 +228,6 @@ export default function SignUp() {
           </Link>
         </p>
       </motion.div>
-
-      <GoogleSandboxModal
-        isOpen={isGoogleSandboxOpen}
-        onClose={() => setIsGoogleSandboxOpen(false)}
-        onSuccess={() => navigate(from, { replace: true })}
-        onError={(msg) => setError(msg)}
-      />
     </div>
   );
 }

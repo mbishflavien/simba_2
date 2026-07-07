@@ -16,6 +16,7 @@ import AboutUs from './pages/AboutUs';
 import Branches from './pages/Branches';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
+import GoogleAuthHelper from './pages/GoogleAuthHelper';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import ForgotPassword from './pages/ForgotPassword';
@@ -61,8 +62,9 @@ function AppLayout() {
     }
   }, []);
 
-  // Admin pages should have a focused UI, but admins can still browse the shop
-  const hideGlobalUI = isAdminPage;
+  // Admin and Auth Helper pages should have a focused UI, but admins can still browse the shop
+  const isGoogleAuthHelperPage = pathname === '/google-auth-helper';
+  const hideGlobalUI = isAdminPage || isGoogleAuthHelperPage;
 
   return (
     <div className="flex flex-col min-h-screen overflow-x-hidden w-full relative">
@@ -78,6 +80,7 @@ function AppLayout() {
           <Route path="/branches" element={<Branches />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/google-auth-helper" element={<GoogleAuthHelper />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
