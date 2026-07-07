@@ -142,8 +142,9 @@ export default function Login() {
     setLoading(true);
     setError(null);
 
-    // Open a popup pointing to our same-origin /google-auth-helper page.
-    // This runs in a top-level context, avoiding all iframe & sandbox limitations.
+    // Clean up any stale state in localStorage
+    localStorage.removeItem('google-auth-result');
+
     const width = 500;
     const height = 650;
     const left = window.screen.width / 2 - width / 2;
@@ -161,28 +162,75 @@ export default function Login() {
       return;
     }
 
-    // Set up message listener to receive success/error from the popup
+    let isFinished = false;
+
+    // 1. window.opener.postMessage listener
     const handleAuthMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
-      
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        window.removeEventListener('message', handleAuthMessage);
-        navigate(from, { replace: true });
+        handleSuccess();
       } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
-        window.removeEventListener('message', handleAuthMessage);
-        setError(event.data.error || 'Authentication failed');
-        setLoading(false);
+        handleError(event.data.error);
       }
     };
 
+    // 2. BroadcastChannel listener
+    const channel = new BroadcastChannel('google-auth-channel');
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
+        handleSuccess();
+      } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
+        handleError(event.data.error);
+      }
+    };
+
+    // 3. Storage event listener (fallback)
+    const handleStorageMessage = (event: StorageEvent) => {
+      if (event.key === 'google-auth-result' && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          if (data.type === 'GOOGLE_AUTH_SUCCESS') {
+            handleSuccess();
+          } else if (data.type === 'GOOGLE_AUTH_ERROR') {
+            handleError(data.error);
+          }
+        } catch (e) {}
+      }
+    };
+
+    const cleanup = () => {
+      isFinished = true;
+      window.removeEventListener('message', handleAuthMessage);
+      window.removeEventListener('storage', handleStorageMessage);
+      try {
+        channel.close();
+      } catch (e) {}
+      clearInterval(checkClosed);
+    };
+
+    const handleSuccess = () => {
+      cleanup();
+      navigate(from, { replace: true });
+    };
+
+    const handleError = (msg: string) => {
+      cleanup();
+      setError(msg || 'Authentication failed');
+      setLoading(false);
+    };
+
     window.addEventListener('message', handleAuthMessage);
+    window.addEventListener('storage', handleStorageMessage);
 
     // Track if popup is closed manually by user
     const checkClosed = setInterval(() => {
       if (popup.closed) {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', handleAuthMessage);
-        setLoading(false);
+        setTimeout(() => {
+          if (!isFinished) {
+            cleanup();
+            setLoading(false);
+          }
+        }, 1000);
       }
     }, 1000);
   };

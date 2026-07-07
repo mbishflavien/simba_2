@@ -50,9 +50,35 @@ export default function GoogleAuthHelper() {
 
           setStatus('success');
           
-          // Notify parent window
+          // Triple-redundancy notification to parent window
+          const authPayload = { type: 'GOOGLE_AUTH_SUCCESS', user: { email: user.email, uid: user.uid } };
+          
+          // 1. window.opener.postMessage
           if (window.opener) {
-            window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', user: { email: user.email, uid: user.uid } }, window.location.origin);
+            try {
+              window.opener.postMessage(authPayload, window.location.origin);
+            } catch (e) {
+              console.warn('Could not postMessage to window.opener', e);
+            }
+          }
+          
+          // 2. BroadcastChannel
+          try {
+            const channel = new BroadcastChannel('google-auth-channel');
+            channel.postMessage(authPayload);
+            channel.close();
+          } catch (e) {
+            console.warn('BroadcastChannel not supported or failed', e);
+          }
+
+          // 3. localStorage fallback
+          try {
+            localStorage.setItem('google-auth-result', JSON.stringify({
+              ...authPayload,
+              timestamp: Date.now()
+            }));
+          } catch (e) {
+            console.warn('localStorage not writable', e);
           }
           
           // Close the popup after a brief delay
@@ -67,8 +93,35 @@ export default function GoogleAuthHelper() {
         console.error('Google Redirect Callback Error:', err);
         setErrorMsg(err.message || 'Failed to authenticate');
         setStatus('error');
+
+        const errorPayload = { type: 'GOOGLE_AUTH_ERROR', error: err.message || 'Failed to authenticate' };
+
+        // 1. window.opener.postMessage
         if (window.opener) {
-          window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: err.message }, window.location.origin);
+          try {
+            window.opener.postMessage(errorPayload, window.location.origin);
+          } catch (e) {
+            console.warn('Could not postMessage to window.opener', e);
+          }
+        }
+
+        // 2. BroadcastChannel
+        try {
+          const channel = new BroadcastChannel('google-auth-channel');
+          channel.postMessage(errorPayload);
+          channel.close();
+        } catch (e) {
+          console.warn('BroadcastChannel not supported or failed', e);
+        }
+
+        // 3. localStorage
+        try {
+          localStorage.setItem('google-auth-result', JSON.stringify({
+            ...errorPayload,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          console.warn('localStorage not writable', e);
         }
       }
     };
