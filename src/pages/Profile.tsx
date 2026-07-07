@@ -608,6 +608,187 @@ export default function Profile() {
                     </button>
                   </div>
 
+                  {/* REAL-TIME ORDER TRACKING STEPPER */}
+                  <div className="mb-8 p-6 bg-white dark:bg-zinc-950 border border-brand-border rounded-3xl space-y-4 shadow-sm">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-brand-primary flex items-center gap-1.5 mb-3">
+                      <Truck className="h-4 w-4 animate-bounce" />
+                      Live Order Tracking
+                    </h4>
+
+                    {selectedOrder.status === 'cancelled' ? (
+                      <div className="flex gap-3 items-center p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
+                        <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-black uppercase text-rose-500 tracking-tight">Order Cancelled</p>
+                          <p className="text-[9px] font-bold text-zinc-500 uppercase leading-none mt-0.5">This transaction was rejected or cancelled.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative pl-6 space-y-6">
+                        {/* Vertical Progress Bar Connector */}
+                        <div className="absolute left-[11px] top-2 bottom-2 w-[2px] bg-zinc-200 dark:bg-zinc-800">
+                          <div 
+                            className="w-full bg-brand-primary transition-all duration-1000"
+                            style={{
+                              height: 
+                                selectedOrder.status === 'pending' ? '25%' :
+                                selectedOrder.status === 'processing' ? '55%' :
+                                selectedOrder.status === 'shipped' ? '85%' :
+                                '100%'
+                            }}
+                          />
+                        </div>
+
+                        {/* Step 1: Placed */}
+                        <div className="relative flex gap-4 items-start">
+                          <div className={cn(
+                            "absolute -left-[21px] w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all text-[10px] font-bold",
+                            "bg-brand-primary border-brand-primary text-white"
+                          )}>
+                            <Package className="h-3 w-3" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <p className="text-[10px] font-black uppercase italic text-[var(--brand-text)]">Order Registered</p>
+                              <span className="text-[8px] font-bold opacity-40 uppercase">
+                                {(() => {
+                                  const d = selectedOrder.createdAt instanceof Timestamp ? selectedOrder.createdAt.toDate() : new Date();
+                                  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                })()}
+                              </span>
+                            </div>
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase leading-tight mt-0.5">
+                              Receipt confirmed and queue priority logged.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Step 2: Approved / Processing */}
+                        <div className="relative flex gap-4 items-start">
+                          <div className={cn(
+                            "absolute -left-[21px] w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all text-[10px] font-bold",
+                            (selectedOrder.status === 'processing' || selectedOrder.status === 'shipped' || selectedOrder.status === 'delivered')
+                              ? "bg-brand-primary border-brand-primary text-white"
+                              : selectedOrder.status === 'pending'
+                                ? "bg-white dark:bg-zinc-950 border-brand-primary text-brand-primary animate-pulse"
+                                : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-400"
+                          )}>
+                            <Clock className="h-3 w-3" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <p className={cn(
+                                "text-[10px] font-black uppercase italic",
+                                (selectedOrder.status === 'processing' || selectedOrder.status === 'shipped' || selectedOrder.status === 'delivered')
+                                  ? "text-[var(--brand-text)]"
+                                  : "opacity-40"
+                              )}>
+                                Approved & Packaging
+                              </p>
+                              <span className="text-[8px] font-bold opacity-40 uppercase">
+                                {['processing', 'shipped', 'delivered'].includes(selectedOrder.status) ? (
+                                  (() => {
+                                    const d = selectedOrder.createdAt instanceof Timestamp ? selectedOrder.createdAt.toDate() : new Date();
+                                    return new Date(d.getTime() + 6 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                  })()
+                                ) : selectedOrder.status === 'pending' ? (
+                                  "Verifying..."
+                                ) : (
+                                  "Queue"
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase leading-tight mt-0.5">
+                              Payment authorized and items picked from shelves.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Step 3: Shipped / In Transit */}
+                        <div className="relative flex gap-4 items-start">
+                          <div className={cn(
+                            "absolute -left-[21px] w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all text-[10px] font-bold",
+                            (selectedOrder.status === 'shipped' || selectedOrder.status === 'delivered')
+                              ? "bg-brand-primary border-brand-primary text-white"
+                              : selectedOrder.status === 'processing'
+                                ? "bg-white dark:bg-zinc-950 border-brand-primary text-brand-primary animate-pulse"
+                                : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-400"
+                          )}>
+                            <Truck className="h-3 w-3" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <p className={cn(
+                                "text-[10px] font-black uppercase italic",
+                                (selectedOrder.status === 'shipped' || selectedOrder.status === 'delivered')
+                                  ? "text-[var(--brand-text)]"
+                                  : "opacity-40"
+                              )}>
+                                {selectedOrder.pickupBranch ? "Ready at Branch" : "Dispatched in Transit"}
+                              </p>
+                              <span className="text-[8px] font-bold opacity-40 uppercase">
+                                {['shipped', 'delivered'].includes(selectedOrder.status) ? (
+                                  (() => {
+                                    const d = selectedOrder.createdAt instanceof Timestamp ? selectedOrder.createdAt.toDate() : new Date();
+                                    return new Date(d.getTime() + 22 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                  })()
+                                ) : selectedOrder.status === 'processing' ? (
+                                  "Packing..."
+                                ) : (
+                                  "Waiting"
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase leading-tight mt-0.5">
+                              {selectedOrder.pickupBranch 
+                                ? "Your fresh goods are sealed & resting on the branch counter."
+                                : "Package handed over to Simba Express logistics team."}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Step 4: Delivered */}
+                        <div className="relative flex gap-4 items-start">
+                          <div className={cn(
+                            "absolute -left-[21px] w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all text-[10px] font-bold",
+                            selectedOrder.status === 'delivered'
+                              ? "bg-emerald-500 border-emerald-500 text-white"
+                              : selectedOrder.status === 'shipped'
+                                ? "bg-white dark:bg-zinc-950 border-emerald-500 text-emerald-500 animate-pulse"
+                                : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-400"
+                          )}>
+                            <CheckCircle2 className="h-3 w-3" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <p className={cn(
+                                "text-[10px] font-black uppercase italic",
+                                selectedOrder.status === 'delivered' ? "text-emerald-500 font-bold" : "opacity-40"
+                              )}>
+                                Handover Complete
+                              </p>
+                              <span className="text-[8px] font-bold opacity-40 uppercase">
+                                {selectedOrder.status === 'delivered' ? (
+                                  (() => {
+                                    const d = selectedOrder.createdAt instanceof Timestamp ? selectedOrder.createdAt.toDate() : new Date();
+                                    return new Date(d.getTime() + 42 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                  })()
+                                ) : selectedOrder.status === 'shipped' ? (
+                                  "In Transit"
+                                ) : (
+                                  "Waiting"
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase leading-tight mt-0.5">
+                              Package delivered safely to recipient or picked up.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="space-y-6 mb-8 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                     {selectedOrder.items.map((item, idx) => (
                       <div key={idx} className="flex gap-4 items-center">
