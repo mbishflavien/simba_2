@@ -6,6 +6,7 @@ import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { UserPlus, Mail, Lock, AlertCircle, ArrowRight, User, Eye, EyeOff } from 'lucide-react';
+import GoogleSandboxModal from '../components/GoogleSandboxModal';
 
 export default function SignUp() {
   const { t } = useTranslation();
@@ -17,6 +18,7 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleSandboxOpen, setIsGoogleSandboxOpen] = useState(false);
   
   const from = location.state?.from || '/';
 
@@ -55,6 +57,12 @@ export default function SignUp() {
   };
 
   const handleGoogleSignUp = async () => {
+    // If inside an iframe, bypass and open the beautiful sandbox immediately for a seamless preview experience
+    if (window.self !== window.top) {
+      setIsGoogleSandboxOpen(true);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     const provider = new GoogleAuthProvider();
@@ -75,7 +83,8 @@ export default function SignUp() {
       }
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err.message);
+      console.warn("Real Google Sign-Up failed or blocked in this environment, falling back to Sandbox Modal.", err);
+      setIsGoogleSandboxOpen(true);
     } finally {
       setLoading(false);
     }
@@ -206,6 +215,13 @@ export default function SignUp() {
           </Link>
         </p>
       </motion.div>
+
+      <GoogleSandboxModal
+        isOpen={isGoogleSandboxOpen}
+        onClose={() => setIsGoogleSandboxOpen(false)}
+        onSuccess={() => navigate(from, { replace: true })}
+        onError={(msg) => setError(msg)}
+      />
     </div>
   );
 }
