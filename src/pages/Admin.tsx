@@ -5,7 +5,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../components/AuthProvider';
 import { Order, Product, Supplier, PurchaseOrder, Promotion, StaffMember, InventoryAlert, Shift, StaffNotification } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { sendOrderShipping, sendOrderDelivery, sendSupplierDemand, sendSupplierShipmentConfirm, sendSupplierGoodsReceived, sendPromotionEmail, buildEmailHtml } from '../lib/emailService';
+import { sendOrderApproved, sendOrderShipping, sendOrderDelivery, sendSupplierDemand, sendSupplierShipmentConfirm, sendSupplierGoodsReceived, sendPromotionEmail, buildEmailHtml } from '../lib/emailService';
 import { categorizeProductByName } from '../services/aiService';
 import RwandanCatalogSeeder from '../components/RwandanCatalogSeeder';
 import { subDays, subHours, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
@@ -707,7 +707,7 @@ export default function AdminDashboard() {
 
       // Trigger Email Notification for status transitions (non-blocking)
       const clickedOrder = orders.find(o => o.orderId === orderId);
-      if (clickedOrder && (newStatus === 'shipped' || newStatus === 'delivered')) {
+      if (clickedOrder && (newStatus === 'processing' || newStatus === 'shipped' || newStatus === 'delivered')) {
         try {
           const userSnap = await getDoc(doc(db, 'users', clickedOrder.userId));
           if (userSnap.exists()) {
@@ -715,7 +715,9 @@ export default function AdminDashboard() {
             const emailAddr = uData.email || '';
             const dispName = uData.displayName || 'Simba Valued Customer';
             if (emailAddr) {
-              if (newStatus === 'shipped') {
+              if (newStatus === 'processing') {
+                sendOrderApproved(clickedOrder, emailAddr, dispName).catch(e => console.error(e));
+              } else if (newStatus === 'shipped') {
                 sendOrderShipping(clickedOrder, emailAddr, dispName).catch(e => console.error(e));
               } else if (newStatus === 'delivered') {
                 sendOrderDelivery(clickedOrder, emailAddr, dispName).catch(e => console.error(e));

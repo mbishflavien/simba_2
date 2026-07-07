@@ -106,6 +106,7 @@ export async function sendEmail(log: Omit<EmailLog, 'id' | 'createdAt'>): Promis
     const emailRef = doc(db, 'emails', emailId);
     await setDoc(emailRef, {
       ...log,
+      to: log.to.trim().toLowerCase(),
       id: emailId,
       createdAt: Timestamp.now()
     });
@@ -185,6 +186,54 @@ export async function sendOrderConfirmation(order: Order, userEmail: string, use
     recipientName: userName,
     subject: `🛒 Simba Order Confirmed: #${order.orderId}`,
     body: buildEmailHtml(`🛒 Order Confirmed: #${order.orderId}`, content, "View Order History", "/profile"),
+    type: 'order_confirmation',
+    status: 'sent',
+    metadata: { orderId: order.orderId }
+  });
+}
+
+// 3.5. User Order Approved / Processing
+export async function sendOrderApproved(order: Order, userEmail: string, userName: string): Promise<string> {
+  const content = `
+    <p style="margin-top: 0;">Hi <strong>${userName}</strong>,</p>
+    <p>Great news! Your transaction for order <strong>#${order.orderId}</strong> has been successfully processed and <strong>APPROVED</strong> by our team.</p>
+    
+    <div style="background-color: #111217; border: 1px solid #27272A; border-radius: 16px; padding: 24px; text-align: center; margin: 28px 0;">
+      <span style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #10B981; background-color: rgba(16, 185, 129, 0.1); padding: 6px 14px; border-radius: 999px; font-style: italic; border: 1px solid rgba(16, 185, 129, 0.2)">
+        ✔ Transaction Processed & Approved
+      </span>
+      <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 900; color: #FFFFFF; margin: 18px 0 6px 0; letter-spacing: -0.5px; font-style: italic;">
+        Status: PACKAGING & PREPARING
+      </h3>
+      <p style="font-size: 11px; color: #A1A1AA; margin: 0;">Our store staff is currently picking the freshest, premium items from the shelves for you.</p>
+    </div>
+
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 20px; border-top: 1px solid #27272A; padding-top: 20px;">
+      <tr>
+        <td style="vertical-align: top; width: 50%; padding-right: 15px;">
+          <h4 style="font-family: 'Space Grotesk', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #FFFFFF; margin: 0 0 8px 0; font-style: italic;">Fulfillment Details</h4>
+          <p style="font-size: 11px; color: #A1A1AA; margin: 0; line-height: 1.5;">
+            <strong>Target Location:</strong> ${order.address}<br />
+            <strong>Order Total:</strong> ${formatCurrency(order.total)}
+          </p>
+        </td>
+        <td style="vertical-align: top; width: 50%; padding-left: 15px; border-left: 1px solid #27272A;">
+          <h4 style="font-family: 'Space Grotesk', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #FFFFFF; margin: 0 0 8px 0; font-style: italic;">Trust & Security</h4>
+          <p style="font-size: 11px; color: #A1A1AA; margin: 0; line-height: 1.5;">
+            Our Quality Inspectors verify the freshness expiration date on every single item before sealing your package.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <p style="font-size: 11px; color: #71717A; margin-top: 24px;">We will send you another email alert as soon as the package is handed over to our Simba Express courier driver.</p>
+  `;
+
+  return sendEmail({
+    to: userEmail,
+    recipientName: userName,
+    subject: `✔ Simba Transaction Approved: Order #${order.orderId}`,
+    body: buildEmailHtml(`✔ Transaction Approved: #${order.orderId}`, content, "View Order Progress", "/profile"),
     type: 'order_confirmation',
     status: 'sent',
     metadata: { orderId: order.orderId }

@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simba Supermarket — Kigali's #1 Online Marketplace</title>
     <link rel="icon" type="image/webp" href="https://kigalistore.com/XYZ/Institlogo/simba-supermarket-min.webp" />
+    <script>
+      // Suppress benign Vite WebSocket / HMR errors in the preview environment
+      window.addEventListener('error', function(e) {
+        if (e.message && (e.message.includes('WebSocket') || e.message.includes('websocket') || e.message.includes('vite') || e.message.includes('WS'))) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        const reason = e.reason && (e.reason.message || e.reason);
+        if (reason && typeof reason === 'string' && (reason.includes('WebSocket') || reason.includes('websocket') || reason.includes('vite') || reason.includes('WS'))) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -38,7 +38,7 @@ export default function Navbar() {
       return;
     }
 
-    const userEmailTrimmed = user.email.trim();
+    const userEmailTrimmed = user.email.trim().toLowerCase();
     const q = query(
       collection(db, 'emails'),
       where('to', '==', userEmailTrimmed)

@@ -138,6 +138,30 @@ export default function Profile() {
     }
   };
 
+  const extractOrderIdFromText = (text: string): string | null => {
+    if (!text) return null;
+    const match = text.match(/SIMBA-[A-Z0-9-]+/i);
+    return match ? match[0].toUpperCase() : null;
+  };
+
+  const handleInboxLinkClick = (href: string, email: any) => {
+    setSelectedInboxEmail(null);
+    const orderId = email.metadata?.orderId || extractOrderIdFromText(email.subject) || extractOrderIdFromText(email.body);
+    if (orderId) {
+      setActiveTab('orders');
+      const matchedOrder = orders.find(o => o.orderId === orderId);
+      if (matchedOrder) {
+        setSelectedOrder(matchedOrder);
+        setTimeout(() => {
+          const ratingSection = document.getElementById('order-rating-section');
+          if (ratingSection) {
+            ratingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 300);
+      }
+    }
+  };
+
   const handleConfirmDelivery = async (order: Order) => {
     if (!window.confirm(t('confirm_delivery_prompt', 'Are you sure you want to confirm delivery for this order?'))) {
       return;
@@ -211,7 +235,7 @@ export default function Profile() {
       return;
     }
 
-    const userEmailTrimmed = user.email.trim();
+    const userEmailTrimmed = user.email.trim().toLowerCase();
     const q = query(
       collection(db, 'emails'),
       where('to', '==', userEmailTrimmed)
@@ -874,7 +898,7 @@ export default function Profile() {
                     )}
 
                     {/* ENHANCEMENT: SERVICE RATING STAGE */}
-                    <div className="mt-8 pt-6 border-t border-brand-border">
+                    <div id="order-rating-section" className="mt-8 pt-6 border-t border-brand-border">
                       {selectedOrder.serviceRating ? (
                         <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
                           <div className="flex justify-between items-center mb-2">
@@ -910,7 +934,7 @@ export default function Profile() {
                               <p className="text-[9px] text-zinc-500 font-bold uppercase leading-tight">
                                 Let Teklay and the Simba team know how we did! 🦁
                               </p>
-                              <div className="flex gap-2 py-1 justify-center animate-fade-in">
+                              <div className="flex gap-3 py-2 justify-center animate-fade-in bg-zinc-950/40 dark:bg-black/40 rounded-2xl border border-brand-border/40 max-w-sm mx-auto">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <button
                                     key={star}
@@ -918,14 +942,14 @@ export default function Profile() {
                                     onClick={() => setProfileRatingScore(star)}
                                     onMouseEnter={() => setProfileRatingHover(star)}
                                     onMouseLeave={() => setProfileRatingHover(0)}
-                                    className="p-1 hover:scale-125 transition-transform text-neutral-300 dark:text-zinc-800"
+                                    className="p-1 hover:scale-125 active:scale-95 transition-all text-neutral-300 dark:text-zinc-800"
                                   >
                                     <Star
                                       className={cn(
-                                        "h-6 w-6 transition-colors",
+                                        "h-7 w-7 transition-all duration-200 cursor-pointer",
                                         star <= (profileRatingHover || profileRatingScore)
-                                          ? "text-amber-400 fill-amber-400 opacity-100"
-                                          : "text-zinc-500 opacity-30"
+                                          ? "text-amber-400 fill-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]"
+                                          : "text-zinc-600 dark:text-zinc-700 opacity-30 hover:opacity-100"
                                       )}
                                     />
                                   </button>
@@ -1033,21 +1057,34 @@ export default function Profile() {
                 </button>
               </div>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6">
-                <div className="space-y-1 text-xs border-b border-zinc-800 pb-3 mb-4 opacity-80">
-                  <p><span className="font-bold uppercase tracking-wider text-zinc-400 inline-block w-12">From:</span> promos@simba.com</p>
-                  <p><span className="font-bold uppercase tracking-wider text-zinc-400 inline-block w-12">Subject:</span> {selectedInboxEmail.subject}</p>
+              <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-[24px] p-5 mb-6">
+                <div className="space-y-1.5 text-xs border-b border-zinc-800 pb-3.5 mb-4 opacity-90">
+                  <p><span className="font-bold uppercase tracking-wider text-zinc-500 inline-block w-16">From:</span> <span className="text-zinc-300">promos@simba.com</span></p>
+                  <p><span className="font-bold uppercase tracking-wider text-zinc-500 inline-block w-16">Subject:</span> <span className="text-zinc-100 font-bold">{selectedInboxEmail.subject}</span></p>
                   <p>
-                    <span className="font-bold uppercase tracking-wider text-zinc-400 inline-block w-12">Date:</span>{' '}
-                    {selectedInboxEmail.createdAt instanceof Timestamp 
-                      ? selectedInboxEmail.createdAt.toDate().toLocaleString() 
-                      : (selectedInboxEmail.createdAt ? new Date(selectedInboxEmail.createdAt).toLocaleString() : 'Just Now')}
+                    <span className="font-bold uppercase tracking-wider text-zinc-500 inline-block w-16">Date:</span>{' '}
+                    <span className="text-zinc-400">
+                      {selectedInboxEmail.createdAt instanceof Timestamp 
+                        ? selectedInboxEmail.createdAt.toDate().toLocaleString() 
+                        : (selectedInboxEmail.createdAt ? new Date(selectedInboxEmail.createdAt).toLocaleString() : 'Just Now')}
+                    </span>
                   </p>
                 </div>
 
-                {/* Email Body Container with scrolling */}
+                {/* Email Body Container with scrolling and dark seamless styling */}
                 <div 
-                  className="bg-white text-zinc-950 p-6 rounded-2xl max-h-[40vh] overflow-y-auto font-sans leading-relaxed text-sm shadow-inner"
+                  className="bg-[#0E0F12] rounded-2xl max-h-[50vh] overflow-y-auto font-sans shadow-inner border border-zinc-800/50 custom-scrollbar overflow-hidden"
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const anchor = target.closest('a');
+                    if (anchor) {
+                      e.preventDefault();
+                      const href = anchor.getAttribute('href');
+                      if (href) {
+                        handleInboxLinkClick(href, selectedInboxEmail);
+                      }
+                    }
+                  }}
                   dangerouslySetInnerHTML={{ __html: selectedInboxEmail.body }}
                 />
               </div>

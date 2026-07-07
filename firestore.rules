@@ -106,12 +106,16 @@ service cloud.firestore {
         && incoming().createdAt == request.time;
 
       allow update: if (isOwner(existing().userId)
-        && existing().status == 'pending'
-        && incoming().status == 'cancelled'
-        && incoming().orderId == existing().orderId
-        && incoming().userId == existing().userId
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
-        || (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status']));
+        && (
+          // Allow cancelling if pending
+          (existing().status == 'pending' && incoming().status == 'cancelled' && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+          // Allow confirming delivery
+          || (incoming().status == 'delivered' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+          // Allow submitting rating/feedback
+          || incoming().diff(existing()).affectedKeys().hasOnly(['serviceRating', 'serviceFeedback', 'ratedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['serviceRating', 'serviceFeedback', 'ratedAt', 'updatedAt'])
+        ))
+        || (isAdmin() && (incoming().diff(existing()).affectedKeys().hasAny(['status', 'updatedAt', 'serviceRating', 'serviceFeedback', 'ratedAt'])));
     }
 
     // 3. Product Rules
@@ -134,6 +138,9 @@ service cloud.firestore {
             && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount'])
             && incoming().reviewCount == existing().reviewCount + 1
             && isValidProduct(incoming())
+           )
+        || (isSignedIn() && isValidId(productId)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['stockCount', 'updatedAt'])
            );
       allow delete: if isAdmin() && isValidId(productId);
     }
@@ -221,7 +228,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /inventoryAlerts/{alertId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
     // 8. Categories Rules
