@@ -62,7 +62,7 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-brand-primary text-white dark:text-black px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-orange-600 dark:hover:bg-orange-400 active:scale-95 flex items-center justify-center gap-3 italic shadow-lg shadow-brand-primary/20;
+    @apply bg-brand-primary text-white dark:text-black px-8 py-4 rounded-full font-bold text-sm transition-all hover:bg-orange-600 dark:hover:bg-orange-400 active:scale-95 flex items-center justify-center gap-3 italic shadow-lg shadow-brand-primary/20;
   }
   
   .card-gradient {
@@ -78,12 +78,12 @@
   }
 
   .micro-label {
-    @apply text-[9px] font-black uppercase tracking-[0.35em] italic;
+    @apply text-xs font-semibold tracking-wide;
     color: var(--brand-text-muted);
   }
   
   .massive-header {
-    @apply text-[56px] sm:text-[120px] font-black italic tracking-tighter uppercase leading-[0.8] mb-4;
+    @apply text-[40px] sm:text-[80px] font-extrabold italic tracking-tighter leading-[0.9] mb-4;
   }
 
   .glass-surface {

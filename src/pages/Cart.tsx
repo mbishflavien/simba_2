@@ -26,6 +26,46 @@ const NEIGHBORHOODS: Record<string, { lat: number; lng: number }> = {
   'city center': { lat: -1.9441, lng: 30.0619 },
 };
 
+// Distance helper (Haversine)
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export function getDeliveryDetails(coords: { lat: number; lng: number } | null) {
+  if (!coords) {
+    // Default fallback if location is not detected yet (e.g. 5km distance, 1000 RWF)
+    return {
+      closestBranch: { id: 'town-center', name: 'Simba Town Center', lat: -1.9441, lng: 30.0619, address: 'KN 82 St, Kigali City Center' },
+      distance: 5.0,
+      deliveryFee: 1000,
+    };
+  }
+
+  let minDistance = Infinity;
+  let closest = { id: 'town-center', name: 'Simba Town Center', lat: -1.9441, lng: 30.0619, address: 'KN 82 St, Kigali City Center' };
+
+  for (const branch of SIMBA_BRANCHES) {
+    const dist = getDistance(coords.lat, coords.lng, branch.lat, branch.lng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closest = branch;
+    }
+  }
+
+  return {
+    closestBranch: closest,
+    distance: minDistance,
+    deliveryFee: Math.round(minDistance * 200),
+  };
+}
+
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, totalPrice, totalItems, clearCart, addToCart } = useCart();
   const { user, profile } = useAuth();
@@ -35,7 +75,7 @@ export default function Cart() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'method' | 'confirmation' | 'momo' | 'card' | 'cash' | 'waiting'>('cart');
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'cash'>('momo');
-  const [phoneNumber, setPhoneNumber] = useState('78');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState('');
   const [landmarks, setLandmarks] = useState('');
   const [savedForLater, setSavedForLater] = useState<any[]>(() => {
@@ -58,6 +98,10 @@ export default function Cart() {
   const [receiptTotal, setReceiptTotal] = useState<number>(0);
   const [receiptMethod, setReceiptMethod] = useState<'momo' | 'card' | 'cash'>('momo');
   const [receiptAddress, setReceiptAddress] = useState<string>('');
+
+  const deliveryDetails = getDeliveryDetails(userCoords);
+  const logisticsFee = paymentMethod === 'cash' ? 0 : deliveryDetails.deliveryFee;
+  const grandTotal = totalPrice + logisticsFee;
 
   const prepareReceipt = () => {
     setReceiptCart([...cart]);
@@ -145,7 +189,7 @@ export default function Cart() {
     `).join('');
 
     const subtotal = activeSubtotal;
-    const logistics = activeMethod === 'cash' || activeSubtotal > 50000 ? 0 : 2000;
+    const logistics = activeMethod === 'cash' ? 0 : deliveryDetails.deliveryFee;
     const grandTotal = subtotal + logistics;
 
     printWindow.document.write(`
@@ -325,7 +369,7 @@ export default function Cart() {
         orderId,
         userId: user.uid,
         items: orderItems,
-        total: totalPrice + (paymentMethod === 'cash' ? 0 : (totalPrice > 50000 ? 0 : 2000)),
+        total: grandTotal,
         status: 'pending',
         paymentMethod,
         address: orderAddress,
@@ -339,7 +383,7 @@ export default function Cart() {
         orderId,
         userId: user.uid,
         items: orderItems,
-        total: totalPrice + (paymentMethod === 'cash' ? 0 : (totalPrice > 50000 ? 0 : 2000)),
+        total: grandTotal,
         status: 'pending',
         paymentMethod,
         address: orderAddress + (landmarks ? ` (Landmarks: ${landmarks})` : ''),
@@ -919,26 +963,26 @@ export default function Cart() {
                 
                 <div className="space-y-6 mb-12 relative z-10">
                   <div className="p-6 bg-black/5 dark:bg-white/5 rounded-3xl border border-brand-border backdrop-blur-xl">
-                    <div className="flex justify-between micro-label uppercase tracking-widest !opacity-60 mb-2">
+                    <div className="flex justify-between text-xs font-semibold mb-2">
                        <span>{t('items')}</span>
-                       <span className="text-[var(--brand-text)]">{formatCurrency(totalPrice)}</span>
+                       <span className="text-[var(--brand-text)] font-bold">{formatCurrency(totalPrice)}</span>
                     </div>
-                    <div className="flex justify-between micro-label uppercase tracking-widest !opacity-60">
+                    <div className="flex justify-between text-xs font-semibold">
                        <span>{t('logistics')}</span>
-                       <span className={cn("text-[var(--brand-text)]", totalPrice > 50000 && "text-brand-primary font-black")}>
-                         {totalPrice > 50000 ? "FREE" : formatCurrency(2000)}
+                       <span className="text-[var(--brand-text)] font-bold text-brand-primary">
+                         {userCoords ? `${formatCurrency(deliveryDetails.deliveryFee)} (Distance-based)` : "Calculated next step"}
                        </span>
                     </div>
                   </div>
 
                   <div className="relative pt-8 px-6">
                     <div className="flex justify-between items-end">
-                      <span className="font-black uppercase tracking-tighter italic text-[var(--brand-text)] text-sm opacity-40">{t('total')}</span>
+                      <span className="text-xs font-semibold text-[var(--brand-text)] opacity-60">{t('total')}</span>
                       <div className="text-right">
-                         <span className="block text-2xl sm:text-4xl font-black text-brand-primary tracking-tighter italic leading-none">
-                           {formatCurrency(totalPrice + (totalPrice > 50000 ? 0 : 2000))}
+                         <span className="block text-2xl sm:text-3xl font-bold text-brand-primary tracking-tight">
+                           {formatCurrency(userCoords ? grandTotal : totalPrice)}
                          </span>
-                         <span className="text-[8px] font-black opacity-20 uppercase tracking-[0.4em] italic mt-2 block">Kigali Standard RWF</span>
+                         <span className="text-[8px] font-semibold opacity-40 uppercase tracking-widest mt-2 block">Kigali Standard RWF</span>
                       </div>
                     </div>
                   </div>
@@ -981,12 +1025,82 @@ export default function Cart() {
 
             {checkoutStep === 'method' && (
               <div className="space-y-8">
-                 <h2 className="text-2xl font-black uppercase tracking-tighter italic text-[var(--brand-text)] leading-none mb-8">
+                 <h2 className="text-2xl font-bold text-[var(--brand-text)] leading-none mb-8">
                     {t('shipping_address')}<span className="text-brand-primary">.</span>
                  </h2>
 
+                 {/* Geolocation Detection & Map Selection block */}
+                 {paymentMethod !== 'cash' && (
+                   <div className="p-6 bg-brand-primary/5 rounded-[32px] border border-brand-primary/20 space-y-4 text-left">
+                     <p className="text-sm font-bold text-[var(--brand-text)]">
+                       Delivery is charged at <span className="text-brand-primary">200 RWF per km</span> from the closest Simba branch.
+                     </p>
+                     
+                     <div className="flex flex-col sm:flex-row gap-3">
+                       <button
+                         type="button"
+                         onClick={() => {
+                           if (navigator.geolocation) {
+                             navigator.geolocation.getCurrentPosition(
+                               (position) => {
+                                 setUserCoords({
+                                   lat: position.coords.latitude,
+                                   lng: position.coords.longitude
+                                 });
+                                 setAddress(`GPS (${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}), Kigali`);
+                                 setFormErrors(prev => ({ ...prev, location: '' }));
+                               },
+                               (error) => {
+                                 setFormErrors(prev => ({ ...prev, location: 'Failed to access GPS. Please choose your neighborhood from the menu.' }));
+                               }
+                             );
+                           } else {
+                             setFormErrors(prev => ({ ...prev, location: 'Geolocation is not supported by your browser.' }));
+                           }
+                         }}
+                         className="flex-1 bg-brand-primary text-white py-3 px-5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-orange-600 transition-all cursor-pointer"
+                       >
+                         <MapPin className="h-4 w-4" />
+                         Detect Location (GPS)
+                       </button>
+
+                       <select
+                         value={Object.keys(NEIGHBORHOODS).find(k => NEIGHBORHOODS[k].lat === userCoords?.lat && NEIGHBORHOODS[k].lng === userCoords?.lng) || ""}
+                         onChange={(e) => {
+                           const val = e.target.value;
+                           if (val && NEIGHBORHOODS[val]) {
+                             setUserCoords(NEIGHBORHOODS[val]);
+                             setAddress(val.toUpperCase() + ", Kigali, Rwanda");
+                             setFormErrors(prev => ({ ...prev, location: '' }));
+                           }
+                         }}
+                         className="flex-1 bg-black/5 dark:bg-zinc-800 border border-brand-border dark:border-white/10 rounded-2xl py-3 px-5 text-xs font-bold text-[var(--brand-text)] outline-none focus:border-brand-primary"
+                       >
+                         <option value="">-- Choose Neighborhood --</option>
+                         {Object.keys(NEIGHBORHOODS).map((n) => (
+                           <option key={n} value={n}>
+                             {n.charAt(0).toUpperCase() + n.slice(1)}
+                           </option>
+                         ))}
+                       </select>
+                     </div>
+
+                     {formErrors.location && (
+                       <p className="text-xs text-red-500 font-bold uppercase">{formErrors.location}</p>
+                     )}
+
+                     {userCoords && (
+                       <div className="pt-4 border-t border-brand-primary/10 space-y-1 text-xs font-semibold text-[var(--brand-text-muted)]">
+                         <p>Closest Simba Branch: <span className="text-[var(--brand-text)] font-bold">{deliveryDetails.closestBranch.name}</span></p>
+                         <p>Distance: <span className="text-[var(--brand-text)] font-bold">{deliveryDetails.distance.toFixed(1)} km</span></p>
+                         <p>Delivery Fee: <span className="text-brand-primary font-bold">{formatCurrency(deliveryDetails.deliveryFee)}</span></p>
+                       </div>
+                     )}
+                   </div>
+                 )}
+
                  <div className="space-y-4 text-left mb-8">
-                    <label className="micro-label uppercase tracking-widest block ml-4">{t('shipping_address')}</label>
+                    <label className="text-xs font-semibold block ml-4">{t('shipping_address')}</label>
                     <textarea 
                       required
                       rows={2}
@@ -1172,21 +1286,26 @@ export default function Cart() {
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-6">
-                  <div className="flex justify-between items-center text-xs font-bold uppercase opacity-60 px-2">
+                <div className="space-y-3 pt-6 text-left">
+                  <div className="flex justify-between items-center text-xs font-semibold opacity-80 px-2">
                     <span>{t('subtotal')}</span>
                     <span>{formatCurrency(totalPrice)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs font-bold uppercase opacity-60 px-2">
+                  <div className="flex justify-between items-center text-xs font-semibold opacity-80 px-2">
                     <span>{t('logistics')}</span>
-                    <span className={cn(paymentMethod === 'cash' || totalPrice > 50000 ? "text-green-500" : "")}>
-                      {paymentMethod === 'cash' || totalPrice > 50000 ? 'FREE' : formatCurrency(2000)}
+                    <span className={cn(paymentMethod === 'cash' ? "text-green-500" : "")}>
+                      {paymentMethod === 'cash' ? 'FREE PICKUP' : formatCurrency(logisticsFee)}
                     </span>
                   </div>
-                  <div className="pt-4 border-t-2 border-brand-primary/20 flex justify-between items-end px-2">
-                    <span className="font-black uppercase tracking-tighter italic text-xl">{t('total')}</span>
-                    <span className="text-2xl sm:text-3xl font-black text-brand-primary tracking-tighter italic">
-                      {formatCurrency(totalPrice + (paymentMethod === 'cash' || totalPrice > 50000 ? 0 : 2000))}
+                  {paymentMethod !== 'cash' && userCoords && (
+                    <div className="text-[11px] text-[var(--brand-text-muted)] px-2 italic font-medium">
+                      ({deliveryDetails.distance.toFixed(1)} km from {deliveryDetails.closestBranch.name})
+                    </div>
+                  )}
+                  <div className="pt-4 border-t border-brand-primary/20 flex justify-between items-end px-2">
+                    <span className="font-bold text-lg text-[var(--brand-text)]">{t('total')}</span>
+                    <span className="text-xl sm:text-2xl font-bold text-brand-primary">
+                      {formatCurrency(grandTotal)}
                     </span>
                   </div>
                 </div>
@@ -1198,13 +1317,13 @@ export default function Cart() {
                       else if (paymentMethod === 'card') setCheckoutStep('card');
                       else confirmCash({ preventDefault: () => {} } as any);
                     }}
-                    className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-7 rounded-full font-black uppercase tracking-widest transition-all italic shadow-2xl shadow-brand-primary/20"
+                    className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-4.5 rounded-full font-bold text-sm transition-all shadow-xl shadow-brand-primary/20 cursor-pointer"
                   >
-                    {paymentMethod === 'cash' ? t('confirm_order').toUpperCase() : t('proceed_to_payment').toUpperCase()}
+                    {paymentMethod === 'cash' ? t('confirm_order') : t('proceed_to_payment')}
                   </button>
                   <button 
                     onClick={() => setCheckoutStep('method')}
-                    className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center"
+                    className="w-full py-4 text-xs font-semibold text-[var(--brand-text-muted)] hover:text-brand-primary transition-colors text-center cursor-pointer"
                   >
                     {t('change_details')}
                   </button>
@@ -1233,7 +1352,7 @@ export default function Cart() {
                    type="submit"
                    className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 italic"
                  >
-                   I'VE ENTERED THE PIN
+                   I have entered the PIN
                  </button>
                  <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
                    {t('back')}
@@ -1299,7 +1418,7 @@ export default function Cart() {
                    disabled={isProcessing}
                    className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 italic"
                  >
-                   {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin" /> : `PAY ${formatCurrency(totalPrice + (totalPrice > 50000 ? 0 : 2000))}`}
+                   {isProcessing ? <RefreshCcw className="h-5 w-5 animate-spin" /> : `Pay ${formatCurrency(grandTotal)}`}
                  </button>
                  <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
                    {t('back')}
@@ -1339,9 +1458,9 @@ export default function Cart() {
                 <button 
                   onClick={() => setCheckoutStep('confirmation')}
                   disabled={!selectedBranch}
-                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-6 rounded-full font-black uppercase tracking-widest transition-all italic active:scale-95 shadow-2xl shadow-brand-primary/20 disabled:opacity-50"
+                  className="w-full bg-brand-primary hover:bg-orange-600 dark:hover:bg-orange-400 text-white dark:text-black py-4.5 rounded-full font-bold text-sm transition-all active:scale-95 shadow-xl shadow-brand-primary/20 disabled:opacity-50 cursor-pointer"
                 >
-                  {t('review_order').toUpperCase()}
+                  {t('review_order')}
                 </button>
                 <button onClick={() => setCheckoutStep('method')} className="w-full py-4 micro-label text-[var(--brand-text-muted)] hover:text-brand-primary uppercase tracking-widest transition-colors text-center">
                   {t('back')}
