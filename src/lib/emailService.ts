@@ -484,17 +484,19 @@ export async function sendPromotionEmail(
   };
 
   for (const customer of customerDetails) {
-    const isEmailValid = customer.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim());
+    if (!customer) continue;
+    const emailStr = customer.email ? String(customer.email).trim() : '';
+    const isEmailValid = emailStr && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr);
 
     if (!isEmailValid) {
-      const errReason = !customer.email 
+      const errReason = !emailStr 
         ? "No email address specified" 
-        : `Lacks proper syntax or domain name formatting: "${customer.email}"`;
+        : `Lacks proper syntax or domain name formatting: "${emailStr}"`;
 
-      console.warn(`[Promotion Dismissed] User "${customer.displayName || 'Unknown'}" lacks a valid email address (${customer.email || 'None'}).`);
+      console.warn(`[Promotion Dismissed] User "${customer.displayName || 'Unknown'}" lacks a valid email address (${emailStr || 'None'}).`);
       report.failedCount++;
       report.failures.push({
-        email: customer.email || 'None',
+        email: emailStr || 'None',
         recipientName: customer.displayName || 'Unknown Subscriber',
         reason: errReason
       });
@@ -505,7 +507,7 @@ export async function sendPromotionEmail(
         const emailRef = doc(db, 'emails', failedEmailId);
         await setDoc(emailRef, {
           id: failedEmailId,
-          to: customer.email ? customer.email.trim() : 'invalid_email',
+          to: emailStr || 'invalid_email',
           recipientName: customer.displayName || 'Unknown Subscriber',
           subject: `🎉 [DISPATCH FAILURE] [PROMOTION SPECIAL] ${promotion.name}`,
           body: buildEmailHtml(
@@ -546,8 +548,8 @@ export async function sendPromotionEmail(
         <p style="text-align: center; font-size: 11px; color: #71717A; margin-top: 24px;">This offer is valid until <strong>${promotion.endDate ? new Date(promotion.endDate.seconds ? promotion.endDate.seconds * 1000 : promotion.endDate).toLocaleDateString() : 'this Sunday'}</strong> in Nyarutarama, Kimironko, Remera and all branches.</p>
       `;
 
-      await sendEmail({
-        to: customer.email.trim(),
+      const emailId = await sendEmail({
+        to: emailStr,
         recipientName: customer.displayName || 'Valued Customer',
         subject: `🎉 [PROMOTION SPECIAL] ${promotion.name} at Simba Supermarket!`,
         body: buildEmailHtml(`🎉 EXCLUSIVE DEALS IN KIGALI`, content, "Shop Simba Online Deals Now", "/"),
@@ -555,13 +557,17 @@ export async function sendPromotionEmail(
         status: 'sent',
         metadata: { promotionId: promotion.id }
       });
+
+      if (!emailId) {
+        throw new Error("SMTP firestore logging failed to generate email ID");
+      }
       report.successCount++;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error(`[Promotion Error] Could not dispatch to ${customer.email}:`, err);
+      console.error(`[Promotion Error] Could not dispatch to ${emailStr}:`, err);
       report.failedCount++;
       report.failures.push({
-        email: customer.email.trim(),
+        email: emailStr,
         recipientName: customer.displayName || 'Valued Customer',
         reason: errMsg
       });
@@ -572,7 +578,7 @@ export async function sendPromotionEmail(
         const emailRef = doc(db, 'emails', failedEmailId);
         await setDoc(emailRef, {
           id: failedEmailId,
-          to: customer.email ? customer.email.trim() : 'invalid_email',
+          to: emailStr || 'invalid_email',
           recipientName: customer.displayName || 'Unknown Subscriber',
           subject: `🎉 [DELIVERY FAILURE] [PROMOTION SPECIAL] ${promotion.name}`,
           body: buildEmailHtml(

@@ -213,7 +213,8 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     match /emails/{emailId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn() && (resource.data.to == request.auth.token.email || isAdmin());
+      allow write: if isAdmin();
     }
     match /promotions/{promoId} {
       allow read: if true;

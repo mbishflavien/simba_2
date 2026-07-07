@@ -258,8 +258,9 @@ app.post("/api/ai/generate-products", async (req, res) => {
 
 // Vite & Static file serving setup
 async function start() {
+  let vite: any;
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
@@ -272,9 +273,15 @@ async function start() {
     });
   }
 
-  app.listen(PORT, HOST, () => {
+  const server = app.listen(PORT, HOST, () => {
     console.log(`Server running at http://${HOST}:${PORT}`);
   });
+
+  if (process.env.NODE_ENV !== "production" && vite) {
+    server.on('upgrade', (req, socket, head) => {
+      vite.ws.handleUpgrade(req, socket, head);
+    });
+  }
 }
 
 start();

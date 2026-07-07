@@ -35,7 +35,19 @@ export default function Profile() {
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'wishlist'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'wishlist' | 'inbox'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'inbox' || tab === 'orders' || tab === 'wishlist') {
+        return tab as 'orders' | 'wishlist' | 'inbox';
+      }
+    }
+    return 'orders';
+  });
+  const [userEmails, setUserEmails] = useState<any[]>([]);
+  const [emailsLoading, setEmailsLoading] = useState(true);
+  const [selectedInboxEmail, setSelectedInboxEmail] = useState<any | null>(null);
   const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
 
   const [profileRatingScore, setProfileRatingScore] = useState<number>(0);
@@ -193,6 +205,36 @@ export default function Profile() {
   }, [user]);
 
   useEffect(() => {
+    if (!user || !user.email) {
+      setUserEmails([]);
+      setEmailsLoading(false);
+      return;
+    }
+
+    const userEmailTrimmed = user.email.trim();
+    const q = query(
+      collection(db, 'emails'),
+      where('to', '==', userEmailTrimmed)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      docs.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return timeB - timeA;
+      });
+      setUserEmails(docs);
+      setEmailsLoading(false);
+    }, (error) => {
+      console.error("Non-blocking error listening to user emails:", error);
+      setEmailsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
     if (wishlistIds.length === 0) {
       setWishlistProducts([]);
       return;
@@ -340,6 +382,25 @@ export default function Profile() {
             {t('my_wishlist')} ({wishlistIds.length})
             {activeTab === 'wishlist' && <motion.div layoutId="profile-tab" className="absolute bottom-[-1px] left-0 right-0 h-1 bg-brand-primary rounded-full" />}
           </button>
+          <button 
+            onClick={() => {
+              setActiveTab('inbox');
+              // Mark all notifications as read when entering the inbox tab
+              const readIds = JSON.parse(localStorage.getItem('readEmailIds') || '[]');
+              const newReadIds = Array.from(new Set([...readIds, ...userEmails.map(m => m.id)]));
+              localStorage.setItem('readEmailIds', JSON.stringify(newReadIds));
+              // Dispatch standard storage event to update the Navbar in real time
+              window.dispatchEvent(new Event('storage'));
+            }}
+            className={cn(
+              "pb-6 text-[10px] font-black uppercase tracking-[0.2em] italic transition-all relative flex items-center gap-2",
+              activeTab === 'inbox' ? "text-brand-primary" : "text-[var(--brand-text)] opacity-40 hover:opacity-100"
+            )}
+          >
+            <Mail className="h-4 w-4" />
+            Simba Inbox ({userEmails.length})
+            {activeTab === 'inbox' && <motion.div layoutId="profile-tab" className="absolute bottom-[-1px] left-0 right-0 h-1 bg-brand-primary rounded-full" />}
+          </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
@@ -421,7 +482,7 @@ export default function Profile() {
                   </div>
                 )}
               </motion.div>
-            ) : (
+            ) : activeTab === 'wishlist' ? (
               <motion.div
                 key="wishlist-list"
                 initial={{ opacity: 0, x: -20 }}
@@ -457,6 +518,64 @@ export default function Profile() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-12">
                     {enrichedWishlistProducts.map((product) => (
                       <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="inbox-list"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] mb-1">
+                      Simba Inbox & Announcements
+                    </h2>
+                    <p className="micro-label opacity-40">Exclusive deals, news, and discount coupons generated just for you.</p>
+                  </div>
+                </div>
+
+                {emailsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="h-28 bg-black/5 dark:bg-white/5 rounded-[30px] animate-pulse" />
+                    ))}
+                  </div>
+                ) : userEmails.length === 0 ? (
+                  <div className="card-gradient p-12 text-center">
+                    <Mail className="h-12 w-12 text-zinc-500 mx-auto mb-4 opacity-20" />
+                    <p className="micro-label opacity-40 uppercase">Your inbox is empty. Special promotions and deal alerts will appear here!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {userEmails.map((email) => (
+                      <button
+                        key={email.id}
+                        onClick={() => setSelectedInboxEmail(email)}
+                        className="w-full text-left card-gradient p-6 flex items-center gap-6 hover:scale-[1.01] transition-all group border border-brand-border"
+                      >
+                        <div className="w-14 h-14 bg-brand-primary/10 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-brand-primary/20 transition-all">
+                          <Mail className="h-6 w-6 text-brand-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-[#9a9a9a]">Simba Club Promotion</span>
+                            <span className="text-[9px] font-mono opacity-50">
+                              {email.createdAt instanceof Timestamp ? email.createdAt.toDate().toLocaleDateString() : (email.createdAt ? new Date(email.createdAt).toLocaleDateString() : 'Just Now')}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-black uppercase italic tracking-tight text-[var(--brand-text)] group-hover:text-brand-primary transition-colors truncate">
+                            {email.subject}
+                          </h4>
+                          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight mt-1 group-hover:text-white transition-colors">
+                            Click to open message & redeem coupon code
+                          </p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-zinc-500 opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                      </button>
                     ))}
                   </div>
                 )}
@@ -697,6 +816,73 @@ export default function Profile() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Email Viewer Modal */}
+      <AnimatePresence>
+        {selectedInboxEmail && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in"
+            onClick={() => setSelectedInboxEmail(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-zinc-950 border border-brand-primary/20 w-full max-w-2xl rounded-[40px] p-6 md:p-8 shadow-2xl relative text-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-brand-primary/10 rounded-xl flex items-center justify-center">
+                    <Mail className="h-5 w-5 text-brand-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase italic tracking-tighter">Simba Message Reader</h3>
+                    <p className="text-[9px] font-bold text-[#9a9a9a] uppercase">Simba Loyalty Club Portal</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedInboxEmail(null)}
+                  className="px-3 py-1 bg-white/5 hover:bg-white/10 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6">
+                <div className="space-y-1 text-xs border-b border-zinc-800 pb-3 mb-4 opacity-80">
+                  <p><span className="font-bold uppercase tracking-wider text-zinc-400 inline-block w-12">From:</span> promos@simba.com</p>
+                  <p><span className="font-bold uppercase tracking-wider text-zinc-400 inline-block w-12">Subject:</span> {selectedInboxEmail.subject}</p>
+                  <p>
+                    <span className="font-bold uppercase tracking-wider text-zinc-400 inline-block w-12">Date:</span>{' '}
+                    {selectedInboxEmail.createdAt instanceof Timestamp 
+                      ? selectedInboxEmail.createdAt.toDate().toLocaleString() 
+                      : (selectedInboxEmail.createdAt ? new Date(selectedInboxEmail.createdAt).toLocaleString() : 'Just Now')}
+                  </p>
+                </div>
+
+                {/* Email Body Container with scrolling */}
+                <div 
+                  className="bg-white text-zinc-950 p-6 rounded-2xl max-h-[40vh] overflow-y-auto font-sans leading-relaxed text-sm shadow-inner"
+                  dangerouslySetInnerHTML={{ __html: selectedInboxEmail.body }}
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setSelectedInboxEmail(null)}
+                  className="w-full py-4 bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 italic shadow-lg shadow-brand-primary/20"
+                >
+                  Close Message Reader
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

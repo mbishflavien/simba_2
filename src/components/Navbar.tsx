@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut, Zap, Heart, ChevronDown, Home, Info, ChevronRight } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Search, Menu, X, Globe, Moon, Sun, User as UserIcon, LogOut, Zap, Heart, ChevronDown, Home, Info, ChevronRight, Tag, Bell, Mail } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from './AuthProvider';
 import { useTranslation } from 'react-i18next';
-import { auth } from '../lib/firebase';
-import { cn } from '../lib/utils';
+import { auth, db } from '../lib/firebase';
+import { cn, formatCurrency } from '../lib/utils';
+import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useMemo } from 'react';
-import { get789Products } from '../services/catalogLoader';
+import { get789Products, augmentProductsList } from '../services/catalogLoader';
 import { Product } from '../types';
 
 export default function Navbar() {
@@ -23,8 +24,68 @@ export default function Navbar() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isDesktopLangOpen, setIsDesktopLangOpen] = useState(false);
   const [isMobileLangOpen, setIsMobileLangOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [userNotifications, setUserNotifications] = useState<any[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   
-  const products = get789Products();
+  const [products, setProducts] = useState<Product[]>(() => get789Products());
+
+  // Fetch user notification counts
+  useEffect(() => {
+    if (!user || !user.email) {
+      setNotificationCount(0);
+      setUserNotifications([]);
+      return;
+    }
+
+    const userEmailTrimmed = user.email.trim();
+    const q = query(
+      collection(db, 'emails'),
+      where('to', '==', userEmailTrimmed)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      docs.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return timeB - timeA;
+      });
+      setUserNotifications(docs);
+
+      const updateUnreadCount = () => {
+        const readIds = JSON.parse(localStorage.getItem('readEmailIds') || '[]');
+        const unreadCount = docs.filter((d: any) => !readIds.includes(d.id)).length;
+        setNotificationCount(unreadCount);
+      };
+
+      updateUnreadCount();
+
+      window.addEventListener('storage', updateUnreadCount);
+      return () => {
+        window.removeEventListener('storage', updateUnreadCount);
+      };
+    }, (error) => {
+      console.error("Non-blocking error loading user notifications in Navbar:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'products'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const prodsMap = new Map<string | number, Product>();
+      snapshot.docs.forEach(doc => {
+        const prod = { id: doc.id, ...doc.data() } as Product;
+        prodsMap.set(prod.id, prod);
+      });
+      setProducts(augmentProductsList(Array.from(prodsMap.values())));
+    }, (error) => {
+      console.error("Non-blocking error syncing products in Navbar:", error);
+    });
+    return () => unsubscribe();
+  }, []);
 
 
   const handleSignOut = () => {
@@ -65,7 +126,14 @@ export default function Navbar() {
       .filter(p => p.name.toLowerCase().includes(query))
       .filter(p => !categories.some(cat => cat.toLowerCase() === p.name.toLowerCase())) // Avoid duplicate names if they exist as categories
       .slice(0, 5)
-      .map(p => ({ type: 'product' as const, value: p.name, id: p.id }));
+      .map(p => ({ 
+        type: 'product' as const, 
+        value: p.name, 
+        id: p.id,
+        price: p.price,
+        image: p.image,
+        category: p.category
+      }));
 
     // Re-order to show categories first if it's a short query, then products
     const combined = [...matchingCategories, ...matchingProducts];
@@ -82,13 +150,20 @@ export default function Navbar() {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIndex(prev => (prev - 1 + (suggestions.length || 1)) % (suggestions.length || 1));
-    } else if (e.key === 'Enter' && activeIndex >= 0) {
-      e.preventDefault();
-      const s = suggestions[activeIndex];
-      if (s) {
-        setSearchQuery(s.value);
-        setShowSuggestions(false);
-        navigate(`/shop?search=${s.value}`);
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        const s = suggestions[activeIndex];
+        if (s) {
+          setShowSuggestions(false);
+          setIsSearchOpen(false);
+          if (s.type === 'product' && s.id) {
+            navigate(`/product/${s.id}`);
+          } else {
+            setSearchQuery(s.value);
+            navigate(`/shop?search=${s.value}`);
+          }
+        }
       }
     }
   };
@@ -227,40 +302,93 @@ export default function Navbar() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-2"
+                    className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1"
                   >
-                    <div className="px-4 py-2 border-b border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-white/5">
+                    <div className="px-4 py-2 border-b border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-white/5 flex items-center justify-between">
                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 italic">{t('suggestions')}</span>
+                      <span className="text-[8px] font-black text-brand-primary uppercase tracking-widest animate-pulse">client-side search</span>
                     </div>
-                    {suggestions.map((s, idx) => (
-                      <button
-                        key={`${s.type}-${idx}`}
-                        type="button"
-                        onClick={() => {
-                          setSearchQuery(s.value);
-                          setShowSuggestions(false);
-                          navigate(`/shop?search=${s.value}`);
-                        }}
-                        onMouseEnter={() => setActiveIndex(idx)}
-                        className={cn(
-                          "w-full text-left px-6 py-3 transition-colors flex items-center justify-between group",
-                          activeIndex === idx ? "bg-brand-primary/10 dark:bg-brand-primary/20" : "hover:bg-zinc-50 dark:hover:bg-white/5"
-                        )}
-                      >
-                        <span className={cn(
-                          "text-xs font-bold uppercase tracking-tight italic truncate max-w-[200px]",
-                          activeIndex === idx ? "text-brand-primary" : "dark:text-white"
-                        )}>
-                          {s.value}
-                        </span>
-                        <span className={cn(
-                          "text-[8px] font-black uppercase tracking-widest text-brand-primary transition-opacity",
-                          activeIndex === idx ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                        )}>
-                          {s.type === 'category' ? t('category') : t('product')}
-                        </span>
-                      </button>
-                    ))}
+                    {suggestions.map((s, idx) => {
+                      const isProduct = s.type === 'product';
+                      return (
+                        <button
+                          key={`${s.type}-${idx}`}
+                          type="button"
+                          onClick={() => {
+                            setShowSuggestions(false);
+                            if (isProduct && s.id) {
+                              navigate(`/product/${s.id}`);
+                            } else {
+                              setSearchQuery(s.value);
+                              navigate(`/shop?search=${s.value}`);
+                            }
+                          }}
+                          onMouseEnter={() => setActiveIndex(idx)}
+                          className={cn(
+                            "w-full text-left px-4 py-2.5 transition-colors flex items-center gap-3 group border-b border-zinc-100 dark:border-white/5 last:border-b-0 cursor-pointer",
+                            activeIndex === idx ? "bg-brand-primary/10 dark:bg-brand-primary/20" : "hover:bg-zinc-50 dark:hover:bg-white/5"
+                          )}
+                        >
+                          {isProduct ? (
+                            <>
+                              {/* Thumbnail Image */}
+                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-zinc-850 flex-shrink-0 overflow-hidden flex items-center justify-center border border-zinc-200 dark:border-white/10 transition-transform group-hover:scale-105 duration-300">
+                                <img 
+                                  src={s.image} 
+                                  alt={s.value} 
+                                  className="w-full h-full object-contain p-1"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200";
+                                  }}
+                                />
+                              </div>
+                              {/* Product Info */}
+                              <div className="flex-grow min-w-0 flex flex-col justify-center">
+                                <span className={cn(
+                                  "text-xs font-bold uppercase tracking-tight italic truncate block",
+                                  activeIndex === idx ? "text-brand-primary" : "text-zinc-800 dark:text-zinc-200"
+                                )}>
+                                  {s.value}
+                                </span>
+                                <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block mt-0.5">
+                                  {s.category}
+                                </span>
+                              </div>
+                              {/* Price Info */}
+                              <div className="text-right flex-shrink-0 flex flex-col justify-center pl-2">
+                                <span className="text-xs font-black font-mono text-brand-primary block leading-none">
+                                  {formatCurrency(s.price || 0)}
+                                </span>
+                                <span className="text-[7px] font-black uppercase text-zinc-400 tracking-widest block mt-1">
+                                  {t('product')}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* Category Icon */}
+                              <div className="w-10 h-10 rounded-lg bg-brand-primary/5 dark:bg-brand-primary/10 flex-shrink-0 flex items-center justify-center border border-brand-primary/10 text-brand-primary group-hover:scale-105 duration-300">
+                                <Tag className="h-4 w-4" />
+                              </div>
+                              {/* Category Info */}
+                              <div className="flex-grow min-w-0 flex flex-col justify-center">
+                                <span className={cn(
+                                  "text-xs font-bold uppercase tracking-tight italic truncate block",
+                                  activeIndex === idx ? "text-brand-primary" : "text-zinc-800 dark:text-zinc-200"
+                                )}>
+                                  {s.value}
+                                </span>
+                                <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block mt-0.5">
+                                  {t('category')}
+                                </span>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-zinc-400 group-hover:translate-x-1 transition-transform" />
+                            </>
+                          )}
+                        </button>
+                      );
+                    })}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -286,6 +414,103 @@ export default function Navbar() {
             >
               {isDark ? <Sun className="h-4 w-4 text-brand-accent group-hover:scale-110 transition-transform" /> : <Moon className="h-4 w-4 text-black/40 group-hover:scale-110 transition-transform" />}
             </button>
+
+            {user && (
+              <div className="relative">
+                <button 
+                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  className="relative p-2.5 bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 rounded-full hover:text-brand-primary transition-all group text-zinc-800 dark:text-zinc-200 cursor-pointer"
+                  title="Simba Inbox & Notifications"
+                >
+                  <Bell className={cn("h-4 w-4 text-zinc-500 dark:text-zinc-400 group-hover:scale-110 transition-all", notificationCount > 0 && "text-brand-primary animate-pulse")} />
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-brand-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-zinc-100 dark:border-zinc-900 shadow-md">
+                      {notificationCount}
+                    </span>
+                  )}
+                </button>
+                <AnimatePresence>
+                  {isNotifOpen && (
+                    <>
+                      {/* Click outside backdrop to close */}
+                      <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsNotifOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl z-50 py-3 overflow-hidden"
+                      >
+                        <div className="px-4 pb-2 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                            <Bell className="h-3.5 w-3.5 text-brand-primary" /> Simba Inbox
+                          </span>
+                          {notificationCount > 0 && (
+                            <span className="bg-brand-primary/10 text-brand-primary text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                              {notificationCount} New
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="max-h-72 overflow-y-auto">
+                          {userNotifications.length === 0 ? (
+                            <div className="py-8 text-center text-zinc-400 dark:text-zinc-500 px-4">
+                              <Mail className="h-6 w-6 mx-auto mb-2 opacity-30" />
+                              <p className="text-[10px] font-black uppercase tracking-wider">No promotions yet</p>
+                            </div>
+                          ) : (
+                            userNotifications.slice(0, 4).map((notif: any) => {
+                              const readIds = JSON.parse(localStorage.getItem('readEmailIds') || '[]');
+                              const isRead = readIds.includes(notif.id);
+                              return (
+                                <button
+                                  key={notif.id}
+                                  onClick={() => {
+                                    // Mark as read
+                                    const newReadIds = Array.from(new Set([...readIds, notif.id]));
+                                    localStorage.setItem('readEmailIds', JSON.stringify(newReadIds));
+                                    window.dispatchEvent(new Event('storage'));
+                                    setIsNotifOpen(false);
+                                    // Navigate to profile tab=inbox
+                                    navigate('/profile?tab=inbox');
+                                  }}
+                                  className={cn(
+                                    "w-full text-left px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-b border-zinc-100 dark:border-zinc-800/50 flex gap-3 last:border-0 cursor-pointer",
+                                    !isRead && "bg-brand-primary/5 dark:bg-brand-primary/5"
+                                  )}
+                                >
+                                  <div className="w-8 h-8 rounded-full bg-brand-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                                    <Mail className="h-3.5 w-3.5 text-brand-primary" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className={cn(
+                                      "text-xs uppercase italic tracking-tight truncate text-zinc-800 dark:text-zinc-200",
+                                      !isRead ? "font-black" : "font-bold"
+                                    )}>
+                                      {notif.subject}
+                                    </h4>
+                                    <p className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5">
+                                      {notif.createdAt?.seconds ? new Date(notif.createdAt.seconds * 1000).toLocaleDateString() : 'Promotion'}
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        <Link 
+                          to="/profile?tab=inbox" 
+                          onClick={() => setIsNotifOpen(false)}
+                          className="block text-center pt-2 pb-0.5 text-[8px] font-black uppercase tracking-widest text-brand-primary hover:underline border-t border-zinc-100 dark:border-zinc-800/80 mt-2 mx-4"
+                        >
+                          View All Messages
+                        </Link>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             <div className="flex items-center gap-3 xl:gap-8 micro-label">
               <Link to="/shop" className="hover:text-brand-primary transition-colors text-zinc-800 dark:text-zinc-200 font-black tracking-widest uppercase">{t('shop') || 'Shop'}</Link>
@@ -417,6 +642,23 @@ export default function Navbar() {
                 </span>
               )}
             </button>
+            {user && (
+              <button 
+                onClick={() => {
+                  navigate('/profile?tab=inbox');
+                }} 
+                className="relative text-zinc-800 dark:text-white bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 p-2 sm:p-3 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md flex items-center justify-center cursor-pointer"
+                aria-label="Notifications"
+                title="Notifications"
+              >
+                <Bell className={cn("h-5 w-5 sm:h-6 sm:w-6 text-zinc-500 dark:text-zinc-400", notificationCount > 0 && "text-brand-primary animate-pulse")} />
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-brand-primary text-white text-[9px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-zinc-100 dark:border-zinc-900 shadow-md">
+                    {notificationCount}
+                  </span>
+                )}
+              </button>
+            )}
             <Link to="/cart" className="relative text-zinc-800 dark:text-white bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 p-2 sm:p-3 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md flex items-center justify-center">
               <motion.div
                 key={totalItems}
@@ -494,23 +736,74 @@ export default function Navbar() {
               </form>
               
               {/* Mobile Recent Categories / Suggestions */}
-              <div className="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar pb-8">
+              <div className="space-y-3 max-h-[55vh] overflow-y-auto custom-scrollbar pb-8">
                 {suggestions.length > 0 ? (
-                  suggestions.map((s, idx) => (
-                    <button
-                      key={`mobile-search-${idx}`}
-                      onClick={() => {
-                        setSearchQuery(s.value);
-                        setShowSuggestions(false);
-                        setIsSearchOpen(false);
-                        navigate(`/shop?search=${s.value}`);
-                      }}
-                      className="w-full text-left p-4 rounded-2xl bg-black/5 dark:bg-white/5 flex justify-between items-center group active:scale-[0.98] transition-all"
-                    >
-                      <span className="font-bold uppercase italic tracking-tight text-sm dark:text-white opacity-80 group-hover:opacity-100">{s.value}</span>
-                      <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest">{s.type === 'category' ? t('category') : t('product')}</span>
-                    </button>
-                  ))
+                  suggestions.map((s, idx) => {
+                    const isProduct = s.type === 'product';
+                    return (
+                      <button
+                        key={`mobile-search-${idx}`}
+                        onClick={() => {
+                          setShowSuggestions(false);
+                          setIsSearchOpen(false);
+                          if (isProduct && s.id) {
+                            navigate(`/product/${s.id}`);
+                          } else {
+                            setSearchQuery(s.value);
+                            navigate(`/shop?search=${s.value}`);
+                          }
+                        }}
+                        className="w-full text-left p-3 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center gap-3 active:scale-[0.98] transition-all border border-transparent"
+                      >
+                        {isProduct ? (
+                          <>
+                            <div className="w-12 h-12 rounded-xl bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center border border-zinc-200 dark:border-white/10 flex-shrink-0">
+                              <img 
+                                src={s.image} 
+                                alt={s.value} 
+                                className="w-full h-full object-contain p-1"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200";
+                                }}
+                              />
+                            </div>
+                            <div className="flex-grow min-w-0 flex flex-col justify-center">
+                              <span className="font-bold uppercase italic tracking-tight text-xs text-zinc-800 dark:text-white truncate block">
+                                {s.value}
+                              </span>
+                              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block mt-0.5">
+                                {s.category}
+                              </span>
+                            </div>
+                            <div className="text-right flex-shrink-0 pl-2">
+                              <span className="text-xs font-black font-mono text-brand-primary block leading-none">
+                                {formatCurrency(s.price || 0)}
+                              </span>
+                              <span className="text-[7px] font-black text-zinc-400 uppercase tracking-widest block mt-1">
+                                {t('product')}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-12 h-12 rounded-xl bg-brand-primary/10 dark:bg-brand-primary/20 flex items-center justify-center border border-brand-primary/10 text-brand-primary flex-shrink-0">
+                              <ShoppingBag className="h-5 w-5" />
+                            </div>
+                            <div className="flex-grow min-w-0 flex flex-col justify-center">
+                              <span className="font-bold uppercase italic tracking-tight text-xs text-zinc-800 dark:text-white block">
+                                {s.value}
+                              </span>
+                              <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest block mt-0.5">
+                                {t('category')}
+                              </span>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-zinc-400" />
+                          </>
+                        )}
+                      </button>
+                    );
+                  })
                 ) : (
                   <p className="text-center text-xs font-bold uppercase italic opacity-30 py-8 tracking-widest">
                     {t('start_typing_to_search')}
