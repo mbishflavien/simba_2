@@ -127,7 +127,11 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
           const name = (product.name || '').toLowerCase();
           const cat = (product.category || '').toLowerCase();
           
-          const matchesAny = keywords.some(keyword => name.includes(keyword) || cat.includes(keyword));
+          const matchesAny = keywords.some(keyword => {
+            const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b${escaped}`, 'i');
+            return regex.test(name) || regex.test(cat);
+          });
           if (!matchesAny) return false;
         }
       }

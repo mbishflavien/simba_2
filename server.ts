@@ -67,7 +67,7 @@ app.post("/api/ai/chat", async (req, res) => {
     Available Categories: ${CATEGORIES.join(', ')}.
     
     Mapping synonyms (BE VERY CAREFUL to prevent false positive matches):
-    - "liquor", "wine", "beer", "whiskey", "gin", "vodka", "cider", "alcohol", "alcoholic" -> Category: Alcoholic Drinks.
+    - "liquor", "wine", "beer", "whiskey", "whisky", "gin", "vodka", "drunk", "booze", "cocktail", "rum", "tequila", "brandy", "liqueur", "cider", "alcohol", "alcoholic" -> Category: Alcoholic Drinks.
     - "snacks", "groceries", "food", "ingredients", "spices", "beverages", "drinks", "soda", "juice", "tea", "coffee", "water", "milk", "bread", "meal", "breakfast", "dinner", "lunch" -> Category: Food Products.
     - "babies", "kids", "diapers", "toys", "infant" -> Category: Baby Products.
     - "skincare", "soap", "shampoo", "beauty", "cosmetics", "lotion", "perfume", "cream" -> Category: Cosmetics & Personal Care.
@@ -114,7 +114,7 @@ app.post("/api/ai/chat", async (req, res) => {
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: [...history, { role: 'user', parts: [{ text: messages[messages.length - 1].content }] }],
       config: {
         systemInstruction,
@@ -134,7 +134,11 @@ app.post("/api/ai/chat", async (req, res) => {
       }
     });
 
-    const parsed = JSON.parse(response.text || '{}');
+    let textResponse = response.text || '{}';
+    if (textResponse.startsWith('```')) {
+      textResponse = textResponse.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+    }
+    const parsed = JSON.parse(textResponse);
     res.json(parsed);
   } catch (error) {
     console.error("AI Chat Error on Server:", error);
@@ -173,7 +177,7 @@ app.post("/api/ai/categorize", async (req, res) => {
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: `Product Name: "${name}"`,
       config: {
         systemInstruction,
@@ -222,7 +226,7 @@ app.post("/api/ai/generate-products", async (req, res) => {
     const prompt = `Generate exactly ${count} highly realistic Rwandan retail products for the department/category: "${department}".`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction,

@@ -274,7 +274,7 @@ export default function Home() {
     }
 
     // 3. Remove common stop words or conversational fillers to get clean keywords
-    const stopWords = ['i', 'want', 'need', 'buy', 'find', 'show', 'me', 'some', 'please', 'with', 'for', 'a', 'an', 'the', 'at', 'simba', 'supermarket', 'in', 'kigali'];
+    const stopWords = ['i', 'want', 'need', 'buy', 'find', 'show', 'me', 'some', 'please', 'with', 'for', 'a', 'an', 'the', 'at', 'simba', 'supermarket', 'in', 'kigali', 'get', 'wanna', 'got', 'give', 'can', 'you', 'how', 'to', 'go', 'about', 'on', 'of', 'and', 'or'];
     let words = cleaned.split(/[\s,;?]+/).map(w => w.trim()).filter(w => w.length > 0);
     words = words.filter(w => !stopWords.includes(w));
 
@@ -299,7 +299,9 @@ export default function Home() {
         
         // Expand keywords with synonyms and thematic expansions
         const expandedKeywords = keywords.flatMap(k => {
-          if (k === 'liquor' || k === 'wine' || k === 'beer' || k === 'whiskey') return [k, 'alcohol', 'alcoholic'];
+          if (k === 'liquor' || k === 'wine' || k === 'beer' || k === 'whiskey' || k === 'whisky' || k === 'gin' || k === 'vodka' || k === 'drunk' || k === 'booze' || k === 'alcohol' || k === 'alcoholic' || k === 'drink' || k === 'drinks' || k === 'rum' || k === 'tequila' || k === 'brandy' || k === 'champagne' || k === 'cognac' || k === 'liqueur') {
+            return [k, 'alcohol', 'alcoholic', 'wine', 'beer', 'whiskey', 'whisky', 'gin', 'vodka', 'rum', 'tequila', 'brandy', 'cider', 'liqueur', 'champagne', 'cognac'];
+          }
           if (k === 'food' || k === 'grocery' || k === 'groceries') return [k, 'groceries', 'food'];
           if (k === 'gym' || k === 'fitness' || k === 'workout') return [k, 'sports', 'wellness', 'fitness'];
           if (k === 'breakfast' || k === 'morning') return [k, 'milk', 'bread', 'egg', 'cereal', 'butter', 'coffee', 'tea', 'yogurt', 'jam', 'juice', 'banana', 'croissant', 'lactogen', 'inyange', 'mukamira', 'sandwich'];
