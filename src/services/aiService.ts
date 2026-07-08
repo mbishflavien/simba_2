@@ -132,6 +132,18 @@ export async function chatWithAi(messages: { role: 'user' | 'assistant'; content
     
     searchQuery = words.join(' ');
 
+    const lowerQuery = searchQuery.toLowerCase();
+    if (
+      lowerQuery.includes('party') || 
+      lowerQuery.includes('birthday') || 
+      lowerQuery.includes('celebration') || 
+      lowerQuery.includes('feast') || 
+      lowerQuery.includes('event') || 
+      lowerQuery.includes('stuff')
+    ) {
+      searchQuery = "cake, juice, soda, chocolate, chips, biscuit, cookie, wine, beer";
+    }
+
     if (searchQuery || category) {
       isSearch = true;
     }

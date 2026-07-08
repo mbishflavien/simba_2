@@ -308,6 +308,7 @@ export default function Home() {
           if (k === 'skincare' || k === 'cosmetics') return [k, 'lotion', 'soap', 'cream', 'shampoo', 'wash', 'beauty', 'cleanser', 'perfume'];
           if (k === 'baby' || k === 'babies') return [k, 'diapers', 'baby', 'kid', 'toy', 'milk', 'wipe', 'powder', 'lactogen'];
           if (k === 'cleaning' || k === 'laundry' || k === 'wash') return [k, 'liquid', 'soap', 'detergent', 'powder', 'cleaner', 'bleach', 'sanitizer'];
+          if (k === 'birthday' || k === 'party' || k === 'celebration' || k === 'feast' || k === 'event' || k === 'stuff') return [k, 'cake', 'juice', 'soda', 'sweet', 'chocolate', 'chips', 'biscuit', 'cookie', 'wine', 'beer'];
           return [k];
         });
 
