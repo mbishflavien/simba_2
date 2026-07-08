@@ -2650,13 +2650,24 @@ export default function AdminDashboard() {
             {/* Inventory Controls */}
             <div className="flex flex-col sm:flex-row gap-4 items-center">
               <div className="relative flex-1 group w-full">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-zinc-500 group-focus-within:text-brand-primary transition-colors" />
-                <input 
-                  type="text" 
+                <Search className="absolute left-6 top-6 h-6 w-6 text-zinc-500 group-focus-within:text-brand-primary transition-colors" />
+                <textarea 
+                  rows={1}
                   value={inventorySearch}
                   onChange={(e) => setInventorySearch(e.target.value)}
                   placeholder={t('search_inventory_placeholder')}
-                  className="w-full bg-white dark:bg-zinc-900 border-2 border-brand-border rounded-[24px] py-6 pl-16 pr-8 text-lg font-bold text-zinc-900 dark:text-white focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-zinc-400 placeholder:italic placeholder:font-medium placeholder:text-sm"
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = 'auto';
+                      el.style.height = `${Math.max(76, el.scrollHeight)}px`;
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="w-full bg-white dark:bg-zinc-900 border-2 border-brand-border rounded-[24px] py-[22px] pl-16 pr-8 text-lg font-bold text-zinc-900 dark:text-white focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-zinc-400 placeholder:italic placeholder:font-medium placeholder:text-sm overflow-hidden resize-none min-h-[76px]"
                 />
               </div>
               <button 

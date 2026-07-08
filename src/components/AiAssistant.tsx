@@ -406,17 +406,30 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
             {/* Input Area */}
             <div className="p-8 border-t border-brand-border bg-neutral-50/50 dark:bg-zinc-900/10">
               <form onSubmit={handleSubmit} className="relative group">
-                <input
+                <textarea
+                  rows={1}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Ask Simba Smart Assistant..."
                   disabled={isLoading}
-                  className="w-full bg-white dark:bg-zinc-900 border-2 border-brand-border rounded-[24px] py-5 pl-8 pr-16 text-sm font-black italic focus:outline-none focus:border-brand-primary transition-all placeholder:opacity-40 text-[var(--brand-text)] group-hover:border-zinc-300 dark:group-hover:border-zinc-800 focus:group-hover:border-brand-primary"
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = 'auto';
+                      el.style.height = `${Math.max(60, el.scrollHeight)}px`;
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                  className="w-full bg-white dark:bg-zinc-900 border-2 border-brand-border rounded-[24px] py-4 pl-8 pr-16 text-sm font-black italic focus:outline-none focus:border-brand-primary transition-all placeholder:opacity-40 text-[var(--brand-text)] group-hover:border-zinc-300 dark:group-hover:border-zinc-800 focus:group-hover:border-brand-primary overflow-hidden resize-none min-h-[60px]"
                 />
                 <button
                   type="submit"
                   disabled={!query.trim() || isLoading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 bg-brand-primary text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all shadow-lg cursor-pointer"
+                  className="absolute right-3 bottom-1.5 h-12 w-12 bg-brand-primary text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all shadow-lg cursor-pointer z-10"
                 >
                   <Send className="h-5 w-5" />
                 </button>

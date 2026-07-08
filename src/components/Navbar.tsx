@@ -21,6 +21,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isDesktopLangOpen, setIsDesktopLangOpen] = useState(false);
   const [isMobileLangOpen, setIsMobileLangOpen] = useState(false);
@@ -266,12 +267,25 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden xl:flex items-center gap-2 xl:gap-8 min-w-0">
-            <form onSubmit={handleSearch} className="relative group flex items-center flex-1 max-w-[200px] xl:max-w-xs transition-all">
+            <form 
+              onSubmit={handleSearch} 
+              className="relative group flex items-center flex-shrink-0 transition-all duration-300 ease-out"
+              style={{ 
+                width: `${isSearchFocused 
+                  ? Math.min(450, Math.max(260, searchQuery.length * 8 + 140))
+                  : (searchQuery ? Math.min(450, Math.max(220, searchQuery.length * 8 + 140)) : 220)}px`,
+                transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >
               <Search className="absolute left-6 h-5 w-5 text-zinc-500 dark:text-white/30 group-focus-within:text-brand-primary transition-colors" />
               <input
                 type="text"
                 value={searchQuery}
-                onFocus={() => setShowSuggestions(true)}
+                onFocus={() => {
+                  setShowSuggestions(true);
+                  setIsSearchFocused(true);
+                }}
+                onBlur={() => setIsSearchFocused(false)}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setShowSuggestions(true);
@@ -302,7 +316,7 @@ export default function Navbar() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1"
+                    className="absolute top-full left-0 xl:left-auto xl:right-0 mt-2 w-[450px] max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1"
                   >
                     <div className="px-4 py-2 border-b border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-white/5 flex items-center justify-between">
                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 italic">{t('suggestions')}</span>
