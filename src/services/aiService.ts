@@ -32,14 +32,143 @@ export async function chatWithAi(messages: { role: 'user' | 'assistant'; content
 
     return await response.json() as AiSearchIntent;
   } catch (error) {
-    console.error("Client AI Chat Proxy Error:", error);
+    console.warn("Using offline AI chat simulation fallback on client:", error);
+    
+    const latest = messages[messages.length - 1]?.content || "";
+    const lower = latest.toLowerCase().trim();
+    
+    let isSearch = false;
+    let searchQuery = "";
+    let category: string | null = null;
+    let minPrice: number | null = null;
+    let maxPrice: number | null = null;
+    let assistantResponse = "";
+
+    // 1. Check for price filters (e.g., "under 1000", "below 5000", "less than 10000")
+    const maxPriceRegex = /(?:under|below|less\s+than|cheaper\s+than|under\s+rwf|below\s+rwf)\s*(?:rwf\s*)?(\d+)/i;
+    const maxMatch = lower.match(maxPriceRegex);
+    if (maxMatch) {
+      maxPrice = parseInt(maxMatch[1], 10);
+    }
+
+    const minPriceRegex = /(?:above|over|more\s+than|greater\s+than|above\s+rwf|over\s+rwf)\s*(?:rwf\s*)?(\d+)/i;
+    const minMatch = lower.match(minPriceRegex);
+    if (minMatch) {
+      minPrice = parseInt(minMatch[1], 10);
+    }
+
+    // 2. Classify categories based on keywords
+    if (
+      lower.includes('alcohol') || lower.includes('wine') || lower.includes('beer') || 
+      lower.includes('whiskey') || lower.includes('gin') || lower.includes('vodka') || 
+      lower.includes('cider') || lower.includes('cognac') || lower.includes('champagne') ||
+      lower.includes('liquor') || (lower.includes('drinks') && (lower.includes('adult') || lower.includes('party')))
+    ) {
+      category = 'Alcoholic Drinks';
+      isSearch = true;
+    } else if (
+      lower.includes('baby') || lower.includes('kid') || lower.includes('diaper') || 
+      lower.includes('wipe') || lower.includes('toy') || lower.includes('infant') || 
+      lower.includes('lactogen') || lower.includes('formula') || lower.includes('pampers')
+    ) {
+      category = 'Baby Products';
+      isSearch = true;
+    } else if (
+      lower.includes('skincare') || lower.includes('cream') || lower.includes('lotion') || 
+      lower.includes('soap') || lower.includes('shampoo') || lower.includes('beauty') || 
+      lower.includes('cosmetics') || lower.includes('hand wash') || lower.includes('perfume') ||
+      lower.includes('deodorant') || lower.includes('toothpaste')
+    ) {
+      category = 'Cosmetics & Personal Care';
+      isSearch = true;
+    } else if (
+      lower.includes('kitchen') || lower.includes('appliance') || lower.includes('pot') || 
+      lower.includes('pan') || lower.includes('kettle') || lower.includes('electronic') || 
+      lower.includes('blender') || lower.includes('microwave') || lower.includes('toaster') ||
+      lower.includes('television') || lower.includes('tv') || lower.includes('iron')
+    ) {
+      category = 'Kitchenware & Electronics';
+      isSearch = true;
+    } else if (
+      lower.includes('gym') || lower.includes('fitness') || lower.includes('wellness') || 
+      lower.includes('workout') || lower.includes('sports') || lower.includes('massage') || 
+      lower.includes('health') || lower.includes('protein') || lower.includes('supplement')
+    ) {
+      category = 'Sports & Wellness';
+      isSearch = true;
+    } else if (
+      lower.includes('food') || lower.includes('milk') || lower.includes('bread') || 
+      lower.includes('groceries') || lower.includes('rice') || lower.includes('flour') || 
+      lower.includes('oil') || lower.includes('sugar') || lower.includes('honey') || 
+      lower.includes('tea') || lower.includes('coffee') || lower.includes('snack') ||
+      lower.includes('croissant') || lower.includes('breakfast') || lower.includes('dinner') ||
+      lower.includes('ingredient') || lower.includes('spices') || lower.includes('sauce')
+    ) {
+      category = 'Food Products';
+      isSearch = true;
+    }
+
+    // 3. Extract the product keyword (e.g. "milk", "bread", "diaper", etc.)
+    let cleanQuery = lower;
+    if (maxMatch) cleanQuery = cleanQuery.replace(maxMatch[0], '');
+    if (minMatch) cleanQuery = cleanQuery.replace(minMatch[0], '');
+    
+    const stopPhrases = [
+      'i want some', 'i want a', 'i want', 'i need some', 'i need a', 'i need', 
+      'find some', 'find a', 'find', 'search for some', 'search for a', 'search for', 
+      'show me some', 'show me a', 'show me', 'looking for some', 'looking for a', 'looking for', 
+      'do you have some', 'do you have a', 'do you have', 'buy some', 'buy a', 'buy', 'please'
+    ];
+
+    for (const phrase of stopPhrases) {
+      if (cleanQuery.includes(phrase)) {
+        cleanQuery = cleanQuery.replace(phrase, '');
+      }
+    }
+
+    const stopWords = ['i', 'want', 'need', 'buy', 'find', 'show', 'me', 'some', 'please', 'with', 'for', 'a', 'an', 'the', 'at', 'simba', 'supermarket', 'in', 'kigali'];
+    let words = cleanQuery.split(/[\s,;?]+/).map(w => w.trim()).filter(w => w.length > 0);
+    words = words.filter(w => !stopWords.includes(w));
+    
+    searchQuery = words.join(' ');
+
+    if (searchQuery || category) {
+      isSearch = true;
+    }
+
+    // 4. Draft customized responses
+    if (lower.includes('delivery') || lower.includes('how long') || lower.includes('ship')) {
+      assistantResponse = "At Simba Supermarket, we deliver right to your doorstep anywhere in Kigali in under 30 minutes! ⚡ Best of all, delivery is completely FREE for all orders over 50,000 RWF! Otherwise, a standard local fee applies. Let me know what you'd like to order today! 🦁🛒";
+    } else if (lower.includes('founded') || lower.includes('history') || lower.includes('who is') || lower.includes('owner') || lower.includes('start') || lower.includes('created')) {
+      assistantResponse = "Simba Supermarket (SIMBA SUPERMARKET LTD) was founded on December 3, 2007, by Mr. Teklay Teame! 🇷🇼 Our first official branch was launched on August 8, 2008. Our mission has always been to meet the daily needs of Kigali residents with the absolute best prices and quality! 🦁✨";
+    } else if (lower.includes('branch') || lower.includes('location') || lower.includes('where') || lower.includes('store') || lower.includes('gacuriro')) {
+      assistantResponse = "We have 11 modern branches across Rwanda to serve you! 🇷🇼 Our major branches are located across Kigali, including Gacuriro (which features an incredible Arcade Games center for families!). Other branches offer our famous bakeries, butcheries, and Trucillo Coffee shops! 🥐☕";
+    } else if (lower.includes('coffee') && lower.includes('trucillo')) {
+      assistantResponse = "Yes! We proudly serve premium Italian Trucillo Cafe in 5 of our major branches! You can enjoy a fresh cup of coffee while you shop, or grab a package of coffee beans from our breakfast section. ☕🥐";
+    } else if (lower.includes('arcade') || lower.includes('game') || lower.includes('play')) {
+      assistantResponse = "Our Gacuriro branch features a fantastic Arcade Games zone! It's the perfect spot for kids and families to have fun while you shop. Come visit us soon! 🎮🦁";
+    } else if (isSearch) {
+      let filterDetails = "";
+      if (category) filterDetails += ` in **${category}**`;
+      if (maxPrice !== null) filterDetails += ` under **${maxPrice.toLocaleString()} RWF**`;
+      if (minPrice !== null) filterDetails += ` above **${minPrice.toLocaleString()} RWF**`;
+
+      if (searchQuery) {
+        assistantResponse = `I would love to help you find **${searchQuery}**${filterDetails}! I have applied the smart search filters for you. Take a look at these matched items! 🛒🦁`;
+      } else {
+        assistantResponse = `I've opened the **${category || 'Products'}** section${filterDetails} for you! Check out our selection below. 🦁✨`;
+      }
+    } else {
+      assistantResponse = `Hello! I am **Simba Smart** 🦁, your elite AI assistant for Simba Supermarket, Rwanda's premier retail chain. 🇷🇼\n\nI can help you find products, check prices (try "milk under 1000"), explain delivery terms (30-minute Kigali delivery, free over 50k RWF), or share our proud history and branch locations!\n\nWhat can I assist you with today? 🛒`;
+    }
+
     return {
-      isSearch: false,
-      searchQuery: "",
-      category: null,
-      minPrice: null,
-      maxPrice: null,
-      assistantResponse: "I'm having a momentary lapse in connection. How else can I assist you at Simba? 🦁"
+      isSearch,
+      searchQuery,
+      category,
+      minPrice,
+      maxPrice,
+      assistantResponse
     };
   }
 }

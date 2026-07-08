@@ -249,14 +249,51 @@ export default function Home() {
     searchParams.get('search')?.toLowerCase() || ''
   , [searchParams]);
 
+  // Natural language query parser for prices and keywords
+  const parsedSearch = useMemo(() => {
+    if (!searchQuery) return { query: '', minPrice: null, maxPrice: null };
+
+    let cleaned = searchQuery.toLowerCase().trim();
+    let extractedMaxPrice: number | null = null;
+    let extractedMinPrice: number | null = null;
+
+    // 1. Match "under/below/less than/cheaper than [number]"
+    const maxPriceRegex = /(?:under|below|less\s+than|cheaper\s+than|under\s+rwf|below\s+rwf)\s*(?:rwf\s*)?(\d+)/i;
+    const maxMatch = cleaned.match(maxPriceRegex);
+    if (maxMatch) {
+      extractedMaxPrice = parseInt(maxMatch[1], 10);
+      cleaned = cleaned.replace(maxMatch[0], '');
+    }
+
+    // 2. Match "above/over/more than [number]"
+    const minPriceRegex = /(?:above|over|more\s+than|greater\s+than|above\s+rwf|over\s+rwf)\s*(?:rwf\s*)?(\d+)/i;
+    const minMatch = cleaned.match(minPriceRegex);
+    if (minMatch) {
+      extractedMinPrice = parseInt(minMatch[1], 10);
+      cleaned = cleaned.replace(minMatch[0], '');
+    }
+
+    // 3. Remove common stop words or conversational fillers to get clean keywords
+    const stopWords = ['i', 'want', 'need', 'buy', 'find', 'show', 'me', 'some', 'please', 'with', 'for', 'a', 'an', 'the', 'at', 'simba', 'supermarket', 'in', 'kigali'];
+    let words = cleaned.split(/[\s,;?]+/).map(w => w.trim()).filter(w => w.length > 0);
+    words = words.filter(w => !stopWords.includes(w));
+
+    return {
+      query: words.join(' '),
+      minPrice: extractedMinPrice,
+      maxPrice: extractedMaxPrice
+    };
+  }, [searchQuery]);
+
   const filteredProducts = useMemo(() => {
     return enrichedProducts.filter(product => {
       if (selectedCategory && product.category !== selectedCategory) return false;
       if (selectedSubcategory && product.subcategoryId !== selectedSubcategory) return false;
       
-      if (searchQuery) {
+      const activeSearch = parsedSearch.query;
+      if (activeSearch) {
         // Split on whitespace, commas, or semicolons
-        const keywords = searchQuery.split(/[\s,;]+/).map(k => k.trim()).filter(k => k.length > 0);
+        const keywords = activeSearch.split(/[\s,;]+/).map(k => k.trim()).filter(k => k.length > 0);
         const name = product.name?.toLowerCase() || '';
         const category = product.category?.toLowerCase() || '';
         
@@ -284,13 +321,17 @@ export default function Home() {
         if (!matchesAny) return false;
       }
       
-      if (minPrice !== '' && product.price < (minPrice as number)) return false;
-      if (maxPrice !== '' && product.price > (maxPrice as number)) return false;
+      // Combine manual prices and natural language parsed prices
+      const effectiveMin = parsedSearch.minPrice !== null ? parsedSearch.minPrice : (minPrice !== '' ? minPrice : null);
+      const effectiveMax = parsedSearch.maxPrice !== null ? parsedSearch.maxPrice : (maxPrice !== '' ? maxPrice : null);
+
+      if (effectiveMin !== null && product.price < effectiveMin) return false;
+      if (effectiveMax !== null && product.price > effectiveMax) return false;
       if (onlyInStock && (!product.inStock || (product.stockCount !== undefined && product.stockCount <= 0))) return false;
 
       return true;
     }).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true }));
-  }, [enrichedProducts, selectedCategory, selectedSubcategory, searchQuery, minPrice, maxPrice, onlyInStock]);
+  }, [enrichedProducts, selectedCategory, selectedSubcategory, parsedSearch, minPrice, maxPrice, onlyInStock]);
 
   const availableSubcategories = useMemo(() => {
     if (!selectedCategory) return [];
