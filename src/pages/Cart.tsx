@@ -1036,7 +1036,7 @@ export default function Cart() {
                        Delivery is charged at <span className="text-brand-primary">200 RWF per km</span> from the closest Simba branch.
                      </p>
                      
-                     <div className="flex flex-col sm:flex-row gap-3">
+                     <div className="flex flex-col gap-3">
                        <button
                          type="button"
                          onClick={() => {
@@ -1058,7 +1058,7 @@ export default function Cart() {
                              setFormErrors(prev => ({ ...prev, location: 'Geolocation is not supported by your browser.' }));
                            }
                          }}
-                         className="flex-1 bg-brand-primary text-white py-3 px-5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-orange-600 transition-all cursor-pointer"
+                         className="w-full bg-brand-primary text-white py-3 px-5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-orange-600 transition-all cursor-pointer"
                        >
                          <MapPin className="h-4 w-4" />
                          Detect Location (GPS)
@@ -1074,7 +1074,7 @@ export default function Cart() {
                              setFormErrors(prev => ({ ...prev, location: '' }));
                            }
                          }}
-                         className="flex-1 bg-black/5 dark:bg-zinc-800 border border-brand-border dark:border-white/10 rounded-2xl py-3 px-5 text-xs font-bold text-[var(--brand-text)] outline-none focus:border-brand-primary"
+                         className="w-full bg-black/5 dark:bg-zinc-800 border border-brand-border dark:border-white/10 rounded-2xl py-3 px-5 text-xs font-bold text-[var(--brand-text)] outline-none focus:border-brand-primary cursor-pointer"
                        >
                          <option value="">-- Choose Neighborhood --</option>
                          {Object.keys(NEIGHBORHOODS).map((n) => (
