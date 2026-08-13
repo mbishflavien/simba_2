@@ -35,11 +35,14 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card-gradient p-5 flex flex-col group h-full"
+      whileHover={{ y: -6 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="card-gradient p-5 flex flex-col group h-full transition-shadow duration-300 hover:shadow-2xl hover:shadow-brand-primary/10"
     >
-      <Link to={`/product/${product.id}`} className="aspect-square w-full bg-white dark:bg-zinc-950 rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-200 dark:border-white/10 flex-shrink-0">
+      <Link to={`/product/${product.id}`} className="aspect-square w-full bg-white dark:bg-zinc-950 rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group/img shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-200 dark:border-white/10 flex-shrink-0">
         <motion.img
-          whileHover={{ scale: 1.08 }}
+          whileHover={{ scale: 1.12, rotate: 1 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
           src={product.image}
           alt={product.name}
           loading="lazy"
@@ -60,37 +63,48 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
         
         {/* Quick View Button Hover Overlay */}
         {product.inStock && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
-            <button
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setQuickViewOpen(true);
               }}
-              className="bg-brand-primary hover:bg-orange-600 text-white font-black uppercase text-[10px] tracking-widest px-6 py-3 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 pointer-events-auto flex items-center gap-2 cursor-pointer"
+              className="bg-brand-primary hover:bg-orange-600 text-white font-black uppercase text-[10px] tracking-widest px-6 py-3 rounded-full shadow-lg transform translate-y-4 group-hover/img:translate-y-0 transition-all duration-300 pointer-events-auto flex items-center gap-2 cursor-pointer"
             >
               <Eye className="h-4 w-4" />
               Quick View
-            </button>
+            </motion.button>
           </div>
         )}
 
-        <button 
+        <motion.button 
+          whileTap={{ scale: 0.8 }}
+          whileHover={{ scale: 1.15 }}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             toggleWishlist(product);
           }}
           className={cn(
-            "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border border-white/20 group/heart hover:scale-110 active:scale-95 z-20",
+            "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border border-white/20 group/heart z-20 cursor-pointer shadow-md",
             isInWishlist(product.id) 
-               ? "bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/30" 
-               : "bg-black/20 text-white/60 hover:text-white"
+               ? "bg-rose-500 text-white border-rose-500 shadow-rose-500/40" 
+               : "bg-black/30 text-white/70 hover:text-white"
           )}
           aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
         >
-          <Heart className={cn("h-5 w-5 transition-transform", isInWishlist(product.id) ? "fill-white" : "fill-none scale-90 group-hover/heart:scale-100")} />
-        </button>
+          <motion.div
+            key={isInWishlist(product.id) ? 'active' : 'inactive'}
+            initial={{ scale: 0.7 }}
+            animate={{ scale: [0.7, 1.25, 1] }}
+            transition={{ duration: 0.3 }}
+          >
+            <Heart className={cn("h-5 w-5 transition-colors", isInWishlist(product.id) ? "fill-white" : "fill-none")} />
+          </motion.div>
+        </motion.button>
       </Link>
 
       <div className="flex flex-col gap-1 px-1 flex-1">

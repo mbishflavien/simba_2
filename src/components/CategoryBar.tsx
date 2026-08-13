@@ -38,47 +38,53 @@ export const CategoryBar = React.memo(({ categories, selectedCategory, onSelectC
 
   return (
     <div className="nav-blur border-none overflow-x-auto no-scrollbar scroll-smooth">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 flex gap-12 sm:gap-16 h-28 items-center">
-        <button
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 flex gap-8 sm:gap-14 h-24 sm:h-28 items-center">
+        <motion.button
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.94 }}
           onClick={() => onSelectCategory(null)}
-          className="flex flex-col items-center gap-2 min-w-fit group transition-all relative py-2"
+          className="flex flex-col items-center gap-1.5 min-w-fit group transition-all relative py-2 cursor-pointer"
         >
           <span className={cn(
-            "text-base sm:text-xl font-display font-black uppercase tracking-tighter transition-all duration-500",
-            selectedCategory === null ? "text-brand-primary italic scale-110" : "opacity-30 hover:opacity-100 text-[var(--brand-text)]"
+            "text-base sm:text-xl font-display font-black uppercase tracking-tighter transition-all duration-300",
+            selectedCategory === null ? "text-brand-primary italic scale-105" : "opacity-40 hover:opacity-100 text-[var(--brand-text)]"
           )}>
             {t('all_categories')}
           </span>
           {selectedCategory === null && (
             <motion.div 
                layoutId="category-underline"
-               className="absolute -bottom-1 h-1 w-full bg-brand-primary rounded-full" 
+               transition={{ type: "spring", stiffness: 450, damping: 32 }}
+               className="absolute -bottom-1 h-1 w-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full shadow-md shadow-brand-primary/50" 
             />
           )}
-        </button>
+        </motion.button>
 
         {categories.map((category) => {
           const isSelected = selectedCategory === category;
           
           return (
-            <button
+            <motion.button
               key={category}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.94 }}
               onClick={() => onSelectCategory(category)}
-              className="flex flex-col items-center gap-2 min-w-fit group transition-all relative py-2"
+              className="flex flex-col items-center gap-1.5 min-w-fit group transition-all relative py-2 cursor-pointer"
             >
               <span className={cn(
-                "text-base sm:text-xl font-display font-black uppercase tracking-tighter transition-all duration-500",
-                isSelected ? "text-brand-primary italic scale-110" : "opacity-30 hover:opacity-100 text-[var(--brand-text)]"
+                "text-base sm:text-xl font-display font-black uppercase tracking-tighter transition-all duration-300",
+                isSelected ? "text-brand-primary italic scale-105" : "opacity-40 hover:opacity-100 text-[var(--brand-text)]"
               )}>
                 {getCategoryLabel(category)}
               </span>
               {isSelected && (
                 <motion.div 
                   layoutId="category-underline"
-                  className="absolute -bottom-1 h-1 w-full bg-brand-primary rounded-full" 
+                  transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  className="absolute -bottom-1 h-1 w-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full shadow-md shadow-brand-primary/50" 
                 />
               )}
-            </button>
+            </motion.button>
           );
         })}
       </div>
