@@ -6,20 +6,20 @@ interface CurtainIntroProps {
 }
 
 export default function CurtainIntro({ onComplete }: CurtainIntroProps) {
-  // Phase state: 'intro' (logo shines) -> 'opening' (curtains slide apart) -> 'done' (unmounted)
-  const [phase, setPhase] = useState<'intro' | 'opening' | 'done'>('intro');
+  // Phase state: 'intro' (logo shines) -> 'rising' (veil rises up) -> 'done' (unmounted)
+  const [phase, setPhase] = useState<'intro' | 'rising' | 'done'>('intro');
 
   useEffect(() => {
-    // 0.85s: Start parting curtains
+    // 0.8s: Start lifting the translucent curtain upwards
     const openTimer = setTimeout(() => {
-      setPhase('opening');
-    }, 850);
+      setPhase('rising');
+    }, 800);
 
-    // 1.8s: Curtains fully open and disappear
+    // 1.7s: Fully lifted, complete and unmount
     const doneTimer = setTimeout(() => {
       setPhase('done');
       if (onComplete) onComplete();
-    }, 1850);
+    }, 1750);
 
     return () => {
       clearTimeout(openTimer);
@@ -38,117 +38,69 @@ export default function CurtainIntro({ onComplete }: CurtainIntroProps) {
     <div 
       className="fixed inset-0 z-[99999] pointer-events-auto overflow-hidden select-none cursor-pointer"
       onClick={handleSkip}
-      title="Click anywhere to open immediately"
     >
-      {/* Left Opera Velvet Curtain */}
+      {/* Translucent Curtain Screen that rises from bottom to top */}
       <motion.div
-        initial={{ x: '0%' }}
-        animate={{ x: phase === 'opening' ? '-100%' : '0%' }}
-        transition={{ duration: 0.95, ease: [0.77, 0, 0.175, 1] }}
-        className="absolute top-0 bottom-0 left-0 w-1/2 bg-gradient-to-r from-red-950 via-red-900 to-amber-950 border-r-2 border-amber-500/40 shadow-2xl flex flex-col justify-between overflow-hidden"
+        initial={{ y: '0%' }}
+        animate={{ y: phase === 'rising' ? '-100%' : '0%' }}
+        transition={{ 
+          duration: 0.95, 
+          ease: [0.76, 0, 0.24, 1] 
+        }}
+        className="absolute inset-0 w-full h-full bg-zinc-950/85 backdrop-blur-xl flex flex-col items-center justify-center shadow-[0_25px_60px_rgba(0,0,0,0.8)] border-b-2 border-brand-primary/50"
       >
-        {/* Velvet Drapery Folds Simulation */}
-        <div className="absolute inset-0 opacity-35 bg-[repeating-linear-gradient(90deg,rgba(0,0,0,0.6)_0px,rgba(255,255,255,0.12)_18px,rgba(0,0,0,0.7)_36px)] pointer-events-none" />
-        
-        {/* Top Gold Valance Drapery Accent */}
-        <div className="relative z-10 w-full h-12 bg-gradient-to-b from-amber-600/40 to-transparent border-b border-amber-400/30" />
+        {/* Ambient Center Glow */}
+        <div className="absolute w-72 sm:w-96 h-72 sm:h-96 bg-brand-primary/20 rounded-full blur-[100px] pointer-events-none animate-pulse" />
 
-        {/* Center Golden Trim Edge */}
-        <div className="absolute right-0 top-0 bottom-0 w-2 bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-lg shadow-amber-500/50" />
-      </motion.div>
-
-      {/* Right Opera Velvet Curtain */}
-      <motion.div
-        initial={{ x: '0%' }}
-        animate={{ x: phase === 'opening' ? '100%' : '0%' }}
-        transition={{ duration: 0.95, ease: [0.77, 0, 0.175, 1] }}
-        className="absolute top-0 bottom-0 right-0 w-1/2 bg-gradient-to-l from-red-950 via-red-900 to-amber-950 border-l-2 border-amber-500/40 shadow-2xl flex flex-col justify-between overflow-hidden"
-      >
-        {/* Velvet Drapery Folds Simulation */}
-        <div className="absolute inset-0 opacity-35 bg-[repeating-linear-gradient(90deg,rgba(0,0,0,0.6)_0px,rgba(255,255,255,0.12)_18px,rgba(0,0,0,0.7)_36px)] pointer-events-none" />
-        
-        {/* Top Gold Valance Drapery Accent */}
-        <div className="relative z-10 w-full h-12 bg-gradient-to-b from-amber-600/40 to-transparent border-b border-amber-400/30" />
-
-        {/* Center Golden Trim Edge */}
-        <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-l from-amber-600 via-yellow-400 to-amber-700 shadow-lg shadow-amber-500/50" />
-      </motion.div>
-
-      {/* Golden Stage Spotlight Vignette */}
-      <div className="absolute inset-0 bg-radial-[at_center_center] from-amber-500/10 via-black/40 to-black/80 pointer-events-none" />
-
-      {/* Center Golden Medallion: Simba Logo & Name */}
-      <AnimatePresence>
-        {phase === 'intro' && (
-          <motion.div
-            key="center-emblem"
-            initial={{ opacity: 0, scale: 0.8, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 1.15, filter: 'blur(8px)', transition: { duration: 0.4 } }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30 px-6"
+        {/* Center Content: Simba Logo and Name Only */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: 'easeOut' }}
+          className="relative z-20 flex flex-col items-center text-center space-y-4 px-6"
+        >
+          {/* Logo with Soft Dynamic Glow */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.04, 1],
+              rotate: [0, 1, -1, 0]
+            }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="relative"
           >
-            {/* Ambient Aura Glow */}
-            <div className="absolute w-64 sm:w-80 h-64 sm:h-80 bg-gradient-to-tr from-amber-500/30 to-brand-primary/40 rounded-full blur-[70px] pointer-events-none animate-pulse" />
-
-            {/* Medallion Badge Container */}
-            <div className="relative bg-zinc-950/85 backdrop-blur-xl border-2 border-amber-400/60 rounded-3xl p-6 sm:p-9 shadow-[0_0_50px_rgba(245,158,11,0.35)] flex flex-col items-center text-center space-y-4 max-w-sm sm:max-w-md mx-auto">
-              
-              {/* Gold Ribbon / Crest Accents */}
-              <div className="absolute -top-3 px-4 py-0.5 bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 rounded-full text-black font-black text-[9px] uppercase tracking-[0.25em] shadow-md">
-                Grand Opening
-              </div>
-
-              {/* Logo with Shimmer Ring */}
-              <motion.div 
-                animate={{ rotate: [0, 2, -2, 0] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                className="relative p-3 rounded-2xl bg-white/5 border border-amber-400/30 shadow-inner"
-              >
-                <img 
-                  src="https://isokko.com/m/media/upload/photos/2024/10/Untitleddesign6_6712450111ff0.png" 
-                  alt="Simba Logo" 
-                  className="h-16 sm:h-20 w-auto object-contain filter drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]"
-                  referrerPolicy="no-referrer"
-                />
-              </motion.div>
-
-              {/* Store Name Typography */}
-              <div className="space-y-1">
-                <motion.h1 
-                  initial={{ letterSpacing: '0.05em' }}
-                  animate={{ letterSpacing: '0.12em' }}
-                  transition={{ duration: 0.8 }}
-                  className="font-display font-black text-3xl sm:text-5xl uppercase italic tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-white to-amber-300 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]"
-                >
-                  SIMBA
-                </motion.h1>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="h-[1px] w-6 bg-gradient-to-r from-transparent to-amber-400" />
-                  <span className="text-amber-400 font-black text-[10px] sm:text-xs tracking-[0.35em] uppercase drop-shadow-md">
-                    SUPERMARKET
-                  </span>
-                  <span className="h-[1px] w-6 bg-gradient-to-l from-transparent to-amber-400" />
-                </div>
-              </div>
-
-              <p className="text-[10px] font-medium tracking-wider text-zinc-400 uppercase">
-                Rwanda’s Premier Retail Experience
-              </p>
-            </div>
-
-            {/* Click to skip hint */}
-            <motion.span 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              transition={{ delay: 0.3 }}
-              className="mt-4 text-[9px] uppercase tracking-widest text-amber-200/60 font-semibold"
-            >
-              Tap anywhere to enter
-            </motion.span>
+            <img 
+              src="https://isokko.com/m/media/upload/photos/2024/10/Untitleddesign6_6712450111ff0.png" 
+              alt="Simba Supermarket" 
+              className="h-20 sm:h-28 w-auto object-contain filter drop-shadow-[0_8px_24px_rgba(238,98,40,0.6)]"
+              referrerPolicy="no-referrer"
+            />
           </motion.div>
-        )}
-      </AnimatePresence>
+
+          {/* Simba Name */}
+          <div className="space-y-1">
+            <motion.h1 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="font-display font-black text-4xl sm:text-6xl uppercase italic tracking-widest text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]"
+            >
+              SIMBA
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, duration: 0.5 }}
+              className="text-xs sm:text-sm font-black uppercase tracking-[0.35em] text-brand-primary drop-shadow-[0_2px_8px_rgba(238,98,40,0.5)]"
+            >
+              SUPERMARKET
+            </motion.p>
+          </div>
+        </motion.div>
+
+        {/* Bottom Curtain Hem with Warm Light Trim */}
+        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-600 via-amber-400 to-brand-primary shadow-[0_0_20px_rgba(245,158,11,0.8)]" />
+      </motion.div>
     </div>
   );
 }
