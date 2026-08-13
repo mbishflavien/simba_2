@@ -373,152 +373,137 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       {/* Hero Section */}
       {!searchQuery && !selectedCategory && (
-        <section className="relative min-h-[90vh] md:min-h-screen flex items-center justify-center overflow-hidden bg-white dark:bg-black w-full" id="welcome-hero-section">
-          {/* Background Image on Right half on desktop, top half on mobile */}
-          <div className="absolute inset-0 z-0 h-[45vh] md:h-full md:w-1/2 md:right-0 md:left-auto">
-            <img 
+        <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-zinc-950 w-full" id="welcome-hero-section">
+          {/* Animated Background Image - Crisp, Vibrant & Authentic Supermarket Atmosphere */}
+          <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none select-none">
+            <motion.img 
               src={landingHero} 
-              alt="Simba Supermarket Premium Storefront" 
-              className="w-full h-full object-cover dark:brightness-90 object-center transition-all duration-700 ease-out"
+              alt="Simba Supermarket Fresh Products & Aisles" 
+              initial={{ scale: 1.02 }}
+              animate={{ 
+                scale: [1.02, 1.10, 1.05, 1.09, 1.02],
+                x: [0, -8, 8, -4, 0],
+                y: [0, 6, -4, 6, 0]
+              }}
+              transition={{
+                duration: 22,
+                repeat: Infinity,
+                repeatType: "reverse",
+                ease: "easeInOut"
+              }}
+              className="w-full h-full object-cover object-center filter brightness-100 contrast-[1.08] saturate-[1.2] transform-gpu"
               referrerPolicy="no-referrer"
             />
-            {/* Crisp Gradient Transition overlays to handle high-contrast text rendering */}
-            <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-black dark:via-black/85 md:hidden" />
-            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/10 to-transparent dark:from-black dark:via-black/20 hidden md:block" />
+            {/* Gentle edge shading only to preserve product vibrancy while keeping text legible */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/45" />
+            <div className="absolute inset-0 bg-radial-[at_center_center] from-transparent via-black/15 to-black/55" />
           </div>
 
-          {/* Main Content Area */}
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 z-10 flex items-center pt-[48vh] md:pt-32 pb-16 md:py-32 animate-fade-in-up">
-            <div className="w-full md:w-[48%] flex flex-col justify-center text-left space-y-6 sm:space-y-10">
+          {/* Main Centered Content Area with Sleek Glass Scrim */}
+          <div className="relative w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 z-10 flex flex-col items-center justify-center text-center py-16 md:py-24">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full flex flex-col items-center justify-center text-center space-y-5 sm:space-y-6 bg-black/45 dark:bg-black/55 backdrop-blur-md rounded-3xl p-6 sm:p-9 border border-white/25 shadow-2xl shadow-black/60"
+            >
               
-              {/* Welcome Badges */}
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="flex flex-wrap items-center gap-3"
-              >
-                <div className="inline-flex items-center gap-3 bg-brand-primary/10 border border-brand-primary/20 hover:border-brand-primary/40 px-5 py-2 rounded-full backdrop-blur-xl transition-all">
-                  <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
-                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-brand-primary italic">
-                    {i18n.language === 'rw' ? 'Murakaza neza i Kigali' : 'Murakaza Neza • A Warm Welcome'}
-                  </span>
-                </div>
-
-                <div 
-                  onClick={() => {
-                    const lng = i18n.language === 'rw' ? 'en' : 'rw';
-                    i18n.changeLanguage(lng);
-                  }}
-                  className="cursor-pointer inline-flex items-center gap-3 bg-brand-accent/20 backdrop-blur-xl border border-brand-accent/30 px-5 py-2 rounded-full hover:bg-brand-accent/40 transition-all group"
-                >
-                  <CheckCircle2 className="h-4 w-4 text-brand-accent" />
-                  <span className="text-[10px] font-black uppercase text-brand-accent tracking-widest italic group-hover:scale-105 transition-transform" id="lang-switch-badge">
-                    {i18n.language === 'rw' ? 'Ururimi: Kinyarwanda' : 'Kinyarwanda Support Ready'}
-                  </span>
-                </div>
-              </motion.div>
-
-              {/* Majestic Hero Copy */}
-              <div className="space-y-4 sm:space-y-6">
+              {/* Brand Header */}
+              <div className="space-y-2.5 max-w-3xl mx-auto">
                 <motion.h1 
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 25 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-4xl sm:text-6xl lg:text-7xl font-display font-black tracking-tighter uppercase italic leading-[0.9] text-zinc-900 dark:text-white"
+                  className="text-4xl sm:text-6xl lg:text-7xl font-display font-black tracking-tighter uppercase italic leading-[0.95] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
                 >
                   SIMBA <span className="text-brand-primary">SUPERMARKET</span>
                 </motion.h1>
                 
                 <motion.p 
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.8 }}
-                  className="text-xs sm:text-sm font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 italic max-w-xl"
+                  className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-widest text-zinc-100 italic max-w-2xl mx-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
                 >
-                  {i18n.language === 'rw' 
-                    ? 'Guhaza ibikenerwa byanyu bya buri munsi kuva mu 2007. Ibicuruzwa byijejwe ubuziranenge.'
-                    : 'Meeting your daily requirements with Rwanda’s finest retail resurgence since 2007. Freshness guaranteed.'}
+                  Meeting your daily requirements with Rwanda’s finest retail resurgence. Freshness guaranteed.
                 </motion.p>
               </div>
 
               {/* Description */}
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
-                className="text-zinc-655 dark:text-zinc-300 text-xs sm:text-sm leading-relaxed max-w-xl space-y-4 font-medium"
+                className="text-zinc-200 text-xs sm:text-sm leading-relaxed max-w-2xl mx-auto space-y-2 font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]"
               >
                 <p>
-                  {i18n.language === 'rw'
-                    ? 'Kuva dushyira ku mugaragaro ishami rya mbere mu gihugu, ubu Simba imaze kugera ku mashami 11 arenga mu Rwanda. Simba Supermarket Ltd izwiho ibiciro binogeye buri wese n’ubuziranenge buhebuje mu biribwa, ibikoresho byo mu nzu, imyambaro, ibikinisho, n’isuku.'
-                    : 'Since inaugurating our flagship store, Simba has stood as Rwanda’s premium retail landmark, now proudly serving you across 11 major branches. We bring clean, hand-inspected local freshness and the finest international imports directly to your basket.'}
+                  Since inaugurating our flagship store, Simba has stood as Rwanda’s premium retail landmark, now proudly serving you across 11 major branches with clean, hand-inspected local freshness and the finest international imports.
                 </p>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-brand-primary opacity-90 italic">
-                  ✦ {i18n.language === 'rw' ? 'Ibyo mutumije bihita bikugeraho mu minota 30 gusa!' : '⚡ Fast-track, temperature-controlled delivery across Kigali in under 30 minutes!'}
+                <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-300 italic">
+                  ⚡ Fast-track, temperature-controlled delivery across Kigali in under 30 minutes!
                 </p>
               </motion.div>
 
-              {/* Call to Actions - Start Shopping Button with Smooth Scroll Down */}
+              {/* Call to Actions - Slimmer, High Standard Buttons */}
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.8 }}
-                className="flex flex-col sm:flex-row gap-4 sm:gap-6 pt-4 w-full sm:max-w-md lg:max-w-none"
+                className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-1 w-full max-w-sm mx-auto"
               >
                 <button 
                   onClick={() => {
                     document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="group bg-brand-primary text-white dark:text-black hover:bg-orange-600 dark:hover:bg-orange-400 py-4 px-8 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all duration-300 transform active:scale-98 shadow-xl shadow-brand-primary/20 italic cursor-pointer btn-primary"
+                  className="w-full sm:w-auto group bg-brand-primary hover:bg-orange-600 text-white py-2.5 sm:py-3 px-6 sm:px-7 rounded-full font-black text-xs uppercase tracking-[0.18em] flex items-center justify-center gap-2.5 transition-all duration-200 transform active:scale-95 shadow-xl shadow-brand-primary/30 italic cursor-pointer"
                   id="welcome-shop-btn"
                 >
-                  <ShoppingBag className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                  <ShoppingBag className="h-4 w-4 group-hover:scale-110 transition-transform" />
                   {t('start_shopping')}
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1.5 transition-transform" />
+                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 <Link 
                   to="/about" 
-                  className="group bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 hover:border-brand-primary/50 text-zinc-800 dark:text-white py-4 px-8 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all duration-300 transform active:scale-98 italic"
+                  className="w-full sm:w-auto group bg-white/20 hover:bg-white/30 text-white border border-white/40 backdrop-blur-md py-2.5 sm:py-3 px-6 sm:px-7 rounded-full font-black text-xs uppercase tracking-[0.18em] flex items-center justify-center gap-2.5 transition-all duration-200 transform active:scale-95 italic shadow-lg"
                   id="welcome-about-btn"
                 >
-                  <Info className="h-5 w-5 text-brand-primary" />
-                  {i18n.language === 'rw' ? 'Amakuru Yacu' : 'About Simba'}
+                  <Info className="h-4 w-4 text-brand-primary" />
+                  About Simba
                 </Link>
               </motion.div>
 
-              {/* Quick Value Preps */}
+              {/* Quick Value Preps - Centered Grid */}
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5, duration: 1 }}
-                className="grid grid-cols-3 gap-4 pt-8 border-t border-zinc-200 dark:border-zinc-805 max-w-xl"
+                transition={{ delay: 0.5, duration: 0.8 }}
+                className="grid grid-cols-3 gap-3 sm:gap-6 pt-5 border-t border-white/20 max-w-xl w-full mx-auto"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-brand-primary">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">30 Min Delivery</span>
+                <div className="space-y-0.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-brand-primary">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white">30 Min Delivery</span>
                   </div>
-                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-400 uppercase">Realtime fleet</p>
+                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-300 uppercase">Realtime fleet</p>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-brand-primary">
-                    <ShieldCheck className="h-4 w-4" />
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">Quality Pick</span>
+                <div className="space-y-0.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-brand-primary">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white">Quality Pick</span>
                   </div>
-                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-400 uppercase">Double-inspected</p>
+                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-300 uppercase">Double-inspected</p>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-brand-primary">
-                    <Award className="h-4 w-4" />
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">11 Branches</span>
+                <div className="space-y-0.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-brand-primary">
+                    <Award className="h-3.5 w-3.5" />
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white">11 Branches</span>
                   </div>
-                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-400 uppercase">Across Rwanda</p>
+                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-300 uppercase">Across Rwanda</p>
                 </div>
               </motion.div>
 
-            </div>
+            </motion.div>
           </div>
         </section>
       )}

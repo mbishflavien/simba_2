@@ -10,6 +10,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { ArrowLeft, ShoppingCart, ShieldCheck, Truck, RefreshCcw, Star, Send, MessageSquare, Package, Heart, Share2, Link as LinkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
+import { get789Products } from '../services/catalogLoader';
 
 interface ProductReview {
   id: string;
@@ -41,11 +42,22 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!id) return;
 
-    // Fetch product
-    const unsubscribeProd = onSnapshot(doc(db, 'products', id), (doc) => {
-      if (doc.exists()) {
-        setProduct({ id: doc.id, ...doc.data() } as unknown as Product);
+    // Instant local catalog load for zero latency
+    const localCatalog = get789Products();
+    const immediateMatch = localCatalog.find(p => String(p.id) === String(id));
+    if (immediateMatch) {
+      setProduct(immediateMatch);
+      setIsLoading(false);
+    }
+
+    // Fetch live product from Firestore
+    const unsubscribeProd = onSnapshot(doc(db, 'products', id), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        setProduct({ id: docSnapshot.id, ...docSnapshot.data() } as unknown as Product);
       }
+      setIsLoading(false);
+    }, (error) => {
+      console.warn("Firestore product snapshot fallback:", error);
       setIsLoading(false);
     });
 
@@ -56,8 +68,10 @@ export default function ProductDetail() {
       orderBy('createdAt', 'desc')
     );
     const unsubscribeReviews = onSnapshot(q, (snapshot) => {
-      const revs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProductReview));
+      const revs = snapshot.docs.map(docSnapshot => ({ id: docSnapshot.id, ...docSnapshot.data() } as ProductReview));
       setReviews(revs);
+    }, (error) => {
+      console.warn("Firestore review fetch non-blocking error:", error);
     });
 
     return () => {

@@ -39,10 +39,12 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
     >
       <Link to={`/product/${product.id}`} className="aspect-square w-full bg-white dark:bg-zinc-950 rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-200 dark:border-white/10 flex-shrink-0">
         <motion.img
-          whileHover={{ scale: 1.12 }}
+          whileHover={{ scale: 1.08 }}
           src={product.image}
           alt={product.name}
-          className="w-full h-full object-contain p-4 transition-transform duration-700"
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-contain p-4 transition-transform duration-300 transform-gpu"
           referrerPolicy="no-referrer"
           onError={(e) => {
             e.currentTarget.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600";

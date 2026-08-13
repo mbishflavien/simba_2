@@ -240,9 +240,55 @@ export default function Navbar() {
     { code: 'rw', label: 'Kinyarwanda', short: 'RW' },
   ];
 
+  // Smart sticky navbar that reveals on scroll gesture
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const [isScrolledPast, setIsScrolledPast] = useState(false);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const onScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      setIsScrolledPast(currentScrollY > 60);
+
+      // Always visible near top
+      if (currentScrollY <= 80) {
+        setIsNavVisible(true);
+      } else if (isMenuOpen || showSuggestions || isSearchOpen) {
+        // Keep visible when user is interacting with menu or search
+        setIsNavVisible(true);
+      } else if (currentScrollY < lastScrollY - 4) {
+        // User scrolls up even a fraction -> immediately drop down the navbar
+        setIsNavVisible(true);
+      } else if (currentScrollY > lastScrollY + 12 && currentScrollY > 150) {
+        // User scrolls down continuously -> tuck away to maximize screen space
+        setIsNavVisible(false);
+      }
+
+      lastScrollY = currentScrollY > 0 ? currentScrollY : 0;
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(onScroll);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMenuOpen, showSuggestions, isSearchOpen]);
+
   return (
     <>
-      <nav className="nav-blur sticky top-0 z-[100]">
+      <nav 
+        className={`nav-blur sticky top-0 z-[100] transition-transform duration-300 ease-out transform-gpu ${
+          isNavVisible ? 'translate-y-0' : '-translate-y-full'
+        } ${isScrolledPast ? 'shadow-lg border-b border-[var(--brand-border)]' : ''}`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-24">
           {/* Logo */}
@@ -269,15 +315,15 @@ export default function Navbar() {
           <div className="hidden xl:flex items-center gap-2 xl:gap-8 min-w-0">
             <form 
               onSubmit={handleSearch} 
-              className="relative group flex items-center flex-shrink-0 transition-all duration-300 ease-out"
+              className="relative group flex items-center flex-shrink-0"
               style={{ 
                 width: `${isSearchFocused 
-                  ? Math.min(450, Math.max(260, searchQuery.length * 8 + 140))
-                  : (searchQuery ? Math.min(450, Math.max(220, searchQuery.length * 8 + 140)) : 220)}px`,
-                transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+                  ? Math.min(480, Math.max(280, searchQuery.length * 9 + 160))
+                  : (searchQuery ? Math.min(480, Math.max(240, searchQuery.length * 9 + 160)) : 240)}px`,
+                transition: 'width 250ms cubic-bezier(0.16, 1, 0.3, 1)'
               }}
             >
-              <Search className="absolute left-6 h-5 w-5 text-zinc-500 dark:text-white/30 group-focus-within:text-brand-primary transition-colors" />
+              <Search className="absolute left-5 h-4 w-4 text-zinc-400 dark:text-white/40 group-focus-within:text-brand-primary transition-colors pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
@@ -292,7 +338,7 @@ export default function Navbar() {
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-3 pl-14 pr-16 text-xs xl:text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-8 focus:ring-brand-primary/5 transition-all placeholder:text-zinc-400 dark:placeholder:text-white/20 text-black dark:text-white shadow-xl group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
+                className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-white/10 rounded-full py-2.5 pl-12 pr-20 text-xs xl:text-sm font-bold uppercase tracking-tight focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-zinc-400 dark:placeholder:text-white/30 text-black dark:text-white shadow-md group-hover:border-zinc-400 dark:group-hover:border-white/20 italic"
               />
               {searchQuery && (
                 <button 
@@ -302,25 +348,27 @@ export default function Navbar() {
                     setShowSuggestions(false);
                     navigate('/shop');
                   }}
-                  className="absolute right-12 top-1/2 -translate-y-1/2 text-black/50 dark:text-white/30 hover:text-brand-primary transition-colors p-2"
+                  className="absolute right-12 top-1/2 -translate-y-1/2 text-black/50 dark:text-white/40 hover:text-brand-primary transition-colors p-1.5 cursor-pointer"
+                  aria-label="Clear search"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               )}
-              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-black/40 dark:text-white/20 tracking-tighter uppercase border border-zinc-300 dark:border-white/10 px-2 py-1 rounded pointer-events-none hidden xl:block">⌘K</div>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-black/40 dark:text-white/30 tracking-tighter uppercase border border-zinc-300 dark:border-white/10 px-1.5 py-0.5 rounded pointer-events-none hidden xl:block">⌘K</div>
               
               {/* Desktop Suggestions */}
               <AnimatePresence>
                 {showSuggestions && suggestions.length > 0 && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full left-0 xl:left-auto xl:right-0 mt-2 w-[450px] max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1"
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className="absolute top-full left-0 xl:left-auto xl:right-0 mt-2 w-[460px] max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1"
                   >
                     <div className="px-4 py-2 border-b border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-white/5 flex items-center justify-between">
                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 italic">{t('suggestions')}</span>
-                      <span className="text-[8px] font-black text-brand-primary uppercase tracking-widest animate-pulse">client-side search</span>
+                      <span className="text-[8px] font-black text-brand-primary uppercase tracking-widest">instant match</span>
                     </div>
                     {suggestions.map((s, idx) => {
                       const isProduct = s.type === 'product';
@@ -346,10 +394,12 @@ export default function Navbar() {
                           {isProduct ? (
                             <>
                               {/* Thumbnail Image */}
-                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-zinc-850 flex-shrink-0 overflow-hidden flex items-center justify-center border border-zinc-200 dark:border-white/10 transition-transform group-hover:scale-105 duration-300">
+                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-zinc-850 flex-shrink-0 overflow-hidden flex items-center justify-center border border-zinc-200 dark:border-white/10 transition-transform group-hover:scale-105 duration-200">
                                 <img 
                                   src={s.image} 
                                   alt={s.value} 
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-contain p-1"
                                   referrerPolicy="no-referrer"
                                   onError={(e) => {
@@ -775,6 +825,8 @@ export default function Navbar() {
                               <img 
                                 src={s.image} 
                                 alt={s.value} 
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-contain p-1"
                                 referrerPolicy="no-referrer"
                                 onError={(e) => {

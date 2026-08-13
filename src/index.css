@@ -41,38 +41,61 @@
     --brand-card-hover: rgba(255, 255, 255, 0.03);
   }
 
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
+
   body {
     background-color: var(--brand-bg);
     color: var(--brand-text);
     overflow-x: hidden;
-    @apply antialiased transition-colors duration-300 font-sans selection:bg-brand-primary/30 selection:text-white;
+    @apply antialiased transition-colors duration-200 font-sans selection:bg-brand-primary/30 selection:text-white;
   }
 
   /* Custom Scrollbar - Premium Feel */
   ::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-brand-primary/20 rounded-full hover:bg-brand-primary/40 transition-colors;
+    @apply bg-brand-primary/30 rounded-full hover:bg-brand-primary/60 transition-colors;
   }
 }
 
 @layer components {
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity;
+  }
+
   .btn-primary {
-    @apply bg-brand-primary text-white dark:text-black px-8 py-4 rounded-full font-bold text-sm transition-all hover:bg-orange-600 dark:hover:bg-orange-400 active:scale-95 flex items-center justify-center gap-3 italic shadow-lg shadow-brand-primary/20;
+    @apply bg-brand-primary text-white dark:text-black px-8 py-4 rounded-full font-bold text-sm transition-all hover:bg-orange-600 dark:hover:bg-orange-400 active:scale-95 flex items-center justify-center gap-3 italic shadow-lg shadow-brand-primary/20 cursor-pointer;
   }
   
   .card-gradient {
     background-color: var(--brand-card);
     border: 1px solid var(--brand-border);
-    @apply rounded-[40px] overflow-hidden transition-all duration-500 hover:bg-[var(--brand-card-hover)] hover:border-brand-primary/30 hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-brand-primary/5;
+    @apply rounded-[40px] overflow-hidden transition-all duration-300 hover:bg-[var(--brand-card-hover)] hover:border-brand-primary/30 hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-brand-primary/5;
   }
 
   .nav-blur {
-    @apply sticky top-0 z-50 backdrop-blur-3xl transition-all duration-300 w-full;
+    @apply sticky top-0 z-50 backdrop-blur-3xl transition-all duration-200 w-full;
     background-color: var(--brand-nav);
     border-bottom: 1px solid var(--brand-border);
   }
