@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CartProvider } from './hooks/useCart';
 import { WishlistProvider } from './hooks/useWishlist';
 import { AuthProvider, useAuth } from './components/AuthProvider';
@@ -10,6 +10,7 @@ import Home from './pages/Home';
 import Welcome from './pages/Welcome';
 import FloatingCartBar from './components/FloatingCartBar';
 import WishlistDrawer from './components/WishlistDrawer';
+import CurtainIntro from './components/CurtainIntro';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import AboutUs from './pages/AboutUs';
@@ -51,6 +52,10 @@ function AppLayout() {
   const { profile } = useAuth();
   const isAdmin = profile?.isAdmin;
   const isAdminPage = pathname === '/admin';
+  const [showCurtains, setShowCurtains] = useState(() => {
+    // Show on initial page load / refresh
+    return true;
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');
@@ -68,6 +73,7 @@ function AppLayout() {
 
   return (
     <div className="flex flex-col min-h-screen overflow-x-hidden w-full relative">
+      {showCurtains && <CurtainIntro onComplete={() => setShowCurtains(false)} />}
       {!hideGlobalUI && <Navbar />}
       <div className="flex-grow">
         <Routes>
