@@ -73,9 +73,16 @@ function AppLayout() {
 
   return (
     <div className="flex flex-col min-h-screen overflow-x-hidden w-full relative">
+      {/* Ambient background light orbs for global glassmorphism depth */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-30 dark:opacity-20 select-none">
+        <div className="absolute -top-[15%] -left-[10%] w-[55vw] aspect-square rounded-full bg-gradient-to-br from-orange-500/25 to-amber-500/10 blur-[130px] transform-gpu" />
+        <div className="absolute top-[35%] -right-[15%] w-[50vw] aspect-square rounded-full bg-gradient-to-bl from-orange-600/20 to-yellow-500/10 blur-[140px] transform-gpu" />
+        <div className="absolute -bottom-[15%] left-[20%] w-[45vw] aspect-square rounded-full bg-gradient-to-tr from-amber-500/15 to-orange-500/10 blur-[120px] transform-gpu" />
+      </div>
+
       {showCurtains && <CurtainIntro onComplete={() => setShowCurtains(false)} />}
       {!hideGlobalUI && <Navbar />}
-      <div className="flex-grow">
+      <div className="flex-grow relative z-10">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Home />} />

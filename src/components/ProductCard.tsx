@@ -37,9 +37,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -6 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="card-gradient p-5 flex flex-col group h-full transition-shadow duration-300 hover:shadow-2xl hover:shadow-brand-primary/10"
+      className="card-gradient p-5 flex flex-col group h-full"
     >
-      <Link to={`/product/${product.id}`} className="aspect-square w-full bg-white dark:bg-zinc-950 rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group/img shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-200 dark:border-white/10 flex-shrink-0">
+      <Link to={`/product/${product.id}`} className="aspect-square w-full bg-white/70 dark:bg-black/50 backdrop-blur-md rounded-[32px] mb-6 flex items-center justify-center relative overflow-hidden group/img shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-none border border-black/5 dark:border-white/10 flex-shrink-0">
         <motion.img
           whileHover={{ scale: 1.12, rotate: 1 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -54,8 +54,8 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
           }}
         />
         {!product.inStock && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
-            <span className="micro-label text-white !opacity-100">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[6px] flex items-center justify-center">
+            <span className="micro-label text-white !opacity-100 font-bold tracking-widest uppercase">
               {t('out_of_stock')}
             </span>
           </div>
@@ -63,7 +63,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
         
         {/* Quick View Button Hover Overlay */}
         {product.inStock && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
+          <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px] opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10 pointer-events-none">
             <motion.button
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.94 }}
@@ -72,7 +72,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
                 e.stopPropagation();
                 setQuickViewOpen(true);
               }}
-              className="bg-brand-primary hover:bg-orange-600 text-white font-black uppercase text-[10px] tracking-widest px-6 py-3 rounded-full shadow-lg transform translate-y-4 group-hover/img:translate-y-0 transition-all duration-300 pointer-events-auto flex items-center gap-2 cursor-pointer"
+              className="bg-brand-primary/95 hover:bg-brand-primary text-white font-black uppercase text-[10px] tracking-widest px-6 py-3 rounded-full shadow-xl backdrop-blur-md transform translate-y-4 group-hover/img:translate-y-0 transition-all duration-300 pointer-events-auto flex items-center gap-2 cursor-pointer border border-white/20"
             >
               <Eye className="h-4 w-4" />
               Quick View
@@ -89,10 +89,10 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
             toggleWishlist(product);
           }}
           className={cn(
-            "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border border-white/20 group/heart z-20 cursor-pointer shadow-md",
+            "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-xl border z-20 cursor-pointer shadow-md",
             isInWishlist(product.id) 
-               ? "bg-rose-500 text-white border-rose-500 shadow-rose-500/40" 
-               : "bg-black/30 text-white/70 hover:text-white"
+               ? "bg-rose-500 text-white border-rose-400 shadow-rose-500/40" 
+               : "bg-white/80 dark:bg-black/60 text-zinc-700 dark:text-white/80 border-black/10 dark:border-white/20 hover:text-white hover:bg-rose-500 hover:border-rose-500"
           )}
           aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
         >
@@ -157,18 +157,18 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
               <motion.div 
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1 shadow-inner"
+                className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 backdrop-blur-md rounded-2xl p-1 border border-black/5 dark:border-white/10"
               >
                 <button
                   onClick={(e) => { e.preventDefault(); updateQuantity(product.id, cartItem.quantity - 1); }}
-                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-black/5 dark:border-white/10 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
                 >
                   <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
                 <span className="w-6 sm:w-8 text-center font-black text-[10px] sm:text-xs text-[var(--brand-text)] italic">{cartItem.quantity}</span>
                 <button
                   onClick={(e) => { e.preventDefault(); updateQuantity(product.id, cartItem.quantity + 1); }}
-                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-black/5 dark:border-white/10 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
                 >
                   <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
@@ -184,12 +184,12 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
                 }}
                 disabled={!product.inStock}
                 className={cn(
-                  "px-2 sm:px-8 h-10 sm:h-12 rounded-2xl flex items-center justify-center gap-1 sm:gap-3 transition-all duration-500 relative font-black uppercase tracking-tight sm:tracking-[0.2em] italic text-[8px] sm:text-[10px] shadow-xl whitespace-nowrap",
+                  "px-2 sm:px-8 h-10 sm:h-12 rounded-2xl flex items-center justify-center gap-1 sm:gap-3 transition-all duration-500 relative font-black uppercase tracking-tight sm:tracking-[0.2em] italic text-[8px] sm:text-[10px] shadow-xl whitespace-nowrap backdrop-blur-md",
                   product.inStock
                     ? isAdded 
                       ? "bg-green-500 text-white shadow-green-500/20"
-                      : "bg-black dark:bg-white text-white dark:text-black hover:bg-brand-primary dark:hover:bg-brand-primary hover:text-white dark:hover:text-white shadow-black/10"
-                    : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                      : "bg-black/90 dark:bg-white/90 text-white dark:text-black hover:bg-brand-primary dark:hover:bg-brand-primary hover:text-white dark:hover:text-white border border-white/10 dark:border-black/10"
+                    : "bg-zinc-200/60 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
                 )}
               >
                 <AnimatePresence mode="wait">
@@ -223,26 +223,26 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
       {/* Quick View Modal Overlay */}
       <AnimatePresence>
         {quickViewOpen && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-xl z-[9999] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 p-6 sm:p-10 rounded-[32px] max-w-lg w-full relative space-y-6 shadow-2xl overflow-y-auto max-h-[95vh] text-[var(--brand-text)]"
+              className="bg-white/85 dark:bg-zinc-950/85 backdrop-blur-3xl border border-white/40 dark:border-white/10 p-6 sm:p-10 rounded-[36px] max-w-lg w-full relative space-y-6 shadow-2xl overflow-y-auto max-h-[95vh] text-[var(--brand-text)]"
             >
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setQuickViewOpen(false);
                 }}
-                className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-brand-primary hover:bg-zinc-500/10 rounded-full transition-all cursor-pointer"
+                className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-brand-primary bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer backdrop-blur-md"
                 aria-label="Close modal"
               >
                 <X className="h-6 w-6" />
               </button>
 
-              <div className="aspect-square w-48 h-48 mx-auto bg-white p-4 rounded-[28px] border border-zinc-100 flex items-center justify-center relative shadow-sm shrink-0">
+              <div className="aspect-square w-48 h-48 mx-auto bg-white/70 dark:bg-black/50 backdrop-blur-md p-4 rounded-[28px] border border-black/5 dark:border-white/10 flex items-center justify-center relative shadow-inner shrink-0">
                 <img 
                   src={product.image} 
                   alt={product.name} 
@@ -254,10 +254,10 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
 
               <div className="space-y-4 text-center sm:text-left">
                 <div className="flex flex-wrap gap-2 items-center justify-center sm:justify-start">
-                  <span className="micro-label bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-3 py-1 rounded-full">
+                  <span className="micro-label bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-3 py-1 rounded-full backdrop-blur-md">
                     {product.category}
                   </span>
-                  <span className="micro-label border border-zinc-200 dark:border-white/10 px-3 py-1 rounded-full text-zinc-500">
+                  <span className="micro-label border border-black/10 dark:border-white/10 px-3 py-1 rounded-full text-zinc-500 backdrop-blur-md">
                     {product.unit}
                   </span>
                 </div>
@@ -284,7 +284,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
                 )}
               </div>
 
-              <div className="pt-6 border-t border-zinc-100 dark:border-white/5 flex flex-col sm:flex-row gap-4 items-center">
+              <div className="pt-6 border-t border-black/5 dark:border-white/10 flex flex-col sm:flex-row gap-4 items-center">
                 <Link
                   to={`/product/${product.id}`}
                   onClick={() => setQuickViewOpen(false)}
@@ -295,17 +295,17 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
 
                 <div className="w-full sm:flex-1 flex justify-end">
                   {cartItem ? (
-                    <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1 shadow-inner w-full sm:w-auto justify-between sm:justify-start">
+                    <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-2xl p-1 shadow-inner w-full sm:w-auto justify-between sm:justify-start">
                       <button
                         onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartItem.quantity - 1); }}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-black/5 dark:border-white/10 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
                       >
                         <Minus className="h-4 w-4" />
                       </button>
                       <span className="w-10 text-center font-black text-xs text-[var(--brand-text)] italic">{cartItem.quantity}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartItem.quantity + 1); }}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-black/5 dark:border-white/10 hover:bg-brand-primary hover:text-white transition-all shadow-sm"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
@@ -316,7 +316,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
                         e.stopPropagation();
                         handleAddToCart();
                       }}
-                      className="w-full sm:w-auto bg-black dark:bg-white hover:bg-brand-primary dark:hover:bg-brand-primary text-white dark:text-black hover:text-white dark:hover:text-white font-black uppercase tracking-widest text-xs py-4 px-8 rounded-full shadow-lg transition-all"
+                      className="w-full sm:w-auto bg-black/90 dark:bg-white/90 hover:bg-brand-primary dark:hover:bg-brand-primary text-white dark:text-black hover:text-white dark:hover:text-white font-black uppercase tracking-widest text-xs py-4 px-8 rounded-full shadow-xl transition-all backdrop-blur-md border border-white/20 dark:border-black/20"
                     >
                       {isAdded ? "Added!" : "Add to Cart"}
                     </button>

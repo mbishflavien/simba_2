@@ -22,23 +22,27 @@
 
 @layer base {
   :root {
-    --brand-bg: #f5f5f5;
+    --brand-bg: #f7f7f8;
     --brand-text: #080808;
-    --brand-text-muted: rgba(0, 0, 0, 0.4);
-    --brand-card: #ffffff;
-    --brand-border: rgba(0, 0, 0, 0.06);
+    --brand-text-muted: rgba(0, 0, 0, 0.5);
+    --brand-card: rgba(255, 255, 255, 0.72);
+    --brand-card-hover: rgba(255, 255, 255, 0.88);
+    --brand-border: rgba(0, 0, 0, 0.08);
     --brand-nav: rgba(255, 255, 255, 0.65);
-    --brand-card-hover: rgba(249, 115, 22, 0.02);
+    --brand-glass-highlight: rgba(255, 255, 255, 0.9);
+    --brand-glass-border: rgba(255, 255, 255, 0.6);
   }
 
   .dark {
-    --brand-bg: #050505;
+    --brand-bg: #070707;
     --brand-text: #ffffff;
-    --brand-text-muted: rgba(255, 255, 255, 0.3);
-    --brand-card: rgba(18, 18, 18, 1);
-    --brand-border: rgba(255, 255, 255, 0.08);
+    --brand-text-muted: rgba(255, 255, 255, 0.45);
+    --brand-card: rgba(18, 18, 18, 0.68);
+    --brand-card-hover: rgba(26, 26, 26, 0.82);
+    --brand-border: rgba(255, 255, 255, 0.12);
     --brand-nav: rgba(10, 10, 10, 0.65);
-    --brand-card-hover: rgba(255, 255, 255, 0.03);
+    --brand-glass-highlight: rgba(255, 255, 255, 0.15);
+    --brand-glass-border: rgba(255, 255, 255, 0.14);
   }
 
   html {
@@ -91,13 +95,61 @@
   .card-gradient {
     background-color: var(--brand-card);
     border: 1px solid var(--brand-border);
-    @apply rounded-[40px] overflow-hidden transition-all duration-300 hover:bg-[var(--brand-card-hover)] hover:border-brand-primary/30 hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-brand-primary/5;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 var(--brand-glass-highlight);
+    @apply rounded-[36px] overflow-hidden transition-all duration-300 hover:bg-[var(--brand-card-hover)] hover:border-brand-primary/40 hover:shadow-2xl hover:shadow-brand-primary/10;
+  }
+
+  .glass-panel {
+    background-color: var(--brand-card);
+    border: 1px solid var(--brand-border);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.08), inset 0 1px 1px 0 var(--brand-glass-highlight);
+    @apply rounded-[32px] transition-all duration-300;
+  }
+
+  .glass-panel-interactive {
+    background-color: var(--brand-card);
+    border: 1px solid var(--brand-border);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.06), inset 0 1px 1px 0 var(--brand-glass-highlight);
+    @apply rounded-[28px] transition-all duration-300 hover:bg-[var(--brand-card-hover)] hover:border-brand-primary/40 hover:shadow-2xl hover:-translate-y-1;
+  }
+
+  .glass-pill {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--brand-border);
+    @apply rounded-full px-3.5 py-1.5 transition-all text-xs font-semibold;
+  }
+
+  .dark .glass-pill {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .glass-input {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background-color: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--brand-border);
+    @apply rounded-2xl transition-all outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10;
+  }
+
+  .dark .glass-input {
+    background-color: rgba(20, 20, 20, 0.6);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 
   .nav-blur {
     @apply sticky top-0 z-50 backdrop-blur-3xl transition-all duration-200 w-full;
     background-color: var(--brand-nav);
     border-bottom: 1px solid var(--brand-border);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
   }
 
   .micro-label {
@@ -110,7 +162,9 @@
   }
 
   .glass-surface {
-    @apply bg-white/5 backdrop-blur-md border border-white/10;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    @apply bg-white/40 dark:bg-white/5 border border-black/5 dark:border-white/10 shadow-lg;
   }
 
   /* Leaflet Custom Styles */

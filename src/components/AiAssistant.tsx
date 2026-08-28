@@ -206,12 +206,12 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
             initial={{ opacity: 0, scale: 0.8, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 50 }}
-            className="fixed bottom-28 right-8 z-[100] w-[90vw] max-w-[420px] h-[650px] bg-white dark:bg-zinc-950 border border-brand-border rounded-[40px] shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-28 right-8 z-[100] w-[90vw] max-w-[420px] h-[650px] bg-white/85 dark:bg-zinc-950/85 backdrop-blur-3xl border border-white/40 dark:border-white/10 rounded-[40px] shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="p-8 border-b border-brand-border flex items-center justify-between bg-brand-primary/5">
+            <div className="p-8 border-b border-black/5 dark:border-white/10 flex items-center justify-between bg-white/40 dark:bg-white/5 backdrop-blur-xl">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
+                <div className="w-12 h-12 rounded-2xl bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/25">
                   <Bot className="h-6 w-6 text-white animate-bounce" />
                 </div>
                 <div>
@@ -228,14 +228,14 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                   <button
                     onClick={handleClearHistory}
                     title="Clear Conversation"
-                    className="p-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl transition-colors text-zinc-400 hover:text-rose-500"
+                    className="p-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-2xl transition-colors text-zinc-400 hover:text-rose-500 backdrop-blur-md"
                   >
                     <Trash2 className="h-5 w-5" />
                   </button>
                 )}
                 <button 
                   onClick={() => setIsOpen(false)}
-                  className="p-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                  className="p-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-2xl transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 backdrop-blur-md"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -250,7 +250,7 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
             >
               {messages.length === 0 && (
                 <div className="py-8 text-center space-y-8">
-                  <div className="w-20 h-20 mx-auto rounded-full bg-brand-primary/10 flex items-center justify-center">
+                  <div className="w-20 h-20 mx-auto rounded-full bg-brand-primary/10 flex items-center justify-center backdrop-blur-md border border-brand-primary/20">
                     <MessageSquare className="h-10 w-10 text-brand-primary opacity-40 shrink-0" />
                   </div>
                   <div className="space-y-2">
@@ -267,7 +267,7 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                       <button
                         key={suggestion}
                         onClick={() => handleSendMessage(suggestion)}
-                        className="p-4 bg-black/5 dark:bg-white/5 border border-brand-border rounded-2xl text-[10px] font-black uppercase tracking-widest text-left hover:border-brand-primary/50 hover:bg-brand-primary/5 hover:text-brand-primary transition-all cursor-pointer"
+                        className="p-4 bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest text-left hover:border-brand-primary/50 hover:bg-brand-primary/10 hover:text-brand-primary transition-all cursor-pointer shadow-sm"
                       >
                         {suggestion}
                       </button>
@@ -282,10 +282,10 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                   <div key={i} className="space-y-3">
                     <div className={cn("flex", m.role === 'user' ? "justify-end" : "justify-start")}>
                       <div className={cn(
-                        "max-w-[85%] p-5 rounded-[24px] text-xs leading-relaxed transition-all duration-350 shadow-sm",
+                        "max-w-[85%] p-5 rounded-[24px] text-xs leading-relaxed transition-all duration-350 shadow-sm backdrop-blur-md",
                         m.role === 'user' 
-                          ? "bg-brand-primary text-white rounded-tr-none shadow-md shadow-brand-primary/10 font-bold" 
-                          : "bg-black/5 dark:bg-white/5 border border-brand-border text-[var(--brand-text)] rounded-tl-none font-medium"
+                          ? "bg-brand-primary text-white rounded-tr-none shadow-lg shadow-brand-primary/20 font-bold" 
+                          : "bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 text-[var(--brand-text)] rounded-tl-none font-medium"
                       )}>
                         {m.role === 'user' ? (
                           <div className="font-extrabold">{m.content}</div>
@@ -298,11 +298,11 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                     {/* Meta information tags for e-commerce parsing */}
                     {m.role === 'assistant' && m.searchIntent?.isSearch && (
                       <div className="flex flex-wrap gap-1.5 pl-2 items-center">
-                        <span className="text-[8px] font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md uppercase tracking-wider italic">
+                        <span className="text-[8px] font-black bg-brand-primary/15 text-brand-primary px-2 py-0.5 rounded-md uppercase tracking-wider italic backdrop-blur-md">
                           🔍 Parsed Query
                         </span>
                         {m.searchIntent.category && (
-                          <span className="text-[8px] font-black bg-neutral-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-2 py-0.5 rounded-md uppercase tracking-wider italic">
+                          <span className="text-[8px] font-black bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 px-2 py-0.5 rounded-md uppercase tracking-wider italic backdrop-blur-md">
                             Category: {m.searchIntent.category}
                           </span>
                         )}
@@ -324,12 +324,12 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                             return (
                               <div 
                                 key={p.id} 
-                                className="bg-white dark:bg-zinc-900 border border-brand-border/80 dark:border-white/5 rounded-3xl p-3.5 w-[155px] shrink-0 flex flex-col hover:border-brand-primary/40 transition-all shadow-[0_4px_15px_rgba(0,0,0,0.02)] snap-start hover:-y-1"
+                                className="bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-black/5 dark:border-white/10 rounded-3xl p-3.5 w-[155px] shrink-0 flex flex-col hover:border-brand-primary/40 transition-all shadow-md snap-start hover:-translate-y-1"
                               >
                                 <Link 
                                   to={`/product/${p.id}`} 
                                   onClick={() => setIsOpen(false)}
-                                  className="aspect-square bg-zinc-50 dark:bg-zinc-950 rounded-2xl flex items-center justify-center p-2 mb-2 relative group overflow-hidden border border-brand-border/40"
+                                  className="aspect-square bg-white/80 dark:bg-black/60 rounded-2xl flex items-center justify-center p-2 mb-2 relative group overflow-hidden border border-black/5 dark:border-white/10 backdrop-blur-md"
                                 >
                                   <img 
                                     src={p.image} 
@@ -338,7 +338,7 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                                     referrerPolicy="no-referrer"
                                   />
                                   {!p.inStock && (
-                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-2xl">
+                                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center rounded-2xl">
                                       <span className="text-[8px] font-black text-white uppercase tracking-wider">Out of Stock</span>
                                     </div>
                                   )}
@@ -361,12 +361,12 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                                       disabled={!p.inStock}
                                       onClick={() => addToCart(p)}
                                       className={cn(
-                                        "w-full py-2 rounded-xl text-[8px] font-extrabold uppercase tracking-widest flex items-center justify-center gap-1 transition-all cursor-pointer",
+                                        "w-full py-2 rounded-xl text-[8px] font-extrabold uppercase tracking-widest flex items-center justify-center gap-1 transition-all cursor-pointer backdrop-blur-md",
                                         isItemInCart 
-                                          ? "bg-green-500/15 text-green-500 border border-green-500/20 font-black" 
+                                          ? "bg-green-500/20 text-green-500 border border-green-500/30 font-black" 
                                           : p.inStock
-                                            ? "bg-brand-primary text-white hover:bg-brand-primary/95 hover:scale-105 active:scale-95 disabled:hover:scale-100 shadow-sm shadow-brand-primary/10"
-                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 border border-transparent"
+                                            ? "bg-brand-primary text-white hover:bg-brand-primary/95 hover:scale-105 active:scale-95 disabled:hover:scale-100 shadow-md shadow-brand-primary/20"
+                                            : "bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-600 border border-transparent"
                                       )}
                                     >
                                       {isItemInCart ? (
@@ -395,7 +395,7 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
 
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-black/5 dark:bg-white/5 border border-brand-border p-5 rounded-[24px] rounded-tl-none flex items-center justify-center gap-2">
+                  <div className="bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md p-5 rounded-[24px] rounded-tl-none flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-brand-primary" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 italic">Thinking...</span>
                   </div>
@@ -404,7 +404,7 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
             </div>
 
             {/* Input Area */}
-            <div className="p-8 border-t border-brand-border bg-neutral-50/50 dark:bg-zinc-900/10">
+            <div className="p-8 border-t border-black/5 dark:border-white/10 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-xl">
               <form onSubmit={handleSubmit} className="relative group">
                 <textarea
                   rows={1}
@@ -424,12 +424,12 @@ export default function AiAssistant({ onSearchApplied, products = [] }: AiAssist
                       handleSubmit(e);
                     }
                   }}
-                  className="w-full bg-white dark:bg-zinc-900 border-2 border-brand-border rounded-[24px] py-4 pl-8 pr-16 text-sm font-black italic focus:outline-none focus:border-brand-primary transition-all placeholder:opacity-40 text-[var(--brand-text)] group-hover:border-zinc-300 dark:group-hover:border-zinc-800 focus:group-hover:border-brand-primary overflow-hidden resize-none min-h-[60px]"
+                  className="w-full bg-white/80 dark:bg-black/50 backdrop-blur-md border-2 border-black/10 dark:border-white/10 rounded-[24px] py-4 pl-8 pr-16 text-sm font-black italic focus:outline-none focus:border-brand-primary transition-all placeholder:opacity-40 text-[var(--brand-text)] group-hover:border-black/20 dark:group-hover:border-white/20 focus:group-hover:border-brand-primary overflow-hidden resize-none min-h-[60px]"
                 />
                 <button
                   type="submit"
                   disabled={!query.trim() || isLoading}
-                  className="absolute right-3 bottom-1.5 h-12 w-12 bg-brand-primary text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all shadow-lg cursor-pointer z-10"
+                  className="absolute right-3 bottom-1.5 h-12 w-12 bg-brand-primary text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all shadow-xl shadow-brand-primary/25 cursor-pointer z-10"
                 >
                   <Send className="h-5 w-5" />
                 </button>

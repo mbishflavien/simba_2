@@ -35,10 +35,10 @@ export default function WishlistDrawer() {
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 bg-black z-[100] backdrop-blur-[2px]"
+            className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-md"
           />
 
           {/* Sliding Drawer Container */}
@@ -48,13 +48,13 @@ export default function WishlistDrawer() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="fixed top-0 right-0 h-full w-full sm:max-w-md bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl z-[101] flex flex-col overflow-hidden"
+            className="fixed top-0 right-0 h-full w-full sm:max-w-md bg-white/85 dark:bg-zinc-950/85 backdrop-blur-3xl border-l border-white/20 dark:border-white/10 shadow-2xl z-[101] flex flex-col overflow-hidden"
             id="wishlist-drawer"
           >
             {/* Header */}
-            <div className="py-5 px-6 flex justify-between items-center border-b border-zinc-100 dark:border-zinc-900 shrink-0">
+            <div className="py-5 px-6 flex justify-between items-center border-b border-black/5 dark:border-white/10 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center font-black">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center font-black backdrop-blur-md border border-rose-500/20">
                   <Heart className="h-5 w-5 fill-rose-500 text-rose-500" />
                 </div>
                 <div>
@@ -68,7 +68,7 @@ export default function WishlistDrawer() {
               </div>
               <button 
                 onClick={() => setIsOpen(false)} 
-                className="p-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-805 rounded-full transition-all hover:scale-105 active:scale-95 flex items-center justify-center"
+                className="p-3 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 border border-black/5 dark:border-white/10 rounded-full transition-all hover:scale-105 active:scale-95 flex items-center justify-center backdrop-blur-md"
                 aria-label="Close"
               >
                 <X className="h-4 w-4 text-zinc-500" />
@@ -85,7 +85,7 @@ export default function WishlistDrawer() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     className="h-full flex flex-col items-center justify-center text-center px-4 self-center space-y-6 my-auto"
                   >
-                    <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 mx-auto">
+                    <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 mx-auto backdrop-blur-md border border-rose-500/20">
                       <Heart className="h-8 w-8 text-rose-500" />
                     </div>
                     <div>
@@ -98,7 +98,7 @@ export default function WishlistDrawer() {
                     </div>
                     <button 
                       onClick={() => setIsOpen(false)}
-                      className="px-6 py-3 bg-brand-primary text-white rounded-full font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all shadow-md italic"
+                      className="px-6 py-3 bg-brand-primary text-white rounded-full font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-brand-primary/25 italic"
                     >
                       {t('continue_shopping', 'Explore Store')}
                     </button>
@@ -115,10 +115,10 @@ export default function WishlistDrawer() {
                           initial={{ opacity: 0, y: 15 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9 }}
-                          className="flex items-center gap-4 p-3 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-100 dark:border-zinc-800/60 rounded-2xl group relative overflow-hidden"
+                          className="flex items-center gap-4 p-3.5 bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl group relative overflow-hidden backdrop-blur-xl shadow-sm"
                         >
                           {/* Image */}
-                          <div className="w-16 h-16 shrink-0 bg-white dark:bg-zinc-900 rounded-xl p-2 border border-zinc-100 dark:border-zinc-800 flex items-center justify-center">
+                          <div className="w-16 h-16 shrink-0 bg-white/80 dark:bg-black/60 rounded-xl p-2 border border-black/5 dark:border-white/10 flex items-center justify-center backdrop-blur-md">
                             <img 
                               src={product.image} 
                               alt={product.name} 
@@ -135,7 +135,7 @@ export default function WishlistDrawer() {
                             <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider mb-1.5">
                               {product.category && typeof product.category === 'string' ? t(`cat_${product.category.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_')}`) : t('cat_other')}
                             </p>
-                            <p className="font-bold text-xs text-zinc-950 dark:text-white">
+                            <p className="font-bold text-xs text-brand-primary">
                               {formatCurrency(product.price)}
                             </p>
                           </div>
@@ -146,10 +146,10 @@ export default function WishlistDrawer() {
                             {product.inStock ? (
                               <button
                                 onClick={() => addToCart(product)}
-                                className={`p-2 rounded-full transition-all flex items-center justify-center ${
+                                className={`p-2 rounded-full transition-all flex items-center justify-center backdrop-blur-md ${
                                   isInCart 
-                                    ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
-                                    : 'bg-brand-primary text-white hover:bg-orange-600 shadow-md'
+                                    ? 'bg-green-500/15 text-green-500 border border-green-500/30' 
+                                    : 'bg-brand-primary text-white hover:bg-orange-600 shadow-md shadow-brand-primary/20'
                                 }`}
                                 title={t('add_to_cart', 'Add to Cart')}
                               >
@@ -164,7 +164,7 @@ export default function WishlistDrawer() {
                             {/* Remove from Wishlist */}
                             <button
                               onClick={() => toggleWishlist(product)}
-                              className="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-full border border-zinc-200 dark:border-zinc-700/60 transition-all flex items-center justify-center"
+                              className="p-2 bg-black/5 dark:bg-white/5 text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-full border border-black/5 dark:border-white/10 transition-all flex items-center justify-center backdrop-blur-md"
                               title={t('remove', 'Remove')}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -180,10 +180,10 @@ export default function WishlistDrawer() {
 
             {/* Bottom Actions */}
             {wishlistProducts.length > 0 && (
-              <div className="p-6 border-t border-zinc-150 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-950/50 shrink-0 space-y-3">
+              <div className="p-6 border-t border-black/5 dark:border-white/10 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-xl shrink-0 space-y-3">
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="w-full bg-brand-primary hover:bg-orange-600 text-white font-black py-4 px-6 rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-lg shadow-brand-primary/10 hover:shadow-brand-primary/20 transition-all italic duration-300"
+                  className="w-full bg-brand-primary hover:bg-orange-600 text-white font-black py-4 px-6 rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-brand-primary/25 transition-all italic duration-300"
                 >
                   <span>{t('continue_shopping', 'Back to Store')}</span>
                   <ArrowRight className="h-4 w-4" />

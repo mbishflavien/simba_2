@@ -254,10 +254,10 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="w-full max-w-md bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl rounded-[48px] border border-brand-border dark:border-white/10 p-8 sm:p-12 shadow-[0_32px_80px_rgba(0,0,0,0.1)] dark:shadow-none relative z-10"
+        className="w-full max-w-md bg-white/70 dark:bg-zinc-950/70 backdrop-blur-3xl rounded-[48px] border border-white/40 dark:border-white/10 p-8 sm:p-12 shadow-2xl relative z-10"
       >
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] bg-brand-primary text-white mb-8 shadow-xl shadow-brand-primary/20 -rotate-6 scale-110">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] bg-brand-primary text-white mb-8 shadow-2xl shadow-brand-primary/30 -rotate-6 scale-110">
             <LogIn className="w-10 h-10" />
           </div>
           <h1 className="text-5xl font-black italic uppercase tracking-tighter text-[var(--brand-text)] mb-3 leading-none">
@@ -272,14 +272,14 @@ export default function Login() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl mb-8 text-red-500 text-xs font-bold uppercase italic tracking-wider">
+          <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 backdrop-blur-md rounded-2xl mb-8 text-red-500 text-xs font-bold uppercase italic tracking-wider">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Test Credentials banner */}
-        <div className="bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 rounded-[32px] p-6 mb-8 space-y-4 text-left">
+        <div className="bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 backdrop-blur-md rounded-[32px] p-6 mb-8 space-y-4 text-left">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-amber-500" />
             <h3 className="text-xs font-black uppercase tracking-wider text-amber-500">TEST CREDENTIALS</h3>
@@ -292,7 +292,7 @@ export default function Login() {
               type="button"
               onClick={() => handleTestLogin('buyer')}
               disabled={loading}
-              className="bg-black/5 hover:bg-brand-primary hover:text-white dark:bg-white/5 text-[var(--brand-text)] py-3 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border border-brand-border dark:border-white/10"
+              className="bg-white/60 dark:bg-white/5 hover:bg-brand-primary hover:text-white text-[var(--brand-text)] py-3 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border border-black/5 dark:border-white/10 backdrop-blur-md"
             >
               Buyer Portal
             </button>
@@ -300,12 +300,12 @@ export default function Login() {
               type="button"
               onClick={() => handleTestLogin('admin')}
               disabled={loading}
-              className="bg-brand-primary text-white dark:text-black py-3 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer hover:bg-orange-600 dark:hover:bg-amber-400 font-extrabold"
+              className="bg-brand-primary text-white dark:text-black py-3 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer hover:bg-orange-600 dark:hover:bg-amber-400 font-extrabold shadow-md shadow-brand-primary/25"
             >
               Admin Portal
             </button>
           </div>
-          <div className="text-[9px] font-black uppercase tracking-widest text-[#d97706] dark:text-[#f59e0b] flex flex-col gap-1 pt-1 opacity-90 border-t border-brand-border/40 dark:border-white/5">
+          <div className="text-[9px] font-black uppercase tracking-widest text-[#d97706] dark:text-[#f59e0b] flex flex-col gap-1 pt-1 opacity-90 border-t border-black/5 dark:border-white/10">
             <div>Buyer: <span className="font-bold select-all">buyer@test.com</span> / password123</div>
             <div>Admin: <span className="font-bold select-all">admin@test.com</span> / admin123</div>
           </div>
@@ -322,7 +322,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="simba@example.rw"
-                className="w-full bg-zinc-50 dark:bg-black/20 border-2 border-transparent focus:border-brand-primary rounded-2xl py-4 pl-12 pr-4 outline-none font-bold uppercase italic text-xs tracking-tight transition-all text-[var(--brand-text)] shadow-inner"
+                className="w-full bg-white/60 dark:bg-black/40 backdrop-blur-md border border-black/10 dark:border-white/10 focus:border-brand-primary rounded-2xl py-4 pl-12 pr-4 outline-none font-bold uppercase italic text-xs tracking-tight transition-all text-[var(--brand-text)] shadow-inner"
               />
             </div>
           </div>
@@ -342,7 +342,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-zinc-50 dark:bg-black/20 border-2 border-transparent focus:border-brand-primary rounded-2xl py-4 pl-12 pr-12 outline-none font-bold italic text-xs tracking-tight transition-all text-[var(--brand-text)] shadow-inner"
+                className="w-full bg-white/60 dark:bg-black/40 backdrop-blur-md border border-black/10 dark:border-white/10 focus:border-brand-primary rounded-2xl py-4 pl-12 pr-12 outline-none font-bold italic text-xs tracking-tight transition-all text-[var(--brand-text)] shadow-inner"
               />
               <button
                 type="button"
