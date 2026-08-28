@@ -26,8 +26,8 @@
     --brand-text: #080808;
     --brand-text-muted: rgba(0, 0, 0, 0.4);
     --brand-card: #ffffff;
-    --brand-border: rgba(0, 0, 0, 0.05);
-    --brand-nav: rgba(245, 245, 245, 0.85);
+    --brand-border: rgba(0, 0, 0, 0.06);
+    --brand-nav: rgba(255, 255, 255, 0.65);
     --brand-card-hover: rgba(249, 115, 22, 0.02);
   }
 
@@ -37,7 +37,7 @@
     --brand-text-muted: rgba(255, 255, 255, 0.3);
     --brand-card: rgba(18, 18, 18, 1);
     --brand-border: rgba(255, 255, 255, 0.08);
-    --brand-nav: rgba(5, 5, 5, 0.85);
+    --brand-nav: rgba(10, 10, 10, 0.65);
     --brand-card-hover: rgba(255, 255, 255, 0.03);
   }
 

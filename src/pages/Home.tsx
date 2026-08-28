@@ -13,6 +13,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import AiAssistant from '../components/AiAssistant';
 import { AiSearchIntent } from '../services/aiService';
 import landingHero from '../assets/images/landing_hero_1781164991277.png';
+import HeroVideoSection from '../components/HeroVideoSection';
+import FluidDiscoveryBanner from '../components/FluidDiscoveryBanner';
+import FluidGradientMesh from '../components/FluidGradientMesh';
 
 const SUBCATEGORY_NAMES: Record<number, string> = {
   13: 'Heaters & Utensils',
@@ -373,159 +376,11 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       {/* Hero Section */}
       {!searchQuery && !selectedCategory && (
-        <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-zinc-950 w-full" id="welcome-hero-section">
-          {/* Animated Background Image - Crisp, Vibrant & Authentic Supermarket Atmosphere */}
-          <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none select-none">
-            <motion.img 
-              src={landingHero} 
-              alt="Simba Supermarket Fresh Products & Aisles" 
-              initial={{ scale: 1.02 }}
-              animate={{ 
-                scale: [1.02, 1.10, 1.05, 1.09, 1.02],
-                x: [0, -8, 8, -4, 0],
-                y: [0, 6, -4, 6, 0]
-              }}
-              transition={{
-                duration: 22,
-                repeat: Infinity,
-                repeatType: "reverse",
-                ease: "easeInOut"
-              }}
-              className="w-full h-full object-cover object-center filter brightness-100 contrast-[1.08] saturate-[1.2] transform-gpu"
-              referrerPolicy="no-referrer"
-            />
-            {/* Gentle edge shading only to preserve product vibrancy while keeping text legible */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/45" />
-            <div className="absolute inset-0 bg-radial-[at_center_center] from-transparent via-black/15 to-black/55" />
-          </div>
-
-          {/* Main Centered Content Area with Sleek Glass Scrim */}
-          <div className="relative w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 z-10 flex flex-col items-center justify-center text-center py-16 md:py-24">
-            {/* Ambient Floating Glow behind Card */}
-            <div className="absolute w-72 sm:w-96 h-72 sm:h-96 bg-brand-primary/20 rounded-full blur-[100px] pointer-events-none -z-10 animate-pulse" />
-
-            <motion.div 
-              initial={{ opacity: 0, y: 30, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full flex flex-col items-center justify-center text-center space-y-5 sm:space-y-6 bg-black/50 dark:bg-black/60 backdrop-blur-md rounded-3xl p-6 sm:p-9 border border-white/25 shadow-2xl shadow-black/70 relative overflow-hidden"
-            >
-              {/* Subtle Animated Shimmer Beam across card */}
-              <motion.div 
-                animate={{ x: ['-100%', '200%'] }}
-                transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut', repeatDelay: 2 }}
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12 pointer-events-none"
-              />
-              
-              {/* Brand Header */}
-              <div className="space-y-2.5 max-w-3xl mx-auto relative z-10">
-                <motion.h1 
-                  initial={{ opacity: 0, y: 25 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-4xl sm:text-6xl lg:text-7xl font-display font-black tracking-tighter uppercase italic leading-[0.95] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
-                >
-                  SIMBA{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-brand-primary to-amber-300">
-                    SUPERMARKET
-                  </span>
-                </motion.h1>
-                
-                <motion.p 
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.8 }}
-                  className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-widest text-zinc-100 italic max-w-2xl mx-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-                >
-                  Meeting your daily requirements with Rwanda’s finest retail resurgence. Freshness guaranteed.
-                </motion.p>
-              </div>
-
-              {/* Description */}
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.8 }}
-                className="text-zinc-200 text-xs sm:text-sm leading-relaxed max-w-2xl mx-auto space-y-2 font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] relative z-10"
-              >
-                <p>
-                  Since inaugurating our flagship store, Simba has stood as Rwanda’s premium retail landmark, now proudly serving you across 11 major branches with clean, hand-inspected local freshness and the finest international imports.
-                </p>
-                <motion.p 
-                  animate={{ scale: [1, 1.02, 1] }}
-                  transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                  className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-300 italic"
-                >
-                  ⚡ Fast-track, temperature-controlled delivery across Kigali in under 30 minutes!
-                </motion.p>
-              </motion.div>
-
-              {/* Call to Actions - Slimmer, High Standard Buttons */}
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.8 }}
-                className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-1 w-full max-w-sm mx-auto relative z-10"
-              >
-                <motion.button 
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="w-full sm:w-auto group bg-brand-primary hover:bg-orange-600 text-white py-2.5 sm:py-3 px-6 sm:px-7 rounded-full font-black text-xs uppercase tracking-[0.18em] flex items-center justify-center gap-2.5 transition-all duration-200 shadow-xl shadow-brand-primary/40 italic cursor-pointer relative overflow-hidden"
-                  id="welcome-shop-btn"
-                >
-                  <ShoppingBag className="h-4 w-4 group-hover:rotate-12 transition-transform duration-300" />
-                  {t('start_shopping')}
-                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform duration-300" />
-                </motion.button>
-
-                <motion.div whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.96 }} className="w-full sm:w-auto">
-                  <Link 
-                    to="/about" 
-                    className="w-full sm:w-auto group bg-white/20 hover:bg-white/30 text-white border border-white/40 backdrop-blur-md py-2.5 sm:py-3 px-6 sm:px-7 rounded-full font-black text-xs uppercase tracking-[0.18em] flex items-center justify-center gap-2.5 transition-all duration-200 italic shadow-lg"
-                    id="welcome-about-btn"
-                  >
-                    <Info className="h-4 w-4 text-brand-primary group-hover:scale-110 transition-transform duration-300" />
-                    About Simba
-                  </Link>
-                </motion.div>
-              </motion.div>
-
-              {/* Quick Value Preps - Centered Grid with Interactive Hover Bounces */}
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.8 }}
-                className="grid grid-cols-3 gap-3 sm:gap-6 pt-5 border-t border-white/20 max-w-xl w-full mx-auto relative z-10"
-              >
-                <motion.div whileHover={{ y: -2, scale: 1.05 }} className="space-y-0.5 text-center cursor-default transition-all">
-                  <div className="flex items-center justify-center gap-1.5 text-brand-primary">
-                    <Clock className="h-3.5 w-3.5 animate-bounce" />
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white">30 Min Delivery</span>
-                  </div>
-                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-300 uppercase">Realtime fleet</p>
-                </motion.div>
-                <motion.div whileHover={{ y: -2, scale: 1.05 }} className="space-y-0.5 text-center cursor-default transition-all">
-                  <div className="flex items-center justify-center gap-1.5 text-brand-primary">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white">Quality Pick</span>
-                  </div>
-                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-300 uppercase">Double-inspected</p>
-                </motion.div>
-                <motion.div whileHover={{ y: -2, scale: 1.05 }} className="space-y-0.5 text-center cursor-default transition-all">
-                  <div className="flex items-center justify-center gap-1.5 text-brand-primary">
-                    <Award className="h-3.5 w-3.5" />
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white">11 Branches</span>
-                  </div>
-                  <p className="text-[8px] sm:text-[9px] font-semibold text-zinc-300 uppercase">Across Rwanda</p>
-                </motion.div>
-              </motion.div>
-
-            </motion.div>
-          </div>
-        </section>
+        <HeroVideoSection 
+          onStartShopping={() => {
+            document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        />
       )}
 
       <div id="market" className="sticky top-16 sm:top-20 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md">
@@ -782,18 +637,33 @@ export default function Home() {
             </motion.div>
           ) : (
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-32 text-zinc-400"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative overflow-hidden rounded-[40px] border border-white/10 p-12 sm:p-20 flex flex-col items-center justify-center text-center my-12"
             >
-              <Search className="h-20 w-20 mb-6 opacity-20 text-brand-primary" />
-              <p className="text-xl font-black uppercase italic tracking-widest opacity-30">{t('no_units_found')}</p>
-              <button 
-                onClick={() => { setSelectedCategory(null); window.history.pushState({}, '', '/'); }}
-                className="mt-6 text-brand-primary font-black uppercase tracking-widest text-sm hover:underline"
-              >
-                {t('reset_search')}
-              </button>
+              {/* Interactive Fluid Canvas in Background */}
+              <div className="absolute inset-0 z-0 opacity-40">
+                <FluidGradientMesh intensity={0.7} speed={0.8} />
+              </div>
+              <div className="absolute inset-0 bg-white/70 dark:bg-black/80 backdrop-blur-md" />
+
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="p-4 rounded-full bg-brand-primary/10 border border-brand-primary/20 mb-4">
+                  <Search className="h-10 w-10 text-brand-primary" />
+                </div>
+                <h4 className="text-2xl sm:text-3xl font-display font-black uppercase italic tracking-wider text-[var(--brand-text)] mb-2">
+                  {t('no_units_found')}
+                </h4>
+                <p className="text-xs sm:text-sm text-zinc-500 max-w-md font-medium mb-6">
+                  Try adjusting your filters, selecting a different department, or browsing our farm-direct fresh aisles.
+                </p>
+                <button 
+                  onClick={() => { setSelectedCategory(null); setSelectedSubcategory(null); setMinPrice(''); setMaxPrice(''); setOnlyInStock(false); window.history.pushState({}, '', '/'); }}
+                  className="bg-brand-primary hover:bg-orange-600 text-white font-black uppercase tracking-widest text-xs px-8 py-3.5 rounded-full shadow-lg shadow-brand-primary/30 transition-all cursor-pointer"
+                >
+                  {t('reset_search')}
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -803,11 +673,21 @@ export default function Home() {
           <div className="mt-16 text-center">
             <button
                onClick={loadMore}
-               className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 text-[var(--brand-text)] px-12 py-5 rounded-full font-black uppercase tracking-[0.2em] hover:bg-brand-primary hover:text-white dark:hover:text-black transition-all"
+               className="bg-black/5 dark:bg-white/5 border border-brand-border dark:border-white/10 text-[var(--brand-text)] px-12 py-5 rounded-full font-black uppercase tracking-[0.2em] hover:bg-brand-primary hover:text-white dark:hover:text-black transition-all cursor-pointer"
             >
               {t('view_more')}
             </button>
           </div>
+        )}
+
+        {/* Interactive Fluid Category / Farm Direct Discovery Showcase */}
+        {!searchQuery && (
+          <FluidDiscoveryBanner 
+            onExplore={() => {
+              setSelectedCategory('Food Products');
+              document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
         )}
 
         {/* Community Hub Section */}
