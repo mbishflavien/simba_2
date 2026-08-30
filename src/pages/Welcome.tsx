@@ -2,25 +2,45 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { ShoppingBag, ArrowRight, Info, ShieldCheck, Clock, Award } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Info, ShieldCheck, Clock, Award, Sparkles } from 'lucide-react';
 import landingHero from '../assets/images/landing_hero_1781164991277.png';
+import FluidGradientMesh from '../components/FluidGradientMesh';
 
 export default function Welcome() {
   const { t, i18n } = useTranslation();
 
   return (
-    <div className="min-h-screen flex flex-col relative bg-neutral-50 dark:bg-zinc-950 overflow-hidden w-full" id="welcome-page">
-      {/* Dynamic Background Image Section - High quality, completely crisp and unblurred */}
-      <div className="absolute inset-0 z-0 h-[45vh] md:h-full md:w-1/2 md:right-0 md:left-auto">
-        <img 
-          src={landingHero} 
-          alt="Simba Supermarket Premium Storefront" 
-          className="w-full h-full object-cover dark:brightness-90 object-center transition-all duration-700 ease-out"
-          referrerPolicy="no-referrer"
-        />
+    <div className="min-h-screen flex flex-col relative bg-neutral-950 overflow-hidden w-full" id="welcome-page">
+      {/* Background Fluid Gradient Mesh Fill for the entire page */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
+        <FluidGradientMesh intensity={0.9} speed={1.1} interactive={true} blurAmount="40px" />
+        <div className="absolute inset-0 bg-neutral-950/60 backdrop-blur-[2px]" />
+      </div>
+
+      {/* Dynamic Background Video & Image Section */}
+      <div className="absolute inset-0 z-0 h-[45vh] md:h-full md:w-1/2 md:right-0 md:left-auto overflow-hidden">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster={landingHero}
+          className="w-full h-full object-cover object-center filter brightness-95 contrast-105 saturate-125 transition-all duration-700 ease-out"
+        >
+          <source 
+            src="https://assets.mixkit.co/videos/preview/mixkit-vegetables-and-fruits-arranged-in-a-market-stall-41031-large.mp4" 
+            type="video/mp4" 
+          />
+          <img 
+            src={landingHero} 
+            alt="Simba Supermarket Premium Storefront" 
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        </video>
         {/* Crisp Gradient Transition overlays to handle high-contrast text rendering */}
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-50 via-neutral-50/80 to-transparent dark:from-zinc-950 dark:via-zinc-950/85 md:hidden" />
-        <div className="absolute inset-0 bg-gradient-to-r from-neutral-50 via-neutral-50/10 to-transparent dark:from-zinc-950 dark:via-zinc-950/20 hidden md:block" />
+        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/80 to-transparent md:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-950 via-neutral-950/30 to-transparent hidden md:block" />
       </div>
 
       {/* Main Content Area */}

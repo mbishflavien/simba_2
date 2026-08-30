@@ -240,30 +240,33 @@ export default function Navbar() {
     { code: 'rw', label: 'Kinyarwanda', short: 'RW' },
   ];
 
-  // Smart sticky navbar that reveals on scroll gesture
+  // Smart sticky navbar that hides on scroll down and reappears immediately on scroll up anywhere on the page
   const [isNavVisible, setIsNavVisible] = useState(true);
   const [isScrolledPast, setIsScrolledPast] = useState(false);
 
   useEffect(() => {
-    let lastScrollY = window.scrollY;
+    let lastScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
     let ticking = false;
 
     const onScroll = () => {
-      const currentScrollY = window.scrollY;
+      const currentScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
 
-      setIsScrolledPast(currentScrollY > 60);
+      setIsScrolledPast(currentScrollY > 20);
 
-      // Always visible near top
-      if (currentScrollY <= 80) {
+      // Always visible at the very top of page
+      if (currentScrollY <= 10) {
         setIsNavVisible(true);
-      } else if (isMenuOpen || showSuggestions || isSearchOpen) {
-        // Keep visible when user is interacting with menu or search
+      } 
+      // Keep visible if user is interacting with menu, search or notifications
+      else if (isMenuOpen || showSuggestions || isSearchOpen || isDesktopLangOpen || isMobileLangOpen || isNotifOpen) {
         setIsNavVisible(true);
-      } else if (currentScrollY < lastScrollY - 4) {
-        // User scrolls up even a fraction -> immediately drop down the navbar
+      } 
+      // Scrolling UP: immediately reveal navbar anywhere on page
+      else if (currentScrollY < lastScrollY - 3) {
         setIsNavVisible(true);
-      } else if (currentScrollY > lastScrollY + 12 && currentScrollY > 150) {
-        // User scrolls down continuously -> tuck away to maximize screen space
+      } 
+      // Scrolling DOWN: tuck away navbar to maximize viewport
+      else if (currentScrollY > lastScrollY + 4 && currentScrollY > 60) {
         setIsNavVisible(false);
       }
 
@@ -280,13 +283,13 @@ export default function Navbar() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMenuOpen, showSuggestions, isSearchOpen]);
+  }, [isMenuOpen, showSuggestions, isSearchOpen, isDesktopLangOpen, isMobileLangOpen, isNotifOpen]);
 
   return (
     <>
       <nav 
-        className={`nav-blur sticky top-0 z-[100] transition-transform duration-300 ease-out transform-gpu ${
-          isNavVisible ? 'translate-y-0' : '-translate-y-full'
+        className={`nav-blur sticky top-0 z-[100] transition-transform duration-300 ease-out transform-gpu will-change-transform ${
+          isNavVisible ? 'translate-y-0' : '-translate-y-full pointer-events-none'
         } ${isScrolledPast ? 'shadow-lg border-b border-[var(--brand-border)]' : ''}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
