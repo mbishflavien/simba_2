@@ -8,8 +8,7 @@ import {
   Info, 
   Clock, 
   ShieldCheck, 
-  Award,
-  Sparkles
+  Award
 } from 'lucide-react';
 import landingHero from '../assets/images/landing_hero_1781164991277.png';
 import FluidGradientMesh from './FluidGradientMesh';
@@ -149,22 +148,6 @@ export default function HeroVideoSection({ onStartShopping }: HeroVideoSectionPr
         <div className="absolute w-72 sm:w-[520px] h-72 sm:h-[520px] bg-brand-primary/25 rounded-full blur-[130px] pointer-events-none -z-10 animate-pulse" />
 
         <div className="w-full flex flex-col items-center justify-center text-center space-y-6 sm:space-y-8 relative">
-          
-          {/* Top Rwanda Heritage Badge */}
-          <motion.div 
-            initial={{ opacity: 0, y: -15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 dark:bg-black/40 border border-white/25 backdrop-blur-2xl shadow-xl"
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 -ml-5" />
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-white italic">
-              Kigali’s Premier Supermarket • 11 Branches
-            </span>
-            <Sparkles className="h-3 w-3 text-amber-300 ml-0.5" />
-          </motion.div>
-
           {/* Headline Typography */}
           <div className="space-y-3 sm:space-y-4 max-w-4xl mx-auto relative z-10">
             <motion.h1 
