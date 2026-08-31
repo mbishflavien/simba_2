@@ -11,6 +11,7 @@ import Welcome from './pages/Welcome';
 import FloatingCartBar from './components/FloatingCartBar';
 import WishlistDrawer from './components/WishlistDrawer';
 import CurtainIntro from './components/CurtainIntro';
+import BackToTop from './components/BackToTop';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import AboutUs from './pages/AboutUs';
@@ -105,6 +106,7 @@ function AppLayout() {
       {!hideGlobalUI && <Footer />}
       {!hideGlobalUI && <FloatingCartBar />}
       {!hideGlobalUI && <WishlistDrawer />}
+      {!hideGlobalUI && <BackToTop />}
     </div>
   );
 }
